@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/shawn/Desktop/NYU/26Spring/CSCI3033 LLM Reasoner/final-project/.claude/hooks/update-context-reminder.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/shawn/Desktop/NYU/26Spring/CSCI3033 LLM Reasoner/final-project/.claude/hooks/update-context-reminder.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
