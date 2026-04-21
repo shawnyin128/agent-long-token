@@ -1,0 +1,193 @@
+{
+  "features": [
+    {
+      "id": "core-infrastructure",
+      "category": "infrastructure",
+      "priority": "high",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Core infrastructure: config, LLM client + cache, GSM8K dataset loader, answer parser, smoke tests",
+      "steps": [
+        "set up project layout per spec \u00a73.1 (agentdiet/ package)",
+        "implement config.py with model, paths, seeds",
+        "implement llm_client.py with OpenAI-compat client and sha256(model||temp||messages) cache (JSONL, atomic append, startup validation)",
+        "implement dataset.py to load GSM8K and sample n questions with fixed seed",
+        "implement answer parser handling '#### 42', '42.0', '$42' variants",
+        "write tests/test_smoke.py (Layer 1): cache hit, dataset non-empty, answer parser variants"
+      ],
+      "passes": false
+    },
+    {
+      "id": "debate-runner",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "core-infrastructure"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Multi-agent debate runner: Agent class + scheduler for N agents \u00d7 R rounds",
+      "steps": [
+        "implement agents.py with Agent class (id, system_prompt, conversation_history) and 3 differentiated system prompts (solver/skeptic/synthesizer)",
+        "implement debate.py with run_debate(question, n_agents=3, n_rounds=3) producing a Dialogue with all messages + meta",
+        "implement majority-vote final_answer aggregation over last round",
+        "add Dialogue invariant assertion at end of run (message count == n_agents \u00d7 n_rounds)",
+        "Layer 1 smoke test: minimal 2\u00d71 debate produces schema-valid Dialogue"
+      ],
+      "passes": false
+    },
+    {
+      "id": "pilot-gate1",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "debate-runner"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Pilot experiment: 30-question single-agent vs 3\u00d73 debate comparison (Gate 1)",
+      "steps": [
+        "implement baseline single-agent runner (round 1, agent 1 only)",
+        "run both on same 30-question sample (seed fixed)",
+        "report acc_single, acc_debate, delta, and 3 sample dialogues for sanity inspection",
+        "record pilot output to artifacts/pilot_report.md",
+        "GATE 1 decision: if delta < 3pp, stop and switch model (Qwen \u2192 GPT-4o-mini) before continuing"
+      ],
+      "passes": false
+    },
+    {
+      "id": "full-collection",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "pilot-gate1"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Full dialogue collection: 100 GSM8K questions \u00d7 3\u00d73 debate, artifact per question",
+      "steps": [
+        "implement cli/collect.py with --n, --resume, --model flags",
+        "write dialogues to artifacts/dialogues/{model}/{qid}.json (atomic)",
+        "log failures to failures/debate/{qid}.json with raw context + traceback",
+        "end-of-run invariant: n_collected == n_requested - n_failed",
+        "run full 100-question collection, verify at least 95 succeed"
+      ],
+      "passes": false
+    },
+    {
+      "id": "claim-extraction",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "full-collection"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Schema-guided claim extraction with 6-type taxonomy + 10-dialogue spot check",
+      "steps": [
+        "define Claim pydantic model per spec \u00a73.3",
+        "write extraction prompt with 6-type taxonomy definitions + 3 few-shot examples",
+        "implement extract_claims.py using vLLM structured output (JSON mode)",
+        "one retry with stricter prompt on schema failure; log raw output to failures/ on final failure",
+        "run on all 100 dialogues, write artifacts/claims/{model}/{qid}.json",
+        "invariant: source_message_span within referenced message, type in enum",
+        "manual spot check on 10 random dialogues, record to artifacts/spot_check.csv with pass/fail notes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "flip-and-signals",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "claim-extraction"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Flip-point localization + independent per-claim signals (4 fields, no composite)",
+      "steps": [
+        "implement analysis/flip.py: detect rounds where agent answer majority flipped from wrong to right; output FlipEvent per flip with triggering_claim_id, pre/post answers",
+        "implement analysis/signals.py: for each claim compute flip_coincidence (bool), novelty (1 - max cos sim via sentence-transformer), referenced_later (bool via 0.7 cos sim threshold), position (round index)",
+        "output flip_events.jsonl + signal_scores.parquet",
+        "IMPORTANT: do NOT construct a composite score \u2014 store 4 independent fields only (spec \u00a75.2)",
+        "invariant: every triggering_claim_id exists in claims artifact"
+      ],
+      "passes": false
+    },
+    {
+      "id": "type-level-ablation",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "flip-and-signals"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Type-level ablation: causal importance Delta_t per claim type on single_wrong\u2227debate_right subset (Gate 2)",
+      "steps": [
+        "sample ~20 dialogues from single_wrong \u2227 debate_right subset",
+        "for each of 6 types t: reconstruct history with type-t claims removed, replay final round via llm_client (cache-keyed on new context)",
+        "compute Delta_t = acc(with) - acc(without) per type",
+        "enforce MAX_NEW_LLM_CALLS=500 hard cap",
+        "output artifacts/analysis/ablation.jsonl with per-type Delta, sample sizes, skipped cases",
+        "GATE 2 decision: if all Delta_t within noise, accept null result and adjust Day 3 compression scope (descriptive comparison rather than data-supported rule)"
+      ],
+      "passes": false
+    },
+    {
+      "id": "compression-policy",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "type-level-ablation"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Data-driven compression policy derived from Day 2 findings + compress.apply implementation",
+      "steps": [
+        "human reads ablation.jsonl + signal_scores + flip_events; writes artifacts/compression/policy.json with simplest data-supported rule (spec \u00a75.3)",
+        "implement compress.py with apply(dialogue, policy) producing compressed history string",
+        "support policy shapes: drop_types (list of types), drop_low_novelty (threshold), drop_unreferenced (bool), or logistic-regression-derived weighted rule if single signal insufficient",
+        "same interface also implements b1 (no-op), b2 (round1 agent1 only), b3 (last-k-rounds), b5 (random drop with seed)"
+      ],
+      "passes": false
+    },
+    {
+      "id": "evaluation-sweep",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "compression-policy"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Evaluation sweep: 5 methods \u00d7 100 questions \u00d7 (accuracy, tokens, acc_per_1k)",
+      "steps": [
+        "implement evaluate.py: for each method in {b1, b2, b3, b5, ours}, replay final round using compressed history; compute accuracy (vs gold), total input tokens, accuracy-per-1k-tokens",
+        "output artifacts/evaluation/results.json",
+        "sanity invariants: acc(b1) \u2265 acc(b2); acc(ours) \u2265 acc(b5); token ordering b1 > b3 > b5 \u2248 ours",
+        "also log per-question breakdown for error analysis"
+      ],
+      "passes": false
+    },
+    {
+      "id": "report-generation",
+      "category": "functional",
+      "priority": "medium",
+      "depends_on": [
+        "evaluation-sweep"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Analysis figures, tables, and IMRAD report PDF (d3 + d4)",
+      "steps": [
+        "analysis notebook producing: claim type distribution (by agent \u00d7 round), signal-vs-flip correlations (separately), Delta_t ranking bar chart, Pareto curve (acc vs tokens across methods)",
+        "LaTeX tables for baseline comparison and claim statistics",
+        "write IMRAD report ~6-8 pages: abstract, intro (pivot rationale), methods (3\u00d73 debate on GSM8K, claim extraction, flip+ablation attribution), results, discussion (including null-result framing if Gate 2 triggers), limitations (single-seed, n=100, no multi-seed bootstrap)",
+        "export PDF to docs/reports/final-report.pdf"
+      ],
+      "passes": false
+    }
+  ]
+}

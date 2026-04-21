@@ -44,15 +44,24 @@ Each concern has ONE home. Never duplicate across sources.
 
 ## Project Map
 
-Stack: Python + PyTorch + HuggingFace. Master-level LLM course final project.
+Stack: Python + vLLM + HuggingFace + sentence-transformers + HDBSCAN. Master-level LLM course final project.
+
+**Research question:** On GSM8K, which claims exchanged during multi-agent debate causally contribute to the accuracy gain, and can a data-supported claim-level compression rule reduce token cost while preserving accuracy?
 
 ### Design Docs
 docs/
-├── design-docs/     — specs from brainstorming (empty)
+├── design-docs/
+│   └── 2026-04-21-multi-agent-debate-claim-analysis-design.md — approved spec (3-day plan)
 ├── plans/
 │   ├── active/      — plans currently being executed (empty)
 │   └── completed/   — finished plans (empty)
-└── reports/         — sp-feedback optimization reports (empty)
+└── reports/         — sp-feedback optimization reports + final report PDF (empty)
+
+### Features
+`.claude/features.json` tracks 10 features in dependency order:
+core-infrastructure → debate-runner → pilot-gate1 → full-collection →
+claim-extraction → flip-and-signals → type-level-ablation →
+compression-policy → evaluation-sweep → report-generation
 
 ### Codebase
-(empty — to be populated as the project develops)
+Target layout (agentdiet/) defined in spec §3.1 — not yet implemented.
