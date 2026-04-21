@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Plan Overview — Multi-Agent Debate Claim Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #151a22;
+    --panel-2: #1b222d;
+    --border: #2a3441;
+    --text: #e6edf3;
+    --muted: #8b98a7;
+    --accent: #58a6ff;
+    --accent-2: #7ee787;
+    --warn: #f0b429;
+    --danger: #ff7b72;
+    --ok: #3fb950;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 48px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 28px; margin: 0 0 4px 0; }
+  h2 { font-size: 20px; margin: 40px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--accent); }
+  h3 { font-size: 16px; margin: 18px 0 8px 0; color: var(--accent-2); }
+  p { margin: 6px 0; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    margin-right: 6px;
+  }
+  .tag.ok { color: var(--ok); border-color: var(--ok); }
+  .tag.warn { color: var(--warn); border-color: var(--warn); }
+  .tag.danger { color: var(--danger); border-color: var(--danger); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 12px 0;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px 16px;
+    font-size: 14px;
+  }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+  .day {
+    border-left: 4px solid var(--accent);
+    padding: 4px 16px;
+    margin: 10px 0;
+    background: var(--panel-2);
+    border-radius: 0 6px 6px 0;
+  }
+  .day h3 { margin-top: 8px; }
+  .gate {
+    background: linear-gradient(90deg, rgba(240,180,41,0.12), transparent);
+    border-left: 4px solid var(--warn);
+    padding: 10px 16px;
+    margin: 10px 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .gate strong { color: var(--warn); }
+  .feat {
+    display: grid;
+    grid-template-columns: 32px 1fr 100px;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 6px 0;
+    align-items: center;
+  }
+  .feat .n {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: #0e1116;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .feat .name { font-weight: 600; }
+  .feat .desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .feat .dep { color: var(--muted); font-size: 12px; text-align: right; }
+  .mermaid {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+  code {
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: "SF Mono", Monaco, Menlo, monospace;
+    font-size: 13px;
+    color: var(--accent-2);
+  }
+  .callout {
+    background: rgba(88,166,255,0.08);
+    border-left: 4px solid var(--accent);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+  }
+  .callout strong { color: var(--accent); }
+  .pill-row { margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Multi-Agent Debate — Claim-Level Gain Attribution & Compression</h1>
+<p class="sub">CSCI3033 LLM Reasoner · Final Project · Plan Overview · 2026-04-21</p>
+
+<div class="pill-row">
+  <span class="tag ok">Spec Approved</span>
+  <span class="tag">GSM8K · 100 questions</span>
+  <span class="tag">3 agents × 3 rounds</span>
+  <span class="tag">Qwen2.5-7B-Instruct (vLLM)</span>
+  <span class="tag">3-day timeline</span>
+  <span class="tag">pure-code architecture</span>
+</div>
+
+<h2>Research Question</h2>
+<div class="panel">
+  <p>On GSM8K, <strong>which claims exchanged during multi-agent debate causally contribute to the accuracy gain</strong>, and can a data-supported claim-level compression rule reduce token cost while preserving accuracy?</p>
+  <p class="sub">Pivot from original MMLU proposal per professor feedback: first pick a task with robust debate gains, then attribute the gains, then design compression.</p>
+</div>
+
+<h2>Key Methodological Stance</h2>
+<div class="callout">
+  <strong>No hand-weighted composite importance score.</strong> Analysis phase produces only:
+  (a) 4 <em>independent</em> per-claim signals — <code>flip_coincidence</code>, <code>novelty</code>, <code>referenced_later</code>, <code>position</code>;
+  (b) causal <code>Δ_t</code> per claim type via type-level ablation.
+  Compression policy on Day 3 is the <em>simplest rule supported by this evidence</em>. Null result is an acceptable outcome.
+</div>
+
+<h2>3-Day Timeline</h2>
+
+<div class="day">
+  <h3>Day 1 — Infrastructure + Pilot + Collection <span class="sub">(~12h)</span></h3>
+  <p><strong>AM (4h):</strong> Package layout · config · llm_client + cache · dataset loader · answer parser · smoke tests</p>
+  <p><strong>Midday (1h):</strong> Pilot on 30 questions, single-agent vs 3×3 debate</p>
+  <div class="gate">
+    <strong>⚠ Gate 1:</strong> if <code>acc_debate − acc_single &lt; 3pp</code> → switch to API model (GPT-4o-mini, ~$2–5) and re-pilot. Still &lt;3pp → escalate to user.
+  </div>
+  <p><strong>PM (5–6h):</strong> Full 100-question collection (background) · finalize claim extraction prompt + schema</p>
+</div>
+
+<div class="day">
+  <h3>Day 2 — Extraction + Attribution <span class="sub">(~12h)</span></h3>
+  <p><strong>AM (3h):</strong> Run schema-guided claim extraction · 10-dialogue manual spot check</p>
+  <p><strong>Midday (3h):</strong> Flip-point localization · compute 4 independent signals per claim</p>
+  <p><strong>PM (4–6h):</strong> Type-level ablation on ~20 sampled <code>single_wrong ∧ debate_right</code> dialogues · clustering (optional)</p>
+  <div class="gate">
+    <strong>⚠ Gate 2:</strong> if all <code>Δ_t</code> within noise and no signal correlates with flip path → accept null result; Day 3 reframes as descriptive comparison.
+  </div>
+</div>
+
+<div class="day">
+  <h3>Day 3 — Compression + Evaluation + Report <span class="sub">(~12h)</span></h3>
+  <p><strong>AM (3h):</strong> Read Day 2 findings → write <code>policy.json</code> (simplest data-supported rule) → implement <code>compress.apply</code></p>
+  <p><strong>Midday (3–4h):</strong> Evaluation sweep: 5 methods × 100 questions × {acc, tokens, acc_per_1k}</p>
+  <p><strong>PM (4–5h):</strong> Pareto curve · LaTeX tables · IMRAD report ~6–8 pages · export PDF</p>
+</div>
+
+<h2>Feature Pipeline (10 features, dependency order)</h2>
+
+<div class="feat"><div class="n">1</div><div><div class="name">core-infrastructure</div><div class="desc">config · llm_client+cache · dataset loader · answer parser · smoke tests</div></div><div class="dep">Day 1 AM</div></div>
+<div class="feat"><div class="n">2</div><div><div class="name">debate-runner</div><div class="desc">Agent class · 3 differentiated system prompts · N×R scheduler · majority-vote aggregator</div></div><div class="dep">Day 1 AM/PM</div></div>
+<div class="feat"><div class="n">3</div><div><div class="name">pilot-gate1 ⚠</div><div class="desc">30-question pilot · single vs 3×3 · gate decision</div></div><div class="dep">Day 1 midday</div></div>
+<div class="feat"><div class="n">4</div><div><div class="name">full-collection</div><div class="desc">100-question debate sweep · atomic per-qid artifacts · failure logging</div></div><div class="dep">Day 1 PM</div></div>
+<div class="feat"><div class="n">5</div><div><div class="name">claim-extraction</div><div class="desc">schema-guided JSON · 6-type taxonomy · 10-dialogue spot check</div></div><div class="dep">Day 2 AM</div></div>
+<div class="feat"><div class="n">6</div><div><div class="name">flip-and-signals</div><div class="desc">flip-point localization · 4 independent signals · NO composite score</div></div><div class="dep">Day 2 midday</div></div>
+<div class="feat"><div class="n">7</div><div><div class="name">type-level-ablation ⚠</div><div class="desc">Δ_t per claim type · MAX_NEW_LLM_CALLS=500 · gate decision</div></div><div class="dep">Day 2 PM</div></div>
+<div class="feat"><div class="n">8</div><div><div class="name">compression-policy</div><div class="desc">data-driven policy.json · compress.apply · baseline view transforms</div></div><div class="dep">Day 3 AM</div></div>
+<div class="feat"><div class="n">9</div><div><div class="name">evaluation-sweep</div><div class="desc">b1/b2/b3/b5 + ours × 100 Q × (acc, tokens, acc_per_1k)</div></div><div class="dep">Day 3 midday</div></div>
+<div class="feat"><div class="n">10</div><div><div class="name">report-generation</div><div class="desc">figures · tables · IMRAD report PDF</div></div><div class="dep">Day 3 PM</div></div>
+
+<h2>Dependency DAG</h2>
+<div class="mermaid">
+flowchart LR
+  F1[1 core-infra] --> F2[2 debate-runner]
+  F2 --> F3[3 pilot-gate1]
+  F3 --> F4[4 full-collection]
+  F4 --> F5[5 claim-extraction]
+  F5 --> F6[6 flip+signals]
+  F6 --> F7[7 type-ablation]
+  F7 --> F8[8 compression-policy]
+  F8 --> F9[9 evaluation-sweep]
+  F9 --> F10[10 report]
+  classDef gate fill:#3a2d10,stroke:#f0b429,color:#f0b429
+  class F3,F7 gate
+</div>
+
+<h2>Architecture</h2>
+<div class="mermaid">
+flowchart TB
+  subgraph Layer1["Layer 1 — Cache &amp; Artifacts"]
+    CACHE[(llm_cache.jsonl<br/>sha256 keyed)]
+    DIAG[(dialogues/model/qid.json)]
+    CLAIMS[(claims/model/qid.json)]
+  end
+  subgraph Stage_Collect["Collection (Day 1)"]
+    DEBATE[debate_runner<br/>3 agents × 3 rounds]
+  end
+  subgraph Stage_Analyze["Analysis &amp; Eval (Day 2–3)"]
+    EXTRACT[claim_extractor<br/>schema-guided JSON]
+    FLIP[flip_analyzer]
+    SIG[signals 4 indep fields]
+    ABL[type-level ablator]
+    COMP[compressor + policy.json]
+    EVAL[evaluator<br/>5 methods × 100 Q]
+  end
+  DEBATE -- write --> DIAG
+  DEBATE -- llm calls --> CACHE
+  DIAG --> EXTRACT
+  EXTRACT -- write --> CLAIMS
+  EXTRACT -- llm calls --> CACHE
+  DIAG --> FLIP
+  CLAIMS --> SIG
+  DIAG --> SIG
+  FLIP --> ABL
+  CLAIMS --> ABL
+  ABL -- llm calls --> CACHE
+  ABL --> COMP
+  SIG --> COMP
+  COMP --> EVAL
+  EVAL -- llm calls --> CACHE
+  EVAL --> REPORT[report: figs + tables + PDF]
+</div>
+
+<h2>Baselines &amp; Metrics</h2>
+<div class="grid-2">
+  <div class="panel">
+    <h3>Baselines</h3>
+    <dl class="kv">
+      <dt><code>b1</code></dt><dd>Full history (upper bound)</dd>
+      <dt><code>b2</code></dt><dd>Single-agent (lower bound)</dd>
+      <dt><code>b3</code></dt><dd>Sliding window last-k rounds</dd>
+      <dt><code>b5</code></dt><dd>Random claim drop x% (seeded)</dd>
+      <dt><code>ours</code></dt><dd>Data-supported policy</dd>
+    </dl>
+    <p class="sub">b4 (summarization) and b6 (LLMLingua) cut for time.</p>
+  </div>
+  <div class="panel">
+    <h3>Metrics</h3>
+    <dl class="kv">
+      <dt><code>acc</code></dt><dd>Final-answer accuracy on GSM8K</dd>
+      <dt><code>tokens</code></dt><dd>Total input-token cost</dd>
+      <dt><code>acc/1k</code></dt><dd>Accuracy per 1k tokens → Pareto</dd>
+    </dl>
+    <p class="sub">Sanity invariants: acc(b1)≥acc(b2); acc(ours)≥acc(b5); b1&gt;b3&gt;b5≈ours in tokens.</p>
+  </div>
+</div>
+
+<h2>Claim Taxonomy (6 types)</h2>
+<div class="grid-3">
+  <div class="panel"><h3>proposal</h3><p class="sub">introduces new candidate answer or reasoning path</p></div>
+  <div class="panel"><h3>evidence</h3><p class="sub">supports a position with computation / derivation</p></div>
+  <div class="panel"><h3>correction</h3><p class="sub">identifies error in prior claim, offers fix</p></div>
+  <div class="panel"><h3>agreement</h3><p class="sub">affirms prior claim, no new info</p></div>
+  <div class="panel"><h3>question</h3><p class="sub">directed at another agent</p></div>
+  <div class="panel"><h3>other</h3><p class="sub">pleasantries, meta-discourse, off-topic</p></div>
+</div>
+
+<h2>Top Divergence Risks</h2>
+<div class="panel">
+  <dl class="kv">
+    <dt><span class="tag danger">high</span></dt><dd><strong>Claim extraction JSON malformed</strong> — corrupts signals → flip analysis → ablation → policy. Mitigation: retry + <code>extraction_failed</code> flag + Day 2 AM spot check.</dd>
+    <dt><span class="tag danger">high</span></dt><dd><strong>Answer parser ambiguity</strong> — "$42" vs "42" etc. corrupts accuracy → gate decisions. Mitigation: smoke-tested variants + unparseable outputs logged for manual inspection.</dd>
+    <dt><span class="tag warn">med</span></dt><dd>Debate turn stochasticity (temp=0 but GPU batch effects). Mitigation: single-run acknowledged in limitations.</dd>
+    <dt><span class="tag warn">med</span></dt><dd>Ablation replay divergence. Same mitigation as above.</dd>
+    <dt><span class="tag warn">med</span></dt><dd>Cache corruption on crash. Mitigation: startup validates last line, atomic appends.</dd>
+  </dl>
+</div>
+
+<h2>Scope Cuts (already made)</h2>
+<div class="panel">
+  <ul>
+    <li>Human validation 30 → 10 dialogues (sanity check only, no NMI/ARI)</li>
+    <li>Dataset 200–300 → 100 questions</li>
+    <li>Clustering: conditional bonus, not critical path</li>
+    <li>b4 summarization baseline: cut</li>
+    <li>b6 LLMLingua cross-method comparison: cut</li>
+    <li>Multi-seed bootstrap: cut (single-run acknowledged as limitation)</li>
+    <li>Buffer days: zero — gates are the only safety mechanism</li>
+  </ul>
+</div>
+
+<h2>Deliverables</h2>
+<div class="grid-2">
+  <div class="panel"><h3>d1 · code repo</h3><p>Reproducible via <code>make all</code>; README documents every artifact.</p></div>
+  <div class="panel"><h3>d2 · data</h3><p>100 dialogue JSONs · 100 claim JSONs · 10-dialogue spot-check CSV · ablation results.</p></div>
+  <div class="panel"><h3>d3 · analysis notebook</h3><p>Figures and tables reproducible from cached artifacts (no LLM calls).</p></div>
+  <div class="panel"><h3>d4 · report PDF</h3><p>IMRAD ~6–8 pages; includes null-result framing if Gate 2 triggers.</p></div>
+</div>
+
+<h2>Next</h2>
+<div class="callout">
+  Hand off to <code>sp-harness:feature-tracker</code>. It will pick <strong>core-infrastructure</strong> first and drive it to green under <code>single-agent</code> dev mode (Planner → Generator → Evaluator in sequence in main session).
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    flowchart: { curve: 'basis', padding: 20 },
+    themeVariables: {
+      primaryColor: '#1b222d',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#58a6ff',
+      lineColor: '#58a6ff',
+      fontSize: '14px'
+    }
+  });
+</script>
+
+</body>
+</html>
