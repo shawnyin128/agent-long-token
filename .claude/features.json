@@ -16,7 +16,7 @@
         "implement answer parser handling '#### 42', '42.0', '$42' variants",
         "write tests/test_smoke.py (Layer 1): cache hit, dataset non-empty, answer parser variants"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "debate-runner",

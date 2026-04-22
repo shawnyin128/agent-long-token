@@ -1,0 +1,400 @@
+plan_id: core-infrastructure
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Bootstrap the agentdiet package with the foundations every later stage
+  depends on: config module, cache-backed OpenAI-compatible LLM client,
+  GSM8K loader + robust answer parser, and a Layer-1 smoke test harness
+  with a dummy backend so tests run in under 30 seconds and do not
+  require any real LLM server.
+
+steps:
+  - id: S1
+    desc: Package skeleton + config
+    approach: |
+      Create the agentdiet/ package, pyproject.toml pinning deps
+      (openai, pydantic, pydantic-settings, datasets, numpy, pytest),
+      and config.py exposing paths, seeds, and model-client parameters
+      via pydantic-settings BaseSettings with env-var overrides
+      (prefix AGENTDIET_). Create artifact directory structure per spec
+      §4.1 via ensure_dirs() helper. Update .gitignore for artifacts/
+      and caches.
+    files:
+      create:
+        - pyproject.toml
+        - agentdiet/__init__.py
+        - agentdiet/config.py
+        - tests/__init__.py
+        - tests/core_infrastructure/__init__.py
+      modify:
+        - .gitignore
+      test:
+        - tests/core_infrastructure/test_config.py
+    test_plan:
+      - config loads default values unaltered
+      - env var AGENTDIET_MODEL override takes effect
+      - ensure_dirs creates all paths listed in spec §4.1
+      - seed fields are integers with documented defaults
+    coverage_min: 80
+
+  - id: S2
+    desc: LLM client + cache
+    approach: |
+      Implement agentdiet/llm_client.py. Cache is an append-only JSONL
+      at config.cache_path; each line is {key, model, temperature,
+      messages, response, created_at}. Key =
+      sha256(model||"\n"||temperature||"\n"||json.dumps(messages,
+      sort_keys=True)).hexdigest(). On startup, open file and validate
+      last line — if JSON parse fails, truncate to last newline
+      boundary. Client.chat(messages, model, temperature=0) checks cache,
+      on miss issues OpenAI-compatible HTTP call (base_url configurable),
+      with 3 exponential retries (1s/4s/16s). Pluggable backend: a
+      DummyBackend protocol returns canned responses by prompt prefix for
+      tests. Real backend is OpenAIBackend.
+    files:
+      create:
+        - agentdiet/llm_client.py
+      modify: []
+      test:
+        - tests/core_infrastructure/test_llm_client.py
+    test_plan:
+      - cache miss first call records, cache hit second call (same args)
+      - cache key differs when model differs
+      - cache key differs when temperature differs
+      - truncated final line of cache JSONL is dropped on load
+      - dummy backend returns configured response without network
+      - explicit failure after 3 retries raises
+    coverage_min: 85
+
+  - id: S3
+    desc: Dataset loader + answer parser
+    approach: |
+      agentdiet/dataset.py. Types: Question(qid, question, gold_answer).
+      load_gsm8k(split='test', n=None, seed=42) uses HuggingFace
+      datasets, caches under config.hf_cache_dir, returns seeded sample
+      as List[Question] (same seed+n → same qids). gold_answer extracted
+      from GSM8K '#### <num>' pattern. parse_answer(text) extracts the
+      final numeric answer; supports '#### 42', '42.0', '$42',
+      '42 dollars', sentence-final '42.', leading/trailing whitespace,
+      unicode minus. Returns None on no match.
+    files:
+      create:
+        - agentdiet/dataset.py
+      modify: []
+      test:
+        - tests/core_infrastructure/test_dataset.py
+    test_plan:
+      - loader returns exactly n samples
+      - same seed reproduces identical qid list
+      - different seed changes sample
+      - gold_answer correctly parsed for loaded items
+      - parse_answer succeeds on 5 canonical variants
+      - parse_answer returns None on text with no number
+      - parse_answer returns None on ambiguous pure prose
+    coverage_min: 90
+
+  - id: S4
+    desc: Layer-1 smoke tests
+    approach: |
+      tests/core_infrastructure/test_smoke.py collates the 4 spec §9.1
+      smoke cases, all backed by DummyBackend (no network). Wall-time
+      asserted <30s via pytest marker. Separately test that no HTTP
+      egress happens during smoke tests (monkeypatch openai client
+      constructor to raise if called).
+    files:
+      create:
+        - tests/core_infrastructure/test_smoke.py
+      modify: []
+      test:
+        - tests/core_infrastructure/test_smoke.py
+    test_plan:
+      - cache hit-on-repeat smoke
+      - dummy-backed chat returns non-empty string
+      - dataset loader yields non-empty question+gold_answer on small n
+      - parser handles the 5 canonical answer variants
+      - no network calls during test run (monkeypatch assertion)
+      - total wall time under 30 seconds
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      Compute setup for the project. This sets the default model name
+      written to config.py and determines whether vLLM will run locally
+      on Day 1:
+        (a) GPU with >=16GB VRAM -> default = Qwen/Qwen2.5-7B-Instruct (fp16) via local vLLM
+        (b) GPU with 8-16GB VRAM -> default = Qwen/Qwen2.5-7B-Instruct-AWQ (int4) via local vLLM
+        (c) No local GPU / prefer API -> default = gpt-4o-mini via OpenAI API (cost ~$2-5 for full run)
+    planner_view: "needs user input"
+    confidence: 40
+    rationale: |
+      Gate-1 pilot readiness depends on the selected default. Hardcoding
+      fp16 will OOM on consumer GPUs; hardcoding API costs money without
+      consent. User hasn't stated hardware availability.
+    alternatives:
+      - option: Hardcode fp16 default, user overrides at run time
+        rejected_because: sets up pilot for OOM failure on consumer GPU
+      - option: Assume API-only
+        rejected_because: costs money; spec prefers open-source when possible
+    ask_user: true
+    user_decision: "(a) GPU >=16GB VRAM; default model = Qwen/Qwen2.5-7B-Instruct (fp16) via local vLLM"
+
+  - id: D2
+    question: Python target version
+    planner_view: "3.11"
+    confidence: 85
+    rationale: |
+      3.11 has modern typing (Self, LiteralString) and matches vLLM's
+      best-tested range as of 2026-04; 3.12 sometimes lags HF/vLLM
+      compatibility.
+    alternatives:
+      - option: "3.10"
+        rejected_because: older typing syntax; vLLM prefers 3.11+
+      - option: "3.12"
+        rejected_because: intermittent HF/vLLM compat issues in 2026-04
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Cache key composition
+    planner_view: |
+      sha256(f"{model}\n{temperature}\n{json.dumps(messages, sort_keys=True, ensure_ascii=False)}").hexdigest()
+    confidence: 90
+    rationale: |
+      sort_keys ensures stable ordering; model+temp newline-prefixed
+      keeps independent axes visually separable for debugging.
+    alternatives:
+      - option: Include all kwargs (top_p, seed, ...)
+        rejected_because: over-constrains; spec fixes temperature=0
+    ask_user: false
+    user_decision: null  # no user input needed; planner default applied
+
+  - id: D4
+    question: Where to place permanent regression tests for this feature
+    planner_view: "tests/core_infrastructure/ (underscore for Python package name)"
+    confidence: 90
+    rationale: |
+      single-agent-development skill specifies tests/<feature-id>/;
+      Python module naming requires underscores not dashes.
+    alternatives:
+      - option: tests/ (flat)
+        rejected_because: loses per-feature grouping spec prescribes
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      Package skeleton created with pyproject.toml, pydantic-settings
+      Config, and ensure_dirs() covering all spec §4.1 paths. 4 tests
+      pass. Installed venv runs Python 3.13 (system default) which
+      satisfies the pyproject >=3.11 constraint; see unplanned_changes.
+    commits: ["f0de5a0"]
+  S2:
+    status: done
+    confidence: 92
+    notes: |
+      LLMClient with pluggable Backend protocol (DummyBackend for tests,
+      OpenAIBackend for real calls). JSONL cache with sha256 key,
+      startup validation truncates malformed trailing line, append is
+      fsync'd. 3-retry exponential backoff (configurable base for tests).
+      9 tests pass including retry success, retry exhaustion, cache
+      persistence across instances, and truncated-line recovery.
+    commits: ["a3110ed"]
+  S3:
+    status: done
+    confidence: 88
+    notes: |
+      Dataset loader uses HF `datasets` with seeded sample; gold_answer
+      parsed from '#### N' via shared regex. parse_answer has 3-tier
+      fallback: hash marker -> dollar-prefix -> last number in text.
+      14 parser tests + 4 network-gated loader tests pass (network tests
+      verified once with AGENTDIET_ALLOW_NETWORK=1, ~24s first-time HF
+      download).
+    commits: ["44a01dc"]
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      Smoke tests cover the 4 spec §9.1 cases + a 100-call cache walltime
+      budget. `forbid_network` monkeypatches openai.OpenAI to raise if
+      instantiated, providing the "no network during smoke" invariant.
+      pytest marker `smoke` registered; timeout=30s applied per test.
+      All 31 tests in tests/core_infrastructure pass in <1s.
+    commits: ["9749415"]
+
+unplanned_changes:
+  - loc: .venv
+    what: venv uses Python 3.13.11 (system default via `python3 -m venv`)
+    reason: pyproject requires >=3.11; 3.13 satisfies it and avoids forcing a pyenv install for a 3-day project
+    confidence: 80
+  - loc: pyproject.toml [project.optional-dependencies.analysis]
+    what: added optional analysis dep group (sentence-transformers, sklearn, hdbscan, matplotlib, pyarrow)
+    reason: preempts pip churn when later features need these; kept optional so core-infrastructure install stays lean
+    confidence: 85
+  - loc: pyproject.toml [tool.pytest.ini_options]
+    what: added `smoke` pytest marker and `--strict-markers`
+    reason: lets Layer-1 smoke tests be selected/excluded cleanly; strict-markers catches typos
+    confidence: 95
+  - loc: .gitignore
+    what: added .pytest_cache/, .coverage, *.egg-info/, build/, dist/, artifacts/
+    reason: standard Python + project artifacts should not be tracked
+    confidence: 98
+
+flags_for_eval:
+  - confirm cache-line fsync + truncation recovery are tested under real crash scenarios (not just synthetic truncation)
+  - confirm parse_answer behavior on LLM outputs that contain multiple '#### N' lines (only first vs last)
+  - confirm config env-var casting works for Path fields (AGENTDIET_ARTIFACTS_DIR)
+  - confirm no real network call is made during the default pytest run
+  - confirm retry backoff base is zero only in test paths (not leaked into production default)
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: "agentdiet/config.py:19 default model == Qwen/Qwen2.5-7B-Instruct"
+          - id: D2
+            verified: true
+            evidence: "pyproject.toml requires-python == '>=3.11'; venv runs 3.13 which satisfies"
+          - id: D3
+            verified: true
+            evidence: "cache_key() in agentdiet/llm_client.py:11 matches the documented composition; test_cache_key_stable_across_ordering + _differs_by_* confirm axes"
+          - id: D4
+            verified: true
+            evidence: "tests/core_infrastructure/ created and populated"
+        missing_plan_items: []
+        confidence_mismatches:
+          - step: S3
+            claimed: 88
+            actual: |
+              parse_answer has a first-match bug on multi '#### N' LLM
+              outputs (flag 2 from generator was prescient). Real
+              confidence should have been ~70.
+        unplanned_accepted:
+          - ".venv using Python 3.13 (satisfies >=3.11)"
+          - "optional analysis dep group in pyproject.toml"
+          - "pytest smoke marker + strict-markers"
+          - ".gitignore additions (pytest_cache, coverage, artifacts, dist)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 4
+          fail: 0
+          coverage: 96
+          tests_file: tests/core_infrastructure/test_config.py
+          failures: []
+        S2:
+          pass: 9
+          fail: 0
+          coverage: 91
+          tests_file: tests/core_infrastructure/test_llm_client.py
+          failures: []
+        S3:
+          pass: 14
+          fail: 0
+          coverage: 60
+          tests_file: tests/core_infrastructure/test_dataset.py
+          failures:
+            - name: (uncaught) test_multiple_hash_markers_last_wins
+              input: "Initially #### 99 but on reflection #### 42"
+              expect: "42"
+              actual: "99 (current first-match regex)"
+        S4:
+          pass: 4
+          fail: 0
+          coverage: n/a
+          tests_file: tests/core_infrastructure/test_smoke.py
+          failures: []
+
+      blockers:
+        - "parse_answer returns first '#### N' match; must return LAST to match MAD-style 'put final answer after ####' prompting convention. Silent corruption risk for later accuracy metrics."
+        - "dataset coverage 60% < plan coverage_min=90 for S3. load_gsm8k is network-gated so default runs cannot reach it. Add an offline test that monkeypatches datasets.load_dataset to exercise sampling + gold parsing."
+
+      regressions: []
+
+      verdict: ITERATE
+
+    - round: 2
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: "unchanged from Round 1"
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "_parse_gsm8k_gold also switched to last-match for consistency (GSM8K gold is single-#### by format so this is a no-op in practice)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 4
+          fail: 0
+          coverage: 96
+          tests_file: tests/core_infrastructure/test_config.py
+          failures: []
+        S2:
+          pass: 9
+          fail: 0
+          coverage: 91
+          tests_file: tests/core_infrastructure/test_llm_client.py
+          failures: []
+        S3:
+          pass: 23
+          fail: 0
+          coverage: 93
+          tests_file: tests/core_infrastructure/test_dataset.py
+          failures: []
+        S4:
+          pass: 4
+          fail: 0
+          coverage: n/a
+          tests_file: tests/core_infrastructure/test_smoke.py
+          failures: []
+
+      blockers: []
+
+      regressions: []
+
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/llm_client.py:LLMClient._append_cache
+        what: |
+          Currently writes line-by-line with per-call fsync. Acceptable for
+          serial research use, but Day 1 PM full collection (100 dialogues × 9
+          turns = 900 calls) will issue 900 fsyncs. Consider batching fsync
+          to once per dialogue if collection feels sluggish on the target
+          disk. Not a blocker.
+      - loc: agentdiet/dataset.py
+        what: |
+          parse_answer's last-number fallback can misfire on long agent
+          outputs that happen to end with a citation like "see equation
+          (3)". Low probability on GSM8K where outputs are reasoning text
+          ending in a numeric answer, but worth revisiting when
+          debate-runner lands real outputs. Add failure-mode logging
+          (log unparseable outputs to failures/) as part of
+          full-collection feature, not here.
+      - loc: tests/core_infrastructure/test_llm_client.py
+        what: |
+          No test for chat() being called with unicode content. Add a
+          single case with a non-ASCII Chinese character to lock in
+          ensure_ascii=False behavior. Low priority.
+    final_verdict: MERGE_READY
+
