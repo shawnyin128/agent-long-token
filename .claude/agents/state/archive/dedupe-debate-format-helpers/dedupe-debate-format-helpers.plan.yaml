@@ -1,0 +1,137 @@
+plan_id: dedupe-debate-format-helpers
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  agentdiet/debate.py and agentdiet/analysis/ablate.py each define a
+  private _format_other_responses helper with near-identical bodies
+  (same format string, same filter on self_id, same join). Silent
+  drift risk — if one is updated the other won't follow. Spec treats
+  both as the same canonical "Agent K (round R) ---" transcript block.
+  Promote one copy to a public exportable name and import it from the
+  other call site.
+
+steps:
+  - id: S1
+    desc: shared formatter + cleanup
+    approach: |
+      In agentdiet/debate.py:
+        - Rename _format_other_responses → format_other_responses
+          (drop underscore so cross-module import is conventional).
+        - Update the internal call site in run_debate.
+      In agentdiet/analysis/ablate.py:
+        - Delete the local _format_other_responses definition.
+        - Add format_other_responses to the existing
+          `from agentdiet.debate import ...` line.
+        - Update the two internal call sites.
+      No signature change; parameter name was the only difference
+      and callers use positional args everywhere.
+    files:
+      create: []
+      modify: [agentdiet/debate.py, agentdiet/analysis/ablate.py]
+      test: [tests/dedupe_debate_format_helpers/test_shared_formatter.py]
+    test_plan:
+      - format_other_responses is importable from agentdiet.debate
+      - format_other_responses is NOT defined in agentdiet.analysis.ablate
+      - The function filters self_id and joins with blank lines
+      - Existing full test suite still passes (no behavior change)
+    coverage_min: 100
+
+decisions:
+  - id: D1
+    question: Promote to public (no underscore) or keep underscore and import cross-module?
+    planner_view: promote-to-public
+    confidence: 92
+    rationale: |
+      Python convention: a leading underscore signals "module-private;
+      importers beware". When a helper is deliberately shared across
+      modules, dropping the underscore is the honest signal. Two call
+      sites in one package already means it was never really private.
+    alternatives:
+      - option: keep underscore and import from ablate
+        rejected_because: Violates the underscore convention; readers
+          see a leading underscore and assume "don't touch from
+          outside this module".
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 95
+    notes: |
+      Renamed _format_other_responses → format_other_responses in
+      debate.py (definition + single internal call site). ablate.py
+      import line now includes format_other_responses; local
+      definition deleted; two internal call sites updated. Byte-for-
+      byte identical output preserved (same f-string).
+    commits: ["149e240"]
+
+unplanned_changes: []
+
+flags_for_eval:
+  - |
+    Sanity check: grep across the repo for any lingering
+    `_format_other_responses` reference (excluding test file that
+    intentionally checks for its absence).
+  - |
+    LLM cache key stability: the function output is unchanged
+    byte-for-byte, so no existing cache entry in
+    artifacts/llm_cache.jsonl should miss after this refactor.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []           # D1 was ask_user:false
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted: []
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 6
+          fail: 0
+          coverage: 100
+          tests_file: tests/dedupe_debate_format_helpers/test_shared_formatter.py
+
+      full_suite_regression:
+        total_pass: 418
+        total_skip: 5
+        total_fail: 0
+        notes: |
+          +6 from pre-dedupe baseline (412), no regressions. Callers in
+          run_debate, replay_final_round, and _build_agent_api_messages
+          all traverse the shared helper via existing test paths.
+
+      grep_audit:
+        lingering_underscore_refs: 0
+        lingering_underscore_in_tests_for_absence_check: 1
+        notes: |
+          tests/dedupe_debate_format_helpers/test_shared_formatter.py
+          test_no_local_definition_in_ablate intentionally references
+          `_format_other_responses` to assert it does NOT exist in
+          ablate — this is correct.
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/debate.py
+        what: |
+          Consider also exposing _format_other_responses's sibling
+          templates (INITIAL_USER_TEMPLATE, LATER_ROUND_TEMPLATE) in
+          a dedicated transcript_format module if a third call site
+          ever shows up. Not needed now.
+    final_verdict: MERGE_READY
+

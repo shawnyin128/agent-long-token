@@ -203,7 +203,7 @@
         "remove duplicate local definition in ablate.py",
         "verify full test suite still passes with no regressions"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
