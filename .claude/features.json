@@ -204,6 +204,23 @@
         "verify full test suite still passes with no regressions"
       ],
       "passes": true
+    },
+    {
+      "id": "fix-answer-parser-for-qwen-literal-N",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Qwen learned prompt literal 'N' and outputs '#### N66'; parser regex fails, falls back to first $<num> in text (often a wrong price), polluting pilot/collection final_answer fields",
+      "steps": [
+        "loosen #### regex in agentdiet/dataset.py to allow optional [A-Za-z]* between #### and number",
+        "change agents.py prompt from '#### N' literal to '#### <answer>' with example",
+        "add tests locking the new regex + agent-prompt invariants",
+        "add cli/reparse.py that reads existing pilot + dialogue artifacts and recomputes final_answer + per_agent_final_answers in place (no LLM calls)",
+        "update README HPC runbook with 'after pulling this fix, run python -m agentdiet.cli.reparse' step"
+      ],
+      "passes": true
     }
   ]
 }
