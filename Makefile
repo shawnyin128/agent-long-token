@@ -1,6 +1,7 @@
 .PHONY: help serve stop status health pilot gate pilot-full pilot-clean \
         collect collect-report collect-clean \
         extract extract-report extract-clean spot-check \
+        analyze analyze-report analyze-clean \
         test smoke
 
 PYTHON ?= .venv/bin/python
@@ -29,6 +30,11 @@ help:
 	@echo "  extract-report   Print existing claim-extraction manifest summary"
 	@echo "  extract-clean    Remove artifacts/claims/ (not cache or dialogues)"
 	@echo "  spot-check       Sample K dialogues (default 10) -> spot_check.csv"
+	@echo ""
+	@echo "Analysis (flip events + per-claim signals):"
+	@echo "  analyze          Compute flip_events.jsonl + signal_scores.parquet"
+	@echo "  analyze-report   Print existing analysis manifest summary"
+	@echo "  analyze-clean    Remove artifacts/analysis/ (not cache / dialogues / claims)"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -77,6 +83,15 @@ extract-clean:
 
 spot-check:
 	$(PYTHON) -m agentdiet.cli.spot_check --k 10
+
+analyze:
+	$(PYTHON) -m agentdiet.cli.analyze
+
+analyze-report:
+	$(PYTHON) -m agentdiet.cli.analyze --report
+
+analyze-clean:
+	rm -rf artifacts/analysis
 
 test:
 	$(PYTEST) tests/ --timeout=30

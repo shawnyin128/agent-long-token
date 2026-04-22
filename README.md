@@ -259,6 +259,47 @@ wrong" bar and unblocks Day 2 attribution work.
 make extract-clean    # drops artifacts/claims/ (keeps cache + dialogues)
 ```
 
+## Analysis: flip points + per-claim signals
+
+Once claim artifacts exist, compute flip events and four independent
+per-claim signals. Install the optional analysis extras first:
+
+```bash
+.venv/bin/pip install -e ".[analysis]"
+```
+
+This pulls sentence-transformers, scikit-learn, hdbscan, pyarrow. Then:
+
+```bash
+make analyze
+```
+
+Reads dialogues + claims from the paths established by the earlier
+steps and writes to `artifacts/analysis/`:
+
+- `flip_events.jsonl` — one JSON object per line with `qid`, `round`,
+  `triggering_claim_id`, `pre_flip_answers`, `post_flip_answers`.
+- `signal_scores.parquet` — 6 columns: `qid`, `claim_id`,
+  `flip_coincidence`, `novelty`, `referenced_later`, `position`.
+  Stored as **independent fields** with no composite score (spec §5.2).
+- `manifest.json` — counts summary.
+
+Embedder selection:
+
+```bash
+.venv/bin/python -m agentdiet.cli.analyze --embedder real   # default; needs [analysis]
+.venv/bin/python -m agentdiet.cli.analyze --embedder fake   # offline HashingFakeEmbedder
+```
+
+If `sentence-transformers` is missing the CLI prints a loud stderr
+warning and falls back to the hashing embedder — good for smoke, not
+for the real 100-dialogue run.
+
+```bash
+make analyze-report   # print counts from the manifest
+make analyze-clean    # drop artifacts/analysis/ only
+```
+
 ## Running tests
 
 ```bash
