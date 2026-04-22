@@ -54,7 +54,7 @@
         "record pilot output to artifacts/pilot_report.md",
         "GATE 1 decision: if delta < 3pp, stop and switch model (Qwen \u2192 GPT-4o-mini) before continuing"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "full-collection",

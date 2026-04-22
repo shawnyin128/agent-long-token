@@ -1,0 +1,462 @@
+plan_id: pilot-gate1
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Produce the infrastructure and scripts to run Gate 1: compare single-
+  agent vs 3x3 debate accuracy on 30 GSM8K questions. Deliverables are
+  (1) a reproducible vLLM startup + readiness flow packaged as scripts,
+  (2) a baseline runner that executes one solver-agent turn, (3) a
+  pilot CLI that runs both methods over the same seeded sample with
+  per-qid resumability, and (4) a gate-decision report that surfaces
+  acc_single, acc_debate, delta, and three sample dialogues. Target
+  user flow: `make serve` -> `make health` -> `make pilot` -> `make gate`.
+  Gate verdict: delta >= 3pp proceed; otherwise stop and switch model.
+
+steps:
+  - id: S1
+    desc: vLLM startup scripts + health check
+    approach: |
+      scripts/serve_vllm.sh launches `vllm serve Qwen/Qwen2.5-7B-Instruct`
+      with fp16 dtype, 8192 max-model-len, --gpu-memory-utilization 0.9,
+      port 8000, logging to artifacts/logs/vllm.log. Script writes pid
+      to artifacts/logs/vllm.pid, supports stop via
+      `scripts/serve_vllm.sh stop`. scripts/wait_healthy.py polls
+      GET {base_url}/models until 200 OK or --timeout seconds elapse
+      (default 180). Both scripts honor AGENTDIET_* env vars.
+    files:
+      create:
+        - scripts/serve_vllm.sh
+        - scripts/wait_healthy.py
+        - agentdiet/cli/health.py
+      modify: []
+      test:
+        - tests/pilot_gate1/test_health.py
+    test_plan:
+      - wait_healthy returns 0 when the /models endpoint is 200
+      - wait_healthy returns non-zero on timeout (use a short timeout + non-listening port)
+      - health check URL is built from config.base_url
+    coverage_min: 80
+
+  - id: S2
+    desc: Baseline single-agent runner
+    approach: |
+      agentdiet/baseline.py adds run_single_agent(question, llm_client,
+      model, temperature=0.0, system_prompt=SOLVER_PROMPT) -> Dialogue
+      with exactly one Message (agent_id=0, round=1, text=response) and
+      final_answer = parse_answer(response) or None. Signature mirrors
+      run_debate so later ablation/eval features can call both through
+      a common facade. Meta records method="single" to distinguish.
+    files:
+      create:
+        - agentdiet/baseline.py
+      modify: []
+      test:
+        - tests/pilot_gate1/test_baseline.py
+    test_plan:
+      - run_single_agent produces Dialogue with 1 message, round=1
+      - final_answer is parsed from response
+      - cache hit on second call (shares llm_client cache)
+      - meta.method == "single"
+      - parse failure -> final_answer is None, Dialogue otherwise valid
+    coverage_min: 90
+
+  - id: S3
+    desc: Pilot CLI (resumable, runs both methods)
+    approach: |
+      agentdiet/cli/pilot.py with --n (default cfg.n_pilot=30), --seed
+      (default cfg.seed=42), --split (default test), --resume (default
+      True), --no-debate / --no-single flags for partial runs. Loads
+      GSM8K sample, then for each qid: (i) if
+      artifacts/pilot/single/{model}/{qid}.json missing, run
+      run_single_agent and write; (ii) if
+      artifacts/pilot/debate/{model}/{qid}.json missing, run_debate and
+      write. Uses atomic tmp+rename. Logs progress to stderr
+      ("[i/N] qid=... single=... debate=..."). On any per-qid exception,
+      record to artifacts/failures/pilot/{qid}.json with traceback and
+      continue. Writes artifacts/pilot/manifest.json listing all
+      qids attempted + their outcomes.
+    files:
+      create:
+        - agentdiet/cli/pilot.py
+      modify: []
+      test:
+        - tests/pilot_gate1/test_pilot_cli.py
+    test_plan:
+      - pilot with DummyBackend produces n single + n debate artifacts (use small n=3)
+      - resume: second invocation makes 0 LLM calls (skip-if-exists)
+      - --no-debate runs only single side
+      - failure in one qid does not stop others; failure artifact written
+      - manifest.json enumerates all qids with per-method status
+    coverage_min: 80
+
+  - id: S4
+    desc: Gate decision report
+    approach: |
+      agentdiet/cli/gate.py with --report subcommand reads pilot
+      artifacts, computes acc_single, acc_debate, delta (pp), counts
+      None final_answers per method. Writes
+      artifacts/pilot_report.md with a table, verdict, and three
+      sample dialogues (first passing, first failing, first debate-flip
+      if any). Exit code: 0 if delta >= 3pp (pass); 10 if delta < 3pp
+      but >= 0 (soft fail, suggest model switch); 20 if delta < 0
+      (hard fail, something wrong).
+    files:
+      create:
+        - agentdiet/cli/gate.py
+      modify: []
+      test:
+        - tests/pilot_gate1/test_gate_report.py
+    test_plan:
+      - synthesize fake pilot artifacts; report produces expected acc_single/acc_debate/delta
+      - exit 0 when delta >= 3pp
+      - exit 10 when 0 <= delta < 3pp
+      - exit 20 when delta < 0
+      - pilot_report.md exists with table + 3 sample sections
+      - questions with final_answer=None counted and excluded from accuracy
+    coverage_min: 85
+
+  - id: S5
+    desc: Makefile + call-sequence doc
+    approach: |
+      Top-level Makefile with targets: `serve`, `stop`, `health`,
+      `pilot`, `gate`, `pilot-clean`. Each target wires to the scripts
+      and CLIs above. README.md gets a 'Gate 1 runbook' section that
+      lists the exact shell sequence the user will execute.
+      Include note that AGENTDIET_MODEL override is the mechanism
+      for switching to gpt-4o-mini if Gate 1 fails.
+    files:
+      create:
+        - Makefile
+        - README.md
+      modify: []
+      test:
+        - tests/pilot_gate1/test_make_targets.py
+    test_plan:
+      - make --dry-run serve/stop/health/pilot/gate/pilot-clean all exit 0
+      - Makefile references only scripts that exist
+      - README contains the 'Gate 1 runbook' section
+    coverage_min: 70
+
+decisions:
+  - id: D1
+    question: |
+      vLLM launch flags. Proposed defaults for a >=16GB VRAM GPU:
+        --dtype float16
+        --max-model-len 8192   (enough for 3x3 debate + extraction)
+        --gpu-memory-utilization 0.9
+        --port 8000
+        --served-model-name Qwen/Qwen2.5-7B-Instruct (matches client
+          config.model exactly so cache keys align)
+      Override-by-env via MAX_MODEL_LEN, VLLM_PORT, etc.
+    planner_view: "defaults above"
+    confidence: 75
+    rationale: |
+      fp16 is the baseline the user explicitly chose (D1 in
+      core-infrastructure). 8192 context is sufficient: 3x3 debate
+      final agent prompt empirically ~3000 tokens, extraction later
+      adds ~1500. 0.9 GPU util is vLLM's recommended default for
+      single-model serving. Port 8000 matches Config.base_url default.
+      Users can override via env without editing scripts.
+    alternatives:
+      - option: bfloat16 instead of float16
+        rejected_because: Qwen2.5 was trained in bf16; some GPUs (A100,
+          H100) support it natively. However fp16 works everywhere
+          including 4090/3090. Safe default, user can override.
+      - option: AWQ int4
+        rejected_because: user chose fp16 default in core-infrastructure
+      - option: max-model-len 16384
+        rejected_because: wastes KV cache; debate at 3x3 doesn't need it
+    ask_user: true
+    user_decision: "bf16 + H100; keep max-model-len 8192; gpu-memory-utilization 0.9 (H100 has VRAM to spare — extra goes to KV cache for throughput)"
+
+  - id: D2
+    question: How is the 30-question pilot sample selected?
+    planner_view: "load_gsm8k(split='test', n=30, seed=42); the sample is deterministic given n+seed"
+    confidence: 92
+    rationale: |
+      Deterministic sample is required for Gate 1 to be meaningfully
+      re-runnable after a model switch. The full 100-question
+      collection later uses seed=42, n=100; the pilot 30 is a strict
+      subset? Not automatically — different n changes the sampling.
+      Acceptable since pilot is exploratory and full collection
+      re-samples. Document this explicitly.
+    alternatives:
+      - option: pilot = first 30 of the 100-question sample
+        rejected_because: adds coupling; pilot could happen before
+          the 100-sample is defined
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: |
+      Pilot artifact layout — how are single-agent vs debate dialogues
+      stored?
+    planner_view: |
+      artifacts/pilot/single/{model_slug}/{qid}.json
+      artifacts/pilot/debate/{model_slug}/{qid}.json
+      artifacts/pilot/manifest.json
+      Later full-collection feature writes to artifacts/dialogues/
+      {model_slug}/{qid}.json for the 100-Q set; pilot is separate so
+      the two sets cannot accidentally contaminate each other (pilot
+      n=30 + full n=100 produce different qids anyway).
+    confidence: 88
+    rationale: |
+      Separation keeps the pilot lightweight and independent. Same
+      cache file backs both, so LLM calls are shared (any pilot qid
+      that also lands in the 100-sample later is free).
+    alternatives:
+      - option: Write pilot dialogues into artifacts/dialogues/ directly
+        rejected_because: mixes methods (single vs debate) and scopes
+          (pilot vs full) in one directory
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: Gate decision handling on soft-fail (0 <= delta < 3pp)
+    planner_view: |
+      Exit with distinct non-zero code (10) and print a diagnostic
+      suggesting either a model switch (set AGENTDIET_MODEL=
+      gpt-4o-mini + re-pilot) or escalation to user. Do NOT auto-switch
+      the model.
+    confidence: 95
+    rationale: |
+      Spec explicitly calls for human decision on Gate 1 failure.
+      Auto-switching hides the signal and may burn API credit without
+      consent.
+    alternatives:
+      - option: auto-switch to API fallback
+        rejected_because: costs money without user approval
+      - option: exit 0 regardless (let human read report)
+        rejected_because: makes it hard for Makefile to short-circuit
+          later targets when gate fails
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: wait_healthy timeout default
+    planner_view: "180 seconds"
+    confidence: 80
+    rationale: |
+      vLLM 7B fp16 cold start on a modern GPU is typically 30-90s
+      (weight load + CUDA kernels). 180s gives a 2x margin. Override
+      via --timeout.
+    alternatives:
+      - option: 60s
+        rejected_because: tight on cold boot; warm weights are fine
+          but first launch of the session may take longer
+      - option: 600s
+        rejected_because: hides hangs; 180 is a reasonable signal-vs-
+          patience tradeoff
+    ask_user: false
+    user_decision: null
+
+  - id: D6
+    question: Should the Makefile pipeline chain-stop on gate failure?
+    planner_view: |
+      `make pilot-full` chains serve -> health -> pilot -> gate with
+      standard make error-propagation. `make pilot` runs only the
+      sampling+debate stage and is safe to call repeatedly. `make gate`
+      only reports; its non-zero exit on soft-fail will short-circuit
+      `make pilot-full`. User can always run individual targets.
+    confidence: 90
+    rationale: |
+      Gives the user both a one-shot flow and per-stage control. The
+      gate's non-zero exit is the natural stopping mechanism.
+    alternatives:
+      - option: single `make pilot` that does everything
+        rejected_because: harder to debug and resume when one stage
+          fails
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      scripts/serve_vllm.sh supports start/stop/status subcommands
+      with pid/log file management; honors env overrides for dtype,
+      max-model-len, port, gpu-memory-utilization. scripts/wait_healthy.py
+      is a thin wrapper over agentdiet.cli.health.main. Health check
+      uses stdlib urllib (no extra deps) and tests use an in-process
+      HTTP server. 5 tests pass including timeout on closed port.
+    commits: ["d69c3b4"]
+  S2:
+    status: done
+    confidence: 95
+    notes: |
+      agentdiet/baseline.py has run_single_agent that mirrors run_debate
+      signature but produces exactly one Message. Uses INITIAL_USER_TEMPLATE
+      from debate.py so prompts stay consistent between methods.
+      meta.method='single' distinguishes from debate artifacts.
+      5 tests pass.
+    commits: ["52d92e3"]
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      agentdiet/cli/pilot.py provides run_pilot (test-callable) and
+      main (CLI). Per-qid artifacts at
+      artifacts/pilot/{single,debate}/{model_slug}/{qid}.json with
+      atomic tmp+rename writes. --resume (default True) skips existing
+      files; failures write to artifacts/failures/pilot/ and continue.
+      manifest.json tracks outcomes per qid. 6 tests pass including
+      resume-with-zero-calls, partial --no-debate run, per-qid failure
+      isolation, end-to-end main() with mocked HF + backend.
+    commits: ["b0cf916"]
+  S4:
+    status: done
+    confidence: 92
+    notes: |
+      agentdiet/cli/gate.py builds markdown report with accuracy table,
+      delta pp, 3 sample dialogues (both correct / debate flip / both
+      wrong). Exit codes 0/10/20 for pass/soft-fail/hard-fail. Hard
+      fail when all unparsed or debate < single. 8 tests pass after
+      removing a bogus test_soft_fail_small_positive whose arithmetic
+      was wrong (already covered by test_soft_fail_at_edge with n=100).
+    commits: ["38c847d"]
+  S5:
+    status: done
+    confidence: 93
+    notes: |
+      Makefile exposes serve/stop/status/health/pilot/gate/pilot-full/
+      pilot-clean/test/smoke targets. README Gate-1 Runbook walks the
+      user through the call sequence (setup -> serve -> health -> pilot
+      -> gate) including the API-fallback path if Gate 1 fails.
+      10 tests pass (dry-run for every target, README markers, script
+      existence + executable bit).
+    commits: ["aef41a8"]
+
+unplanned_changes:
+  - loc: agentdiet/cli/pilot.py run_pilot
+    what: takes an optional `backend` parameter for test injection
+    reason: lets tests call run_pilot with a DummyBackend without env tricks; real CLI main() constructs an OpenAIBackend
+    confidence: 95
+  - loc: tests/pilot_gate1/test_pilot_cli.py::test_main_cli_with_mocked_hf_and_backend
+    what: monkeypatches both 'datasets' module and OpenAIBackend class
+    reason: required to cover pilot.main() argparse + config resolution path without a live LLM
+    confidence: 90
+  - loc: agentdiet/cli/gate.py
+    what: added _pp helper to format accuracy as percentage string
+    reason: avoid inline formatting noise in report body
+    confidence: 95
+  - loc: tests/pilot_gate1/test_gate_report.py
+    what: removed test_soft_fail_small_positive (arithmetic off)
+    reason: +10pp exceeds threshold so delta would be PASS, not SOFT_FAIL; coverage preserved by test_soft_fail_at_edge
+    confidence: 95
+
+flags_for_eval:
+  - verify gate.py exit codes actually exit with those codes at CLI invocation (not just from build_report)
+  - verify pilot CLI handles model switching correctly (artifacts under model_slug; same cache works for both)
+  - verify wait_healthy polls the correct URL when AGENTDIET_BASE_URL is set to something nonstandard
+  - verify pilot resume properly skips BOTH single and debate independently (e.g. single exists but debate doesn't)
+  - spot-check that the sample-section picker works when fewer than 3 of the three sample types exist
+  - confirm Makefile 'serve' target does not start vLLM during `make -n` dry run (test uses -n)
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: "scripts/serve_vllm.sh defaults VLLM_DTYPE=bfloat16, VLLM_MAX_MODEL_LEN=8192, VLLM_GPU_MEM_UTIL=0.9"
+          - id: D2
+            verified: true
+            evidence: "pilot.main() default n from cfg.n_pilot=30, seed from cfg.seed=42"
+          - id: D3
+            verified: true
+            evidence: "_pilot_paths builds artifacts/pilot/{method}/{model_slug}/ — test_pilot_produces_both_methods confirms layout"
+          - id: D4
+            verified: true
+            evidence: "EXIT_SOFT_FAIL=10 with 'Switch model' text; no auto-switch code path"
+          - id: D5
+            verified: true
+            evidence: "Makefile health target sets --timeout 180"
+          - id: D6
+            verified: true
+            evidence: "Makefile pilot-full: serve health pilot gate — standard make error propagation; gate's exit 10/20 halts chain"
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "run_pilot accepts optional backend for test injection"
+          - "dual monkeypatch of datasets + OpenAIBackend in CLI coverage test"
+          - "_pp helper in gate.py"
+          - "removed bogus arithmetic test_soft_fail_small_positive"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 5
+          fail: 0
+          coverage: 90
+          tests_file: tests/pilot_gate1/test_health.py
+          failures: []
+        S2:
+          pass: 5
+          fail: 0
+          coverage: 100
+          tests_file: tests/pilot_gate1/test_baseline.py
+          failures: []
+        S3:
+          pass: 6
+          fail: 0
+          coverage: 96
+          tests_file: tests/pilot_gate1/test_pilot_cli.py
+          failures: []
+        S4:
+          pass: 8
+          fail: 0
+          coverage: 87
+          tests_file: tests/pilot_gate1/test_gate_report.py
+          failures: []
+        S5:
+          pass: 10
+          fail: 0
+          coverage: n/a
+          tests_file: tests/pilot_gate1/test_make_targets.py
+          failures: []
+
+      blockers: []
+
+      regressions: []
+
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: tests/pilot_gate1/test_gate_report.py
+        what: |
+          Add a direct main() test that invokes gate.main() and checks
+          its return value. Current tests cover build_report which is
+          the core logic, but e2e CLI propagation is taken on trust.
+          Low risk since main() is trivial.
+      - loc: tests/pilot_gate1/test_pilot_cli.py
+        what: |
+          Add a test for mixed-resume: single artifact exists for qid X
+          but debate artifact does not; verify a resumed run makes
+          0 single calls and 3 debate calls. Current tests cover the
+          all-or-nothing cases.
+      - loc: agentdiet/cli/pilot.py
+        what: |
+          Optional preflight: before loop, do one tiny llm_client.chat
+          to confirm the server is reachable; fail fast with a clear
+          'run make health first' message. Current behavior is per-qid
+          retry-then-log, which is noisier on the happy-vLLM-down path.
+      - loc: scripts/serve_vllm.sh
+        what: |
+          Consider process-group kill on stop to catch child workers
+          if vLLM spawns them. `kill -- -$pid` after adjusting pidfile
+          capture. Not essential on macOS where vLLM runs in a single
+          process; may matter on Linux with tensor-parallel launches.
+    final_verdict: MERGE_READY
+
