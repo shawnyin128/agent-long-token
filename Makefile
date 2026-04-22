@@ -3,6 +3,7 @@
         extract extract-report extract-clean spot-check \
         analyze analyze-report analyze-clean \
         ablate ablate-report ablate-clean gate2 \
+        policy-sample \
         test smoke
 
 PYTHON ?= .venv/bin/python
@@ -42,6 +43,9 @@ help:
 	@echo "  ablate-report    Print existing ablation summary"
 	@echo "  ablate-clean     Remove ablation artifacts only"
 	@echo "  gate2            Emit gate2_report.md; exit 0 PASS / 10 null / 20 inconclusive"
+	@echo ""
+	@echo "Compression policy (Day 3):"
+	@echo "  policy-sample    Seed artifacts/compression/policy.json from the template (no-clobber)"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -111,6 +115,9 @@ ablate-clean:
 
 gate2:
 	$(PYTHON) -m agentdiet.cli.ablate --gate2
+
+policy-sample:
+	mkdir -p artifacts/compression && cp -n docs/policy.sample.json artifacts/compression/policy.json || true
 
 test:
 	$(PYTEST) tests/ --timeout=30

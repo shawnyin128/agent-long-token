@@ -1,0 +1,6 @@
+{
+  "mode": "ours",
+  "drop_types": ["agreement", "other"],
+  "drop_low_novelty": null,
+  "drop_unreferenced": null
+}

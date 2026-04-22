@@ -345,6 +345,35 @@ Thresholds (module constants in `cli/ablate.py`): LIKELY 0.10 · PASS
 make ablate-clean    # drop ablation artifacts only
 ```
 
+## Day-3 compression policy
+
+After Gate-2, pick a compression policy that uses the Day-2 findings.
+`compress.apply(dialogue, policy, claims_doc=..., signal_scores=...)`
+returns a compressed history string under one of 5 modes:
+
+| Mode | What it keeps | Extra inputs |
+|---|---|---|
+| `b1` | full history (upper bound) | none |
+| `b2` | round 1, agent 0 only (single-agent lower bound) | none |
+| `b3` | last `last_k` rounds (sliding-window) | `last_k` |
+| `b5` | drops uniform random claims at `drop_rate` (seeded) | `claims_doc`, seed |
+| `ours` | drops the UNION of: `drop_types`, `drop_low_novelty<x`, `drop_unreferenced` | `claims_doc`, signal_scores when using novelty/unreferenced |
+
+Seed a starter policy:
+
+```bash
+make policy-sample   # copies policy.sample.json → policy.json (no-clobber)
+```
+
+Then edit `artifacts/compression/policy.json` with the rule chosen
+from Gate-2 reading:
+
+```json
+{ "mode": "ours", "drop_types": ["agreement", "other"] }
+```
+
+The `evaluation-sweep` feature (next) consumes this policy directly.
+
 ## Running tests
 
 ```bash
