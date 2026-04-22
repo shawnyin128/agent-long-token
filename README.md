@@ -408,6 +408,40 @@ make evaluate-clean     # drop artifacts/evaluation/ only
 Violations do not halt the sweep — the analyst reads the report and
 decides whether to retune the policy.
 
+## Report generation
+
+Render the figures and LaTeX tables the paper references:
+
+```bash
+.venv/bin/pip install -e ".[analysis]"    # if not already installed — needs matplotlib
+make report
+```
+
+Writes to `docs/reports/`:
+
+- `figs/claim_type_distribution.png`
+- `figs/signal_correlations.png`
+- `figs/delta_ranking.png`
+- `figs/pareto.png`
+- `tables/baselines.tex`
+- `tables/claim_stats.tex`
+
+If matplotlib is missing the CLI skips figures and still emits tables,
+printing a loud warning.
+
+The IMRAD scaffold lives at `docs/reports/final-report.template.md`.
+Fill in the TODOs, then assemble the PDF with pandoc:
+
+```bash
+pandoc docs/reports/final-report.template.md \
+       -o docs/reports/final-report.pdf \
+       --pdf-engine=xelatex --standalone
+```
+
+```bash
+make report-clean    # drop figs/ and tables/ (keeps template)
+```
+
 ## Running tests
 
 ```bash

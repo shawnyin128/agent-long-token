@@ -5,6 +5,7 @@
         ablate ablate-report ablate-clean gate2 \
         policy-sample \
         evaluate evaluate-report evaluate-clean \
+        report report-clean \
         test smoke
 
 PYTHON ?= .venv/bin/python
@@ -52,6 +53,10 @@ help:
 	@echo "  evaluate         5 methods x N questions -> results.json + invariant violations"
 	@echo "  evaluate-report  Print per-method summary"
 	@echo "  evaluate-clean   Remove artifacts/evaluation/ only"
+	@echo ""
+	@echo "Report:"
+	@echo "  report           Render figures + LaTeX tables into docs/reports/"
+	@echo "  report-clean     Remove docs/reports/figs/ and docs/reports/tables/ (keeps template)"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -133,6 +138,12 @@ evaluate-report:
 
 evaluate-clean:
 	rm -rf artifacts/evaluation
+
+report:
+	$(PYTHON) -m agentdiet.cli.report
+
+report-clean:
+	rm -rf docs/reports/figs docs/reports/tables
 
 test:
 	$(PYTEST) tests/ --timeout=30
