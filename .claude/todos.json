@@ -1,3 +1,24 @@
 {
-  "todos": []
+  "todos": [
+    {
+      "id": "report-non-convergence-rate-count-dialogues-where-majority-v",
+      "description": "Report non-convergence rate: count dialogues where majority_vote returned None (tie) and surface in report.py as a 6th data-prep helper + in final-report Methods",
+      "category": "feature-idea",
+      "status": "pending",
+      "notes": "sp-feedback f-20260422-07. debate-runner optimization suggestion never acted on. One-line numpy count over dialogues corpus.",
+      "created_at": "2026-04-22T19:26:31Z",
+      "linked_feature_ids": [],
+      "archived_feature_paths": []
+    },
+    {
+      "id": "spot-check-aggregator-cli-read-filled-artifacts-spot-check-c",
+      "description": "Spot-check aggregator CLI: read filled artifacts/spot_check.csv and emit pass-rate + representative failures for IMRAD Methods section",
+      "category": "feature-idea",
+      "status": "pending",
+      "notes": "sp-feedback f-20260422-08. Gated on human actually doing the spot-check; 20 lines of csv code; zero LLM calls.",
+      "created_at": "2026-04-22T19:26:31Z",
+      "linked_feature_ids": [],
+      "archived_feature_paths": []
+    }
+  ]
 }

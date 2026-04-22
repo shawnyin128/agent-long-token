@@ -1,0 +1,139 @@
+{
+  "mode": "A",
+  "generated_at": "2026-04-22",
+  "scope": "post-all-features system review over 10 completed features + 2 hygiene passes",
+  "findings": [
+    {
+      "id": "f-20260422-01",
+      "dimension": "quality",
+      "root_cause": "feature_gap",
+      "action": "framework",
+      "target": "sp-harness:code-hygiene",
+      "severity": "medium",
+      "description": "Two hygiene passes (completed_count=6 commit df219d4, completed_count=9 commit dd61e7a) both missed cross-module function duplication. _atomic_write is redefined in 6 CLI modules (pilot, collect, extract, ablate, evaluate; analyze has _atomic_write_text + _atomic_write_bytes split). _make_client is redefined in 5 CLI modules (collect, extract, ablate, evaluate, analyze). Hygiene only touched unused imports + dead stubs + leftover refactor blocks.",
+      "evidence": "grep across agentdiet/cli/*.py shows 6 definitions of _atomic_write (pilot.py:18, collect.py:16, extract.py:23, ablate.py:36, evaluate.py:29, analyze.py:40+47). full-collection.plan.yaml optimization suggestion (line 340) explicitly predicted: 'Next hygiene pass (trigger at completed=6) should extract to agentdiet.collection_runner'. It did not.",
+      "suggestion": "Extend sp-harness:code-hygiene to run a lightweight duplicate-symbol scan (e.g. grep -rn 'def _atomic_write\\|def _make_client' or AST-based identical-body detection across siblings in a directory). When a helper is duplicated >=3 times, either auto-extract to a shared module (e.g. agentdiet/cli/_common.py) or escalate to user. Current hygiene scope is too narrow: 'unused imports, dead stubs, leftover refactor blocks' misses this class entirely."
+    },
+    {
+      "id": "f-20260422-02",
+      "dimension": "quality",
+      "root_cause": "bug",
+      "action": "fix_feature",
+      "target": null,
+      "severity": "low",
+      "description": "_format_other_responses helper is defined twice with near-identical bodies: agentdiet/debate.py:23 and agentdiet/analysis/ablate.py:130. Neither flagged by any evaluator round. Silent drift risk if one is updated.",
+      "evidence": "agentdiet/debate.py lines 23-33 and agentdiet/analysis/ablate.py lines 130-142. Both assemble '--- Agent K (round R) ---\\n{text}' blocks, filtering self_id.",
+      "suggestion": "Add fix feature 'dedupe-debate-format-helpers': move _format_other_responses + LATER_ROUND_TEMPLATE + INITIAL_USER_TEMPLATE consumers into a shared helper, probably as a module-level function exported from agentdiet.debate that ablate already imports. One-line cleanup per call site; tests already cover both paths."
+    },
+    {
+      "id": "f-20260422-03",
+      "dimension": "functional",
+      "root_cause": "spec_gap",
+      "action": "manual",
+      "target": null,
+      "severity": "medium",
+      "description": "Five manifest.json files live at non-model-slugged paths: artifacts/dialogues/manifest.json, artifacts/claims/manifest.json, artifacts/analysis/manifest.json, artifacts/analysis/ablation_manifest.json, artifacts/pilot/manifest.json. If the user runs with a second AGENTDIET_MODEL (e.g. the spec-sanctioned Qwen→gpt-4o-mini pivot if Gate 1 had failed), each manifest silently overwrites the first. Dialogues/claims artifacts themselves ARE under {model_slug}/ so the data survives — but per-manifest counts become wrong and the 'reporting' view of the prior model is destroyed.",
+      "evidence": "full-collection.plan.yaml round-1 optimization (line 347) and claim-extraction.plan.yaml round-1 optimization (line 429) both flagged this, both rated 'low priority'. Two features, same suggestion, both deferred. Spec §4.1 doesn't require per-model manifests.",
+      "suggestion": "Decide with user: (a) relocate manifests to artifacts/<kind>/{model_slug}/manifest.json (4-line change per CLI + test updates) to preserve audit trail on model switches, OR (b) formally accept 'manifest is a single-model read-only artifact' and document in README. Either way, the contradiction between 'artifacts are model-partitioned' and 'manifests are not' is a real spec gap, not just style."
+    },
+    {
+      "id": "f-20260422-04",
+      "dimension": "agent",
+      "root_cause": "evaluator",
+      "action": "memory_update",
+      "target": "sp-evaluator",
+      "severity": "medium",
+      "description": "Generator-declared deviations from user decisions (ask_user:true) or planner decisions (ask_user:false) were accepted 13 times across 10 features with zero rejections. One notable case: type-level-ablation D1 explicitly said 'use-pilot-single-artifacts-if-present-fallback-to-run_single_agent-on-demand'; generator shipped 'silently skip qids missing pilot artifact'; evaluator accepted with 'matches full-collection precedent' rather than flagging it as a D1 deviation. The accept-all pattern is load-bearing because D1 was the research-integrity argument for subset completeness.",
+      "evidence": "type-level-ablation.plan.yaml unplanned_changes (line 287) explicitly says 'D1's plan said it would [fall back to run_single_agent]... Will add if Day-2 shows gaps.' Evaluator accepted in closure_check line 336 without re-opening D1. Across all 10 features, unplanned_rejected arrays are always empty.",
+      "suggestion": "Add memory pattern: 'When unplanned_changes contradicts a plan decision with id Dn, evaluator must either (a) re-classify it as a plan revision needing user confirmation, or (b) cite why the contradiction is safe. Silent acceptance of a decision reversal is a closure_check gap, not a PASS.' This is a durable pattern because the harness already has Dn IDs the evaluator can reference."
+    },
+    {
+      "id": "f-20260422-05",
+      "dimension": "agent",
+      "root_cause": "planner",
+      "action": "memory_update",
+      "target": "sp-planner",
+      "severity": "low",
+      "description": "ask_user:true rate collapsed after infrastructure features. Features 1-4 (core-infrastructure, debate-runner, pilot-gate1, full-collection) each had exactly one ask_user:true decision each. Features 5-10 (claim-extraction, flip-and-signals, type-level-ablation, compression-policy, evaluation-sweep, report-generation) had ZERO ask_user:true decisions. Plausible that analysis features have fewer hardware/cost choices, but claim-extraction D4 (CSV vs CSV+markdown) and type-level-ablation D3 (gate-2 threshold values) were genuine policy choices the planner assumed on the user's behalf.",
+      "evidence": "Grep 'ask_user: true' across all 10 archive YAMLs: exactly 4 hits, all in features 1-4. Features 5-10 have 27 total decisions, all ask_user:false.",
+      "suggestion": "Add memory pattern: 'Late-in-project features still have user-visible policy choices (thresholds, report column sets, file formats). Before marking confidence >80 on an analysis-phase decision that introduces a new threshold, file format, or output schema, reconsider whether to ask. Low-confidence unasked decisions are worse than asked ones.'"
+    },
+    {
+      "id": "f-20260422-06",
+      "dimension": "quality",
+      "root_cause": "generator",
+      "action": "manual",
+      "target": null,
+      "severity": "low",
+      "description": "report-generation.plan.yaml execution section has commits:[] empty for all 5 steps (lines 158, 166, 177). Other 9 features populate commits: ['<sha>'] consistently. Minor audit-trail gap.",
+      "evidence": "archive/report-generation/report-generation.plan.yaml lines 150-178. git log shows report-generation work spread across f060e2e, a0b6b22, d564f97, etc.",
+      "suggestion": "No remediation needed for shipped code. Generator has no memory; only raise if future features show the same gap. Log-only finding."
+    },
+    {
+      "id": "f-20260422-07",
+      "dimension": "ux",
+      "root_cause": "feature_gap",
+      "action": "new_todo",
+      "target": null,
+      "severity": "low",
+      "description": "aggregate.py majority_vote returns None silently on a tie. debate-runner optimization suggestion (plan.yaml line 371) flagged: 'Log when a tie occurs. Could inform a non-convergence rate stat in the report without extra bookkeeping.' Not acted on. For the final IMRAD report, knowing how often debates failed to converge on a majority is a legitimate finding (possibly small but worth reporting).",
+      "evidence": "agentdiet/aggregate.py lines 14-34. No logger, no warning, no counter. debate.py stores per_agent_final_answers in Dialogue.meta but does not flag convergence=False.",
+      "suggestion": "Add todo 'report-nonconvergence-rate': compute the fraction of debate dialogues whose majority_vote returned None, surface in report.py or the final-report template. One-line numpy count over the dialogues corpus; could go in report.py data-prep helpers as a 6th function."
+    },
+    {
+      "id": "f-20260422-08",
+      "dimension": "ux",
+      "root_cause": "feature_gap",
+      "action": "new_todo",
+      "target": null,
+      "severity": "low",
+      "description": "Spot-check CSV is scaffolded (artifacts/spot_check.csv with manual_pass + notes columns starting blank) but the '10-dialogue human spot-check' step from claim-extraction feature is implicitly pending on HPC-run data. The final IMRAD report will need a sentence on extraction quality; without the spot-check, author has nothing to cite.",
+      "evidence": "claim-extraction.plan.yaml S4 (line 104) produces artifacts/spot_check.csv. Template at docs/reports/final-report.template.md is human-authored but needs an extraction-quality number. No code currently aggregates manual_pass column after a human fills it.",
+      "suggestion": "Add todo 'spot-check-aggregator': small CLI that reads the filled spot_check.csv and emits a pass-rate + representative failure examples for the Methods section. Zero LLM calls; 20 lines of pandas-or-csv code. Prompt the user: will the spot-check be done pre-report (meaning this todo matters) or skipped (no-op)?"
+    },
+    {
+      "id": "f-20260422-09",
+      "dimension": "performance",
+      "root_cause": "bug",
+      "action": "manual",
+      "target": null,
+      "severity": "low",
+      "description": "count_tokens in agentdiet/evaluate.py uses TOKENS_PER_CHAR=0.25 (char/4 heuristic). This is monotone-correct for the structural invariants (b1 > b3 > b5 ≈ ours) but the final-report Pareto curve + acc_per_1k table will publish absolute token numbers that a reviewer could compare against Qwen2.5-7B's real tokenizer. Discrepancy factor ~1.2-1.5x for English text.",
+      "evidence": "evaluate.py evaluation-sweep.plan.yaml D2 (line 156-174) consciously accepts this tradeoff. README should warn; IMRAD report should state 'token counts are approximate (char/4)'.",
+      "suggestion": "No code change needed. Ensure final-report.template.md Methods section explicitly notes the char/4 approximation (template may already; verify during report authoring). If a reviewer pushes back, upgrade to tiktoken or transformers tokenizer — but don't do it preemptively."
+    },
+    {
+      "id": "f-20260422-10",
+      "dimension": "agent",
+      "root_cause": "feature_gap",
+      "action": "framework",
+      "target": "sp-feedback",
+      "severity": "low",
+      "description": "No .claude/sp-feedback-calibration.json exists yet. This is the first Mode A run for the project. Findings cannot be validated against runtime without bootstrapping the file.",
+      "evidence": "ls .claude/sp-feedback-calibration.json -> does not exist.",
+      "suggestion": "Orchestrator should create .claude/sp-feedback-calibration.json with the skeleton {findings_history: [], missed_detections: []} and append all 10 of today's findings with runtime_validation:pending. Deferred to orchestrator execution phase per Mode A protocol (this agent produces feedback-actions.json; the skill applies state mutations after user confirmation)."
+    }
+  ],
+  "summary": {
+    "total_findings": 10,
+    "by_action": {
+      "memory_update": 2,
+      "memory_compact": 0,
+      "new_todo": 2,
+      "fix_feature": 1,
+      "framework": 2,
+      "manual": 3
+    },
+    "by_severity": {"medium": 3, "low": 7, "high": 0},
+    "by_dimension": {
+      "functional": 1,
+      "performance": 1,
+      "ux": 2,
+      "quality": 3,
+      "spec": 0,
+      "agent": 3
+    },
+    "memory_ops_auto_executed": false,
+    "reason_not_executed": "caller requested enumerate-only (no fix execution)"
+  }
+}

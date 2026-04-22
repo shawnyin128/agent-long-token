@@ -188,6 +188,22 @@
         "export PDF to docs/reports/final-report.pdf"
       ],
       "passes": true
+    },
+    {
+      "id": "dedupe-debate-format-helpers",
+      "category": "infrastructure",
+      "priority": "low",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Dedupe _format_other_responses: debate.py and analysis/ablate.py have near-identical copies (sp-feedback f-20260422-02)",
+      "steps": [
+        "export _format_other_responses from agentdiet/debate.py",
+        "update agentdiet/analysis/ablate.py to import the shared helper",
+        "remove duplicate local definition in ablate.py",
+        "verify full test suite still passes with no regressions"
+      ],
+      "passes": false
     }
   ]
 }
