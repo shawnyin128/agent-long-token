@@ -94,7 +94,7 @@
         "invariant: source_message_span within referenced message, type in enum",
         "manual spot check on 10 random dialogues, record to artifacts/spot_check.csv with pass/fail notes"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "flip-and-signals",

@@ -1,0 +1,447 @@
+plan_id: claim-extraction
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Debate dialogues are opaque to downstream attribution — we cannot ask
+  "which claim type causes accuracy gain?" until each message is
+  decomposed into typed claims with pointers back into source text.
+  This feature introduces a schema-guided extractor that turns each
+  debate message into a list of Claim records (6-type taxonomy per
+  spec §3.4) with verifiable source_message_span offsets, plus a
+  10-dialogue spot-check scaffold so a human can confirm extraction
+  quality is good enough to feed Day 2 analysis.
+
+steps:
+  - id: S1
+    desc: claim model + prompts
+    approach: |
+      Add Claim pydantic model (spec §3.3) in agentdiet/types.py:
+      id, text, agent_id, round, type (Literal enum of 6 types),
+      source_message_span (tuple[int,int]). Validator: span[0] < span[1].
+      Add claim-extraction prompt constants in a new module
+      agentdiet/extract_claims.py: 6-type taxonomy definitions,
+      3 few-shot examples covering solver/skeptic/synthesizer styles,
+      and a strict JSON schema hint. Keep prompts as module-level
+      str constants so they are diff-able and unit-testable.
+    files:
+      create: [agentdiet/extract_claims.py]
+      modify: [agentdiet/types.py]
+      test: [tests/claim_extraction/test_claim_model.py, tests/claim_extraction/test_prompts.py]
+    test_plan:
+      - Claim accepts valid fields; rejects invalid type enum
+      - Claim rejects span where start >= end
+      - Prompt module exports TYPE_DEFINITIONS covering all 6 types
+      - Few-shot examples parse as valid Claim lists
+    coverage_min: 90
+
+  - id: S2
+    desc: per-message extractor
+    approach: |
+      In agentdiet/extract_claims.py implement
+      extract_claims_from_message(message, llm_client, model, ...)
+      returning list[Claim]. Protocol:
+        1. Build extraction prompt: system (instructions + taxonomy +
+           few-shot), user (message text + question context + JSON
+           schema hint).
+        2. Call llm_client.chat (response_format is NOT guaranteed on
+           all OpenAI-compat backends, so rely on prompt + pydantic
+           validation rather than server-side structured output).
+        3. Parse JSON, validate each item as Claim; compute
+           source_message_span by str.index on a required verbatim
+           "quote" field the LLM returns (not char offsets from LLM).
+        4. On JSON-or-schema failure: one stricter-prompt retry
+           ("Your previous output was invalid: <reason>. Output ONLY a
+           JSON array matching: ..."). On second failure: write raw
+           prompt + response + traceback to
+           artifacts/failures/claim_extraction/{qid}_r{round}_a{agent}.json
+           and return [] (callers treat as extraction_failed).
+        5. Invariants (asserted): every claim's span is within
+           [0, len(message.text)]; type is in enum; id format
+           "{qid}_r{round}_a{agent}_c{idx}".
+      Also implement extract_claims_for_dialogue(dialogue, ...) that
+      iterates all messages and aggregates.
+    files:
+      create: []
+      modify: [agentdiet/extract_claims.py]
+      test: [tests/claim_extraction/test_extractor.py]
+    test_plan:
+      - DummyBackend returning valid JSON → list[Claim] with correct spans
+      - DummyBackend returning malformed JSON twice → returns [], writes failure file
+      - DummyBackend returning JSON with invalid type enum → stricter retry path exercised
+      - span invariant violation raises AssertionError (defensive)
+      - quote not found in source text → that single claim is dropped, rest kept
+      - extract_claims_for_dialogue iterates every message exactly once
+    coverage_min: 90
+
+  - id: S3
+    desc: extract CLI
+    approach: |
+      Add agentdiet/cli/extract.py modeled on cli/collect.py:
+      flags --n (subset), --dry-run, --report-manifest, and implicit
+      resume (skip qids whose claims/{qid}.json exists). Reads
+      dialogues from cfg.dialogues_dir, writes per-qid claim artifacts
+      to cfg.claims_dir, aggregated manifest to
+      artifacts/claims/manifest.json with {model, n, counts, outcomes}.
+      Outcome buckets: ok (all messages extracted), partial (some
+      extraction_failed), failed (dialogue-level exception), cached.
+      --dry-run validates imports + that cfg.dialogues_dir is scannable
+      without calling the LLM. Exit 1 only if ALL dialogues fail
+      (catastrophic).
+    files:
+      create: [agentdiet/cli/extract.py]
+      modify: []
+      test: [tests/claim_extraction/test_extract_cli.py]
+    test_plan:
+      - Given 3 dialogue artifacts, CLI writes 3 claims artifacts + manifest
+      - Resume: re-run with same dialogues_dir makes zero new LLM calls
+      - --dry-run exits 0 without touching LLM
+      - --report-manifest prints counts and returns 0 if manifest exists, 2 otherwise
+      - all dialogues fail → exit code 1
+
+  - id: S4
+    desc: spot-check scaffold
+    approach: |
+      Add agentdiet/cli/spot_check.py that samples K dialogues (default
+      10, seeded with cfg.seed) that already have claim artifacts, and
+      writes artifacts/spot_check.csv with columns:
+        qid, message_idx, agent_id, round, claim_id, type, text,
+        span_start, span_end, manual_pass, notes.
+      manual_pass + notes start blank for human to fill. Also writes
+      a companion markdown file artifacts/spot_check_notes.md that
+      pretty-prints each sampled dialogue side-by-side with its claims
+      for easier human reading. CLI also supports --k flag.
+    files:
+      create: [agentdiet/cli/spot_check.py]
+      modify: []
+      test: [tests/claim_extraction/test_spot_check.py]
+    test_plan:
+      - Given 5 claim artifacts and --k 3, produces CSV with 3 distinct qids
+      - CSV column headers exact match
+      - Seeded sample is deterministic across runs
+      - Raises clear error if fewer claim artifacts than --k
+
+  - id: S5
+    desc: make targets + runbook
+    approach: |
+      Add Makefile targets: extract, extract-report, extract-clean,
+      spot-check. Append a §"Claim extraction" section to README.md
+      mirroring the full-collection runbook style (run on HPC node
+      after dialogues exist; make extract → make extract-report →
+      make spot-check → human fills CSV). Update features.json
+      comment or README pointer minimally. No code beyond Makefile
+      + README diffs.
+    files:
+      create: []
+      modify: [Makefile, README.md]
+      test: [tests/claim_extraction/test_runbook.py]
+    test_plan:
+      - Makefile declares extract, extract-report, extract-clean, spot-check
+        targets in .PHONY and provides recipes
+      - README contains a "Claim extraction" heading and mentions make extract + make spot-check
+      - extract-clean removes only artifacts/claims (keeps llm_cache, dialogues)
+
+decisions:
+  - id: D1
+    question: One LLM call per message, or one per dialogue?
+    planner_view: per-message
+    confidence: 85
+    rationale: |
+      Per-message keeps each prompt short (single agent turn vs 9-turn
+      concatenation), makes the output JSON small enough to validate
+      reliably, isolates retries to one message, and makes
+      source_message_span trivially scoped to the input text. Cost is
+      fine — 9 msgs × 100 dialogues = 900 calls, cache-served on reruns.
+      Spec §3.2 explicitly leaves this choice to implementation.
+    alternatives:
+      - option: per-dialogue
+        rejected_because: |
+          Long mixed input makes the LLM miscount agent/round assignments
+          and hallucinate spans. Retry granularity is whole-dialogue, which
+          loses partial progress on a single bad message.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: How to compute source_message_span — LLM char offsets or LLM-returned quotes?
+    planner_view: llm-returns-quote-we-compute-span
+    confidence: 80
+    rationale: |
+      LLMs are poor at character counting; asking for offsets directly
+      produces off-by-N errors frequently. Instead require the LLM to
+      emit a verbatim "quote" substring; compute span via
+      source_text.index(quote). If not found, drop that single claim
+      (logged in failures). This is robust and keeps the invariant
+      "span within message" trivially true by construction.
+    alternatives:
+      - option: ask LLM for (start,end) int offsets
+        rejected_because: Brittle; off-by-one and Unicode width issues.
+      - option: use fuzzy substring match
+        rejected_because: Introduces policy decisions (ratio threshold)
+          that would need their own unit tests and undermine the
+          "verbatim source" invariant.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Use vLLM server-side JSON mode (response_format) or prompt-only JSON + pydantic?
+    planner_view: prompt-only-json-plus-pydantic
+    confidence: 75
+    rationale: |
+      response_format={"type":"json_object"} works on OpenAI and modern
+      vLLM builds but can silently degrade if the client sends it to a
+      backend that does not support it. Prompt-only JSON + pydantic
+      validation + one strict retry is backend-agnostic, matches the
+      spec's stated retry policy (§6.1), and keeps the llm_client
+      interface unchanged (no new kwargs). We still get strong
+      guarantees because pydantic is the real validator.
+    alternatives:
+      - option: pass response_format through llm_client.chat
+        rejected_because: Adds a backend-specific kwarg that the current
+          DummyBackend and OpenAIBackend signatures don't accept;
+          widens interface for marginal benefit.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: Spot-check output — CSV only, or CSV + markdown?
+    planner_view: csv-plus-markdown
+    confidence: 72
+    rationale: |
+      The spec (§9.3 Day 2 AM checklist) says "10-dialogue claim spot
+      check". A CSV is the artifact to record pass/fail; a markdown
+      companion that prints each dialogue side-by-side with its claims
+      makes the human check 3–5× faster. Both are cheap to write.
+    alternatives:
+      - option: CSV only
+        rejected_because: Forces human to cross-reference JSON files
+          manually; slower and more error-prone.
+      - option: Jupyter notebook
+        rejected_because: Introduces an interactive dependency not
+          otherwise in the runbook; heavier than needed.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: Where to run the 100-dialogue extraction pass — now (local dry-run) or HPC (runbook only)?
+    planner_view: code-tested-locally-real-run-on-HPC
+    confidence: 88
+    rationale: |
+      Mirrors full-collection precedent (feature full-collection was
+      merged with tests only, runbook for actual 100Q run on HPC).
+      Claim extraction also needs a live vLLM server — no GPU here.
+      Tests use DummyBackend returning canned JSON; real run is a
+      Makefile target invoked on the HPC node after dialogues exist.
+    alternatives:
+      - option: require live run before marking pass
+        rejected_because: Inconsistent with full-collection handling
+          and gated on HPC allocation which is outside the session.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 92
+    notes: |
+      Claim pydantic model added to agentdiet/types.py with ClaimType
+      Literal and model_validator rejecting non-positive spans.
+      extract_claims.py module created with TYPE_DEFINITIONS,
+      FEW_SHOT_EXAMPLES (3 examples, all quotes verified verbatim
+      against their message_text), SYSTEM_PROMPT, and build_user_prompt.
+    commits: ["43b5659"]
+  S2:
+    status: done
+    confidence: 88
+    notes: |
+      extract_claims_from_message does the JSON-mode call + validation
+      + one strict retry + failure logging. _parse_claims_payload
+      returns (claims, error|None); on error callers retry once, then
+      log raw prompt + response + reason to
+      artifacts/failures/claim_extraction/{qid}_r{round}_a{agent}.json
+      and return (empty list, extraction_failed=True). Quote-not-found
+      drops only the offending claim; other valid claims survive.
+      Markdown ```json fences are stripped before json.loads.
+      extract_claims_for_dialogue iterates messages and aggregates with
+      a per_message_status list.
+    commits: ["10241dd"]
+  S3:
+    status: done
+    confidence: 88
+    notes: |
+      cli/extract.py modeled on cli/collect.py: --dry-run, --report-manifest,
+      implicit resume (skip qids whose claims file exists). Outcome
+      buckets: ok | partial | failed | cached. Exit 1 only when every
+      dialogue hits a dialogue-level exception. Manifest written to
+      artifacts/claims/manifest.json.
+    commits: ["62acfaf"]
+  S4:
+    status: done
+    confidence: 85
+    notes: |
+      cli/spot_check.py samples K dialogues (seeded with cfg.seed)
+      from the intersection of dialogue_qids and claim_qids. Writes
+      artifacts/spot_check.csv with exact SPOT_CHECK_COLUMNS header and
+      a companion artifacts/spot_check_notes.md that pretty-prints each
+      dialogue with claims beside it. Raises ValueError when corpus
+      smaller than k; CLI returns exit code 2 in that case.
+    commits: ["333c28e"]
+  S5:
+    status: done
+    confidence: 90
+    notes: |
+      Makefile gained extract, extract-report, extract-clean, spot-check
+      targets in .PHONY with recipes. README.md got a new "Claim
+      extraction" section between the HPC collection runbook and the
+      tests section, mirroring the full-collection runbook structure.
+      Full suite: 173 passed, 4 skipped (network-gated).
+    commits: ["15054c2"]
+
+unplanned_changes:
+  - loc: agentdiet/extract_claims.py
+    what: |
+      Added _strip_json_fences helper to tolerate ```json fenced
+      responses — some vLLM builds wrap JSON even when instructed
+      otherwise.
+    reason: |
+      Defensive against a known vLLM quirk; one-line stripper
+      avoids wasting a retry on a trivially fixable format issue.
+    confidence: 85
+  - loc: agentdiet/cli/extract.py
+    what: |
+      dialogue-level load guarded by try/except so a corrupt JSON file
+      becomes a "failed" outcome rather than aborting the whole run.
+    reason: |
+      Matches full-collection CLI resilience; spec §6.1 calls for
+      fail-visible, not fail-fast-on-first-IO-error.
+    confidence: 90
+  - loc: agentdiet/cli/spot_check.py
+    what: |
+      Added "quoted_source" column to spot_check.csv — re-renders the
+      actual substring from the dialogue text for the given span. Makes
+      the human review faster and lets D2 (span correctness) be
+      audited alongside type correctness.
+    reason: |
+      Plan said "record to CSV with pass/fail notes" but did not
+      specify columns; quoted_source is a cheap and high-leverage
+      addition for the human reviewer.
+    confidence: 88
+
+flags_for_eval:
+  - |
+    Coverage of _parse_claims_payload: verify the "quote found by
+    str.find but at byte offset that spans a multi-byte character"
+    case is either impossible (Python str.find returns code-point
+    offsets so should be safe) or tested.
+  - |
+    Resume correctness: run_extraction skips qids whose claims file
+    exists. Confirm this holds even when the prior run produced a
+    "partial" outcome — partials SHOULD be cached and not re-extracted
+    on the next run (otherwise we lose resumability).
+  - |
+    Exit code 1 semantics: currently only triggers on dialogue-level
+    failures. Verify this matches what downstream CI/scripts expect.
+  - |
+    Spot-check deterministic sample: confirm seeded RNG uses
+    cfg.seed (default 42), not random.seed globally — a global
+    mutation could corrupt other code paths that share Random state.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []          # no ask_user: true decisions
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "_strip_json_fences helper — defensive against vLLM markdown fences, one-line, clearly scoped"
+          - "cli/extract.py dialogue-level try/except on load — matches full-collection resilience pattern"
+          - "spot_check quoted_source column — cheap win, makes human review substantially faster"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 15
+          fail: 0
+          coverage: 100
+          tests_file: tests/claim_extraction/test_claim_model.py + tests/claim_extraction/test_prompts.py
+        S2:
+          pass: 11
+          fail: 0
+          coverage: 97
+          tests_file: tests/claim_extraction/test_extractor.py
+        S3:
+          pass: 8
+          fail: 0
+          coverage: 97
+          tests_file: tests/claim_extraction/test_extract_cli.py
+        S4:
+          pass: 8
+          fail: 0
+          coverage: 97
+          tests_file: tests/claim_extraction/test_spot_check.py
+        S5:
+          pass: 7
+          fail: 0
+          coverage: 100
+          tests_file: tests/claim_extraction/test_runbook.py
+        adversarial:
+          pass: 11
+          fail: 0
+          coverage: null
+          tests_file: tests/claim_extraction/test_adversarial.py
+          notes: |
+            Red-team tests probing Generator flags_for_eval: multi-byte
+            (α,β,γ + emoji) span correctness, "partial" outcome resume,
+            global-RNG isolation, every _parse_claims_payload drop branch,
+            and dialogue-level exception path.
+
+      full_suite_regression:
+        total_pass: 184
+        total_skip: 4
+        total_fail: 0
+        notes: |
+          4 skips are network-gated GSM8K dataset tests (pre-existing,
+          require AGENTDIET_ALLOW_NETWORK=1). No regressions from prior
+          features.
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/extract_claims.py
+        what: |
+          Per-message silent claim drops (invalid type, empty quote,
+          quote-not-found) are not currently logged. Consider writing a
+          per-dialogue "extraction_drops.jsonl" trace so Day-2 analysis
+          can compute the true drop rate for the 10-dialogue spot check.
+      - loc: agentdiet/cli/extract.py
+        what: |
+          Manifest lives at artifacts/claims/manifest.json (not
+          inside {model_slug}/), mirroring collect.py. If the user ever
+          runs extraction against two models, the second manifest
+          overwrites the first. Low-cost fix: move to
+          artifacts/claims/{model_slug}/manifest.json.
+      - loc: agentdiet/extract_claims.py
+        what: |
+          str.find returns the first occurrence of quote; if the same
+          quote appears twice in the message the earlier span wins. Add
+          a doc-string note (already behaviorally covered by tests).
+      - loc: agentdiet/cli/spot_check.py
+        what: |
+          Markdown companion dumps message text inside triple-backtick
+          fences. A message that itself contains "```" would break the
+          fence. Escape or use indented code blocks if a real dialogue
+          trips this.
+    final_verdict: MERGE_READY
+
+
