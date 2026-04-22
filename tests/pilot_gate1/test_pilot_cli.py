@@ -102,6 +102,51 @@ def test_per_qid_failure_does_not_stop(tmp_path):
     assert failure["qid"] == "q1"
 
 
+def test_main_cli_with_mocked_hf_and_backend(tmp_path, monkeypatch):
+    """End-to-end main() path with mocked HF dataset + openai client."""
+    import sys
+    import types
+
+    # monkeypatch datasets module
+    fake_mod = types.ModuleType("datasets")
+
+    def fake_load_dataset(name, subset, split, **kwargs):
+        return [
+            {"question": f"Problem {i}", "answer": f"...\n#### {i + 1}"}
+            for i in range(3)
+        ]
+
+    fake_mod.load_dataset = fake_load_dataset
+    monkeypatch.setitem(sys.modules, "datasets", fake_mod)
+
+    # monkeypatch OpenAIBackend to avoid network
+    from agentdiet.cli import pilot as pilot_mod
+
+    class FakeBackend:
+        def __init__(self, *a, **k):
+            self.call_count = 0
+
+        def chat(self, messages, model, temperature):
+            self.call_count += 1
+            return "#### 1"
+
+    monkeypatch.setattr(pilot_mod, "OpenAIBackend", FakeBackend)
+
+    monkeypatch.setenv("AGENTDIET_ARTIFACTS_DIR", str(tmp_path))
+    monkeypatch.setenv("AGENTDIET_HF_CACHE_DIR", str(tmp_path / "hf"))
+    monkeypatch.setenv("AGENTDIET_MODEL", "test-model")
+    monkeypatch.setenv("AGENTDIET_N_PILOT", "3")
+
+    rc = pilot_mod.main(["--n", "3", "--no-debate"])
+    assert rc == 0
+    manifest = tmp_path / "pilot" / "manifest.json"
+    assert manifest.exists()
+    import json
+    m = json.loads(manifest.read_text())
+    assert m["n"] == 3
+    assert all(o["single"] == "ok" for o in m["outcomes"])
+
+
 def test_unparsed_marked_but_written(tmp_path):
     cfg = _cfg(tmp_path)
     cfg.ensure_dirs()
