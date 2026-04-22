@@ -87,3 +87,70 @@ def select_subset(cfg: Config, target_size: int) -> list[str]:
         return eligible
     rng = random.Random(cfg.seed)
     return sorted(rng.sample(eligible, target_size))
+
+
+def _merge_spans(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    valid = [(a, b) for a, b in spans if a < b]
+    if not valid:
+        return []
+    valid.sort()
+    merged: list[tuple[int, int]] = [valid[0]]
+    for a, b in valid[1:]:
+        pa, pb = merged[-1]
+        if a <= pb:
+            merged[-1] = (pa, max(pb, b))
+        else:
+            merged.append((a, b))
+    return merged
+
+
+def mask_message_text(text: str, spans: list[tuple[int, int]]) -> str:
+    """Delete character ranges from ``text`` (inclusive start, exclusive
+    end). Overlapping/adjacent spans are merged before deletion.
+    Degenerate spans (``start >= end``) are silently dropped."""
+    merged = _merge_spans(spans)
+    if not merged:
+        return text
+    out: list[str] = []
+    cursor = 0
+    for a, b in merged:
+        a = max(0, a)
+        b = min(len(text), b)
+        if a > cursor:
+            out.append(text[cursor:a])
+        cursor = b
+    if cursor < len(text):
+        out.append(text[cursor:])
+    return "".join(out)
+
+
+def reconstruct_masked_history(
+    dialogue: Dialogue, claims_doc: dict, *, drop_type: str, up_to_round: int,
+) -> list[Message]:
+    """Return a new list of Messages mirroring ``dialogue.messages`` where
+    rounds ``1..up_to_round`` have all ``drop_type`` claims span-masked
+    out. Message count and (agent_id, round) indices are preserved so
+    downstream replay can rebuild the transcript."""
+    spans_by_key: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    for c in claims_doc.get("claims", []):
+        if c.get("type") != drop_type:
+            continue
+        r = int(c["round"])
+        if r > up_to_round:
+            continue
+        key = (int(c["agent_id"]), r)
+        a, b = c["source_message_span"]
+        spans_by_key.setdefault(key, []).append((int(a), int(b)))
+
+    new_messages: list[Message] = []
+    for m in dialogue.messages:
+        if m.round > up_to_round or (m.agent_id, m.round) not in spans_by_key:
+            new_messages.append(Message(
+                agent_id=m.agent_id, round=m.round, text=m.text,
+            ))
+            continue
+        masked = mask_message_text(m.text, spans_by_key[(m.agent_id, m.round)])
+        new_messages.append(Message(
+            agent_id=m.agent_id, round=m.round, text=masked,
+        ))
+    return new_messages
