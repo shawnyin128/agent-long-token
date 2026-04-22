@@ -144,7 +144,7 @@ def _apply_ours(
     needs_signals = (
         policy.drop_low_novelty is not None or policy.drop_unreferenced is True
     )
-    if needs_signals and not sig_by_id:
+    if needs_signals and signal_scores is None:
         raise ValueError("'ours' mode with novelty/unreferenced filter requires signal_scores")
 
     drop_type_set = set(policy.drop_types or [])
