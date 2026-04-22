@@ -1,0 +1,360 @@
+plan_id: evaluation-sweep
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  The analysis phase is done; we need the final decision artifact —
+  a results.json that compares all 5 methods (b1/b2/b3/b5/ours) across
+  100 questions on three metrics (accuracy, total input tokens,
+  accuracy-per-1k-tokens) with sanity invariants asserted at end of
+  run. This feature adds evaluate.py + a CLI producing results.json
+  + per-question breakdown + invariant checks that catch obviously
+  wrong sweeps (e.g. ours > b1 would be suspicious).
+
+steps:
+  - id: S1
+    desc: token counter + result types
+    approach: |
+      Add agentdiet/evaluate.py with:
+        - count_tokens(text) -> int
+          Uses approx char/4 heuristic (constant TOKENS_PER_CHAR=0.25)
+          with a module-level docstring noting this is approximate;
+          tests lock the formula.
+        - PerQuestionResult pydantic model:
+            qid, method, compressed_tokens, final_answer,
+            gold, correct (bool)
+        - MethodSummary pydantic model:
+            method, accuracy, total_tokens, acc_per_1k, n_evaluated
+    files:
+      create: [agentdiet/evaluate.py]
+      modify: []
+      test: [tests/evaluation_sweep/test_token_count.py, tests/evaluation_sweep/test_result_types.py]
+    test_plan:
+      - count_tokens deterministic; linearly scales with char count
+      - PerQuestionResult schema validates
+      - MethodSummary acc_per_1k = accuracy / (total_tokens/1000)
+      - Zero-token edge returns 0 acc_per_1k (guard / or something)
+
+  - id: S2
+    desc: per-question method evaluator
+    approach: |
+      evaluate.py:
+        - evaluate_method_on_qid(dialogue, claims_doc, signal_scores,
+          policy, llm_client, cfg) -> PerQuestionResult
+          Builds compressed history via compress.apply, wraps it into
+          a single final-round user prompt, calls llm_client once
+          (majority vote across all agents is BY-DESIGN collapsed into
+          one synthesizer-style solve-from-history call per qid),
+          parses the answer, compares to gold. compressed_tokens is
+          count_tokens(compressed_history).
+        - The simplified evaluation protocol: for each method we ask
+          ONE synthesizer agent to produce a final answer from the
+          compressed history. This mirrors the analysis/ablate replay
+          but with ONE voice (not 3), which is what the compression
+          research question demands (we are measuring the signal-value
+          of the history, not the variance of the majority vote).
+    files:
+      create: []
+      modify: [agentdiet/evaluate.py]
+      test: [tests/evaluation_sweep/test_evaluate_method.py]
+    test_plan:
+      - Happy path: DummyBackend returns "#### 7"; method=b1 produces
+        correct=True, compressed_tokens > 0
+      - Wrong answer: DummyBackend returns "#### 3"; correct=False
+      - method=ours without claims_doc raises (delegates to compress.apply)
+      - compressed_tokens varies across methods (b1 > b3 > b2 typically)
+      - Cache hit: same (qid, method) twice → zero new LLM calls
+
+  - id: S3
+    desc: sweep + invariant checks
+    approach: |
+      evaluate.py:
+        - run_sweep(cfg, qids, policies, llm_client) ->
+          {per_question: list[PerQuestionResult],
+           per_method: list[MethodSummary],
+           invariant_violations: list[str]}
+          policies is a dict {method_name -> Policy}; includes all 5.
+        - Invariants checked AFTER the sweep:
+            acc_b1 >= acc_b2 (debate helps at least a little)
+            acc_ours >= acc_b5 (our selection beats random)
+            tokens_b1 >= tokens_b3 (sliding window is strictly smaller)
+            tokens_b1 >= tokens_ours (ours is a subset of b1)
+          Violations are recorded in `invariant_violations` but do NOT
+          raise (the sweep itself still succeeds; the evaluator or
+          user inspects violations).
+    files:
+      create: []
+      modify: [agentdiet/evaluate.py]
+      test: [tests/evaluation_sweep/test_run_sweep.py]
+    test_plan:
+      - run_sweep with deterministic backend produces 5 × N rows
+      - invariant_violations empty when backend makes debate look better
+      - invariant_violations flags acc_ours < acc_b5 when backend is tuned so
+      - per_method aggregates match per_question (acc, total_tokens)
+      - method missing from policies dict raises KeyError
+
+  - id: S4
+    desc: evaluate CLI + results.json
+    approach: |
+      Add agentdiet/cli/evaluate.py:
+        - flags: --n (subset size; 0 = all), --policy-path
+          (default artifacts/compression/policy.json), --dry-run,
+          --report
+        - Reads policy from disk for "ours"; uses canonical defaults
+          for b1/b2/b3 (b3 last_k=1)/b5 (drop_rate=0.3, seed=cfg.seed).
+        - Writes artifacts/evaluation/results.json with shape
+          {per_question, per_method, invariant_violations, config:{...}}.
+        - Exit 1 when no qids eligible (need dialogues + claims);
+          exit 2 when policy file missing on --policy-path.
+    files:
+      create: [agentdiet/cli/evaluate.py]
+      modify: []
+      test: [tests/evaluation_sweep/test_evaluate_cli.py]
+    test_plan:
+      - CLI writes results.json with all 4 keys
+      - --dry-run exits 0 without LLM calls
+      - --report prints per-method summary
+      - exit 1 when 0 qids eligible
+      - exit 2 when --policy-path missing and mode=ours required
+
+  - id: S5
+    desc: runbook + make targets
+    approach: |
+      Makefile: evaluate, evaluate-report, evaluate-clean.
+      README: new "Evaluation sweep" section with the 5-method table,
+      the 4 sanity invariants, and the results.json shape.
+    files:
+      create: []
+      modify: [Makefile, README.md]
+      test: [tests/evaluation_sweep/test_runbook.py]
+    test_plan:
+      - Makefile declares evaluate/evaluate-report/evaluate-clean
+      - README has an Evaluation heading and mentions all 4 invariants
+      - evaluate-clean removes only artifacts/evaluation
+
+decisions:
+  - id: D1
+    question: Protocol — single synthesizer replay or full 3-agent final round?
+    planner_view: single-synthesizer-replay-for-apples-to-apples
+    confidence: 75
+    rationale: |
+      Compression research question is "does this history produce the
+      right answer?". A single synthesizer replay is the cleanest
+      signal — it isolates history quality from 3-agent voting
+      variance. Spec §4.2 baselines already reduce to single-agent
+      via b2; making all methods run the same way ensures comparability.
+      The ablation feature already used the 3-agent final-round
+      replay path for its different purpose (causal Δ), so this is
+      not inconsistent.
+    alternatives:
+      - option: full 3-agent final round replay
+        rejected_because: Confounds history quality with majority-vote
+          variance; would need 3x more LLM calls.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: Token counting method?
+    planner_view: char-over-4-approx-with-module-constant
+    confidence: 80
+    rationale: |
+      Real tokenizers (tiktoken, transformers) add a heavy dependency
+      and have model-specific vocabularies. For relative comparisons
+      (b1 vs b3) the char/4 heuristic is monotone in prompt length —
+      the invariants "tokens_b1 >= tokens_b3" don't care about absolute
+      tokens. Document as approximation in both module docstring and
+      README.
+    alternatives:
+      - option: tiktoken
+        rejected_because: Adds dep; tied to OpenAI tokenizers.
+      - option: transformers.AutoTokenizer
+        rejected_because: Heavy; needs model weights.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Should invariant violations be fatal?
+    planner_view: record-but-do-not-raise
+    confidence: 85
+    rationale: |
+      Spec §9.3 calls them "sanity invariants". A real sweep could
+      legitimately violate one (e.g. acc_ours < acc_b5 could happen
+      with bad policy). We want the sweep to complete and let the
+      human read the report. Exit code in CLI can reflect.
+    alternatives:
+      - option: fail fast
+        rejected_because: Blocks iteration; analyst needs full data
+          to diagnose.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: Where does b5 get its seed?
+    planner_view: cfg-seed-unless-policy-overrides
+    confidence: 90
+    rationale: |
+      Consistent with compress.apply's seed fallback chain.
+    alternatives:
+      - option: new flag --b5-seed
+        rejected_because: Redundant with Policy.random_seed.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 93
+    notes: |
+      count_tokens uses TOKENS_PER_CHAR=0.25 (round to int). PerQuestionResult
+      and MethodSummary pydantic models with MethodSummary.build classmethod
+      aggregating per-question rows + validating method consistency.
+    commits: []
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      evaluate_method_on_qid calls compress.apply for method→history,
+      builds synthesizer-prompt user turn via EVAL_USER_TEMPLATE, sends
+      through llm_client, parses answer, returns PerQuestionResult
+      with compressed_tokens from count_tokens on the history string.
+    commits: []
+  S3:
+    status: done
+    confidence: 88
+    notes: |
+      run_sweep takes a `loader` callable for injectability. Iterates
+      (qid × 5 methods), aggregates per-method, and runs 4 sanity
+      invariants via _check_invariants (recorded, not raised).
+    commits: []
+  S4:
+    status: done
+    confidence: 88
+    notes: |
+      cli/evaluate.py with --n, --policy-path, --dry-run, --report.
+      _fs_loader tries to load signal_scores from
+      analysis/signal_scores.parquet (optional). Writes results.json
+      atomically with a config block so post-hoc audits know which
+      policy+seed the run used.
+    commits: []
+  S5:
+    status: done
+    confidence: 92
+    notes: |
+      Makefile evaluate/evaluate-report/evaluate-clean targets.
+      README section with 4-invariant list, metrics definitions, and
+      TOKENS_PER_CHAR approximation note.
+    commits: []
+
+unplanned_changes:
+  - loc: agentdiet/cli/evaluate.py
+    what: |
+      Added a signal_scores.parquet loader branch in _fs_loader so
+      the 'ours' policy can use drop_low_novelty / drop_unreferenced
+      end-to-end without a separate signal_scores kwarg on the CLI.
+    reason: |
+      The analyze CLI writes signal_scores.parquet; wiring it in here
+      avoids a duplicate CLI flag and keeps the runbook
+      (analyze → evaluate) straightforward.
+    confidence: 88
+  - loc: agentdiet/evaluate.py
+    what: |
+      run_sweep's `loader` callable parameter — tests inject fixtures
+      while CLI injects the filesystem loader. Kept orthogonal.
+    reason: |
+      Test ergonomics + separation of concerns (evaluator logic vs
+      filesystem layout).
+    confidence: 92
+
+flags_for_eval:
+  - |
+    Invariant token_b1 >= token_b3 must hold structurally for every
+    dialogue (b3 keeps a subset of messages, with same format). Worth
+    locking via an explicit test.
+  - |
+    run_sweep takes policies as a dict, not a positional arg. If a
+    caller forgets 'ours' the KeyError message should name the missing
+    keys (currently does).
+  - |
+    CLI exit-code ordering: exit 1 on empty subset happens BEFORE
+    policy-path check, so a user with no data never sees the
+    policy-missing error. Confirm this is the intended precedence.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "signal_scores parquet auto-load in _fs_loader"
+          - "loader callable in run_sweep for fixture injection"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 10
+          fail: 0
+          coverage: 100
+          tests_file: tests/evaluation_sweep/test_token_count.py + test_result_types.py
+        S2:
+          pass: 6
+          fail: 0
+          coverage: 97
+          tests_file: tests/evaluation_sweep/test_evaluate_method.py
+        S3:
+          pass: 5
+          fail: 0
+          coverage: 97
+          tests_file: tests/evaluation_sweep/test_run_sweep.py
+        S4:
+          pass: 7
+          fail: 0
+          coverage: 87
+          tests_file: tests/evaluation_sweep/test_evaluate_cli.py
+          notes: |
+            Remaining uncovered lines are OpenAIBackend constructor
+            (network), dry-run prints, main() success-print stderr
+            lines, and __main__ guard — all either env-dependent or
+            trivial I/O.
+        S5:
+          pass: 6
+          fail: 0
+          coverage: 100
+          tests_file: tests/evaluation_sweep/test_runbook.py
+
+      full_suite_regression:
+        total_pass: 387
+        total_skip: 4
+        total_fail: 0
+        notes: No regressions from prior features.
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/evaluate.py
+        what: |
+          Consider swapping count_tokens for a real tokenizer once
+          final report needs absolute token numbers rather than
+          relative comparisons.
+      - loc: agentdiet/cli/evaluate.py
+        what: |
+          Add --per-question-csv flag to export the per_question rows
+          as CSV for spreadsheet analysis.
+      - loc: agentdiet/evaluate.py
+        what: |
+          Could parallelize per-qid evaluation with asyncio since each
+          (qid, method) is independent. Current scale (100 × 5 = 500
+          calls, mostly cache hits after first sweep) doesn't need it.
+    final_verdict: MERGE_READY
+

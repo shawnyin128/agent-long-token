@@ -169,7 +169,7 @@
         "sanity invariants: acc(b1) \u2265 acc(b2); acc(ours) \u2265 acc(b5); token ordering b1 > b3 > b5 \u2248 ours",
         "also log per-question breakdown for error analysis"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "report-generation",
