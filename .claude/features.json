@@ -133,7 +133,7 @@
         "output artifacts/analysis/ablation.jsonl with per-type Delta, sample sizes, skipped cases",
         "GATE 2 decision: if all Delta_t within noise, accept null result and adjust Day 3 compression scope (descriptive comparison rather than data-supported rule)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "compression-policy",

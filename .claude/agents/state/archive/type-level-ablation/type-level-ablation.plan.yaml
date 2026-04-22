@@ -1,0 +1,404 @@
+plan_id: type-level-ablation
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Per-claim signals tell us correlation, not causation. To decide
+  whether any claim type can be safely dropped by Day-3 compression,
+  we need the per-type causal quantity Δ_t = acc(with) − acc(without)
+  on the canonical subset where debate helps (single_wrong ∧
+  debate_right). This feature samples that subset, removes each of
+  the 6 claim types from debate history by span-masking, replays the
+  final round through the cached LLM client, and emits
+  ablation.jsonl + a Gate-2 decision report. A hard 500-LLM-call cap
+  is enforced so the analysis cannot blow past the time budget.
+
+steps:
+  - id: S1
+    desc: subset selection + fixtures
+    approach: |
+      Add agentdiet/analysis/ablate.py. Expose
+        - load_dialogue_and_claims(cfg, qid) -> (Dialogue, claims_doc)
+        - is_single_wrong_debate_right(baseline_doc, debate_dialogue,
+          gold) -> bool  (uses parse_answer)
+        - select_subset(cfg, rng, target_size) -> list[str]
+          scans pilot single_artifacts + collected debate dialogues +
+          extracted claims; returns a seeded random sample of qids
+          that pass the predicate and have complete artifacts; size
+          capped at target_size, fewer if corpus is smaller.
+      No LLM calls in this step — pure predicate + artifact scan.
+    files:
+      create: [agentdiet/analysis/ablate.py]
+      modify: []
+      test: [tests/type_level_ablation/test_subset.py]
+    test_plan:
+      - predicate: single_wrong + debate_right -> True
+      - predicate: single_right -> False
+      - predicate: debate_wrong -> False
+      - select_subset returns seeded deterministic qids
+      - select_subset caps at target_size
+      - select_subset silently skips qids missing any artifact
+
+  - id: S2
+    desc: span-mask history reconstruction
+    approach: |
+      In ablate.py:
+        - mask_message_text(message_text, spans) -> str
+          sorts spans by start, deletes each range from text,
+          concatenates the remaining non-overlapping segments;
+          overlapping spans are merged before deletion.
+        - reconstruct_masked_history(dialogue, claims_doc, drop_type,
+          up_to_round) -> list[Message]
+          returns a NEW list of messages where rounds 1..up_to_round
+          are rewritten with drop_type claims removed via
+          mask_message_text. Messages whose full text gets deleted
+          are kept as empty strings (agent silence) so the flow of
+          (agent_id, round) indices is preserved.
+      Pure deterministic; no LLM calls.
+    files:
+      create: []
+      modify: [agentdiet/analysis/ablate.py]
+      test: [tests/type_level_ablation/test_mask.py]
+    test_plan:
+      - mask_message_text removes a single span correctly
+      - mask_message_text merges overlapping spans
+      - mask_message_text on empty spans returns original
+      - reconstruct_masked_history returns same message count
+      - reconstruct_masked_history leaves unaffected types untouched
+      - dropping all claims in a message yields empty text, not dropped
+
+  - id: S3
+    desc: ablation runner with call cap
+    approach: |
+      In ablate.py:
+        - replay_final_round(dialogue, claims_doc, drop_type,
+          llm_client, model, temperature, call_budget) ->
+          dict{qid, drop_type, pre_final, post_final, gold, calls_made}
+          Uses the debate.LATER_ROUND_TEMPLATE format over the masked
+          prior-round messages to assemble one user prompt per agent,
+          reissues the call through llm_client (cache-keyed on the
+          new messages), and applies majority_vote to get post_final.
+          Decrements call_budget; raises BudgetExceeded if hitting 0.
+        - run_ablation(cfg, qids, types, llm_client, model,
+          max_new_llm_calls=500) -> list[dict]
+          Iterates (qid, type). Respects the hard cap — once hit,
+          returns early with a skipped count. Per-type Δ is computed
+          in a final aggregation step over completed rows.
+      Rows are {qid, drop_type, pre_final, post_final, gold,
+      correct_with, correct_without}. Skipped rows (budget, missing
+      claims, etc) are logged but also included with skipped=True
+      so downstream aggregation sees them.
+    files:
+      create: []
+      modify: [agentdiet/analysis/ablate.py]
+      test: [tests/type_level_ablation/test_replay.py]
+    test_plan:
+      - replay_final_round uses DummyBackend returning "#### 7"
+      - budget=0 raises BudgetExceeded
+      - cache hit produces zero new calls on repeat (qid,type)
+      - run_ablation returns expected rows × 6 types
+      - hard cap stops mid-run cleanly with skipped count
+
+  - id: S4
+    desc: ablate CLI + jsonl writer
+    approach: |
+      Add agentdiet/cli/ablate.py (modeled on cli/analyze.py):
+        - flags: --n (subset size, default 20), --dry-run,
+          --report, --max-calls (default 500)
+        - writes artifacts/analysis/ablation.jsonl (one row per
+          (qid, drop_type))
+        - writes artifacts/analysis/ablation_summary.json with per-
+          type aggregates: {type, n_used, n_skipped, acc_with,
+          acc_without, delta}
+        - exit code 1 if no qids selected, exit 2 if --report has no
+          summary
+      dry-run validates config without running ablation. Backend is
+      injectable for tests.
+    files:
+      create: [agentdiet/cli/ablate.py]
+      modify: []
+      test: [tests/type_level_ablation/test_ablate_cli.py]
+    test_plan:
+      - CLI produces ablation.jsonl + ablation_summary.json
+      - summary contains exactly 6 type entries
+      - delta = acc_with − acc_without per type
+      - --dry-run exits 0 without writing artifacts
+      - --max-calls enforces cap
+      - exit 1 when subset empty
+
+  - id: S5
+    desc: gate-2 report + runbook
+    approach: |
+      Add gate2 report emitter in cli/ablate.py under --gate2:
+      classifies each type delta as {likely, noise, unclear} using
+      |delta| thresholds (likely >=0.1, noise <=0.03, else unclear);
+      prints a markdown-formatted summary to stdout and writes
+      artifacts/analysis/gate2_report.md. Exit 0 = PASS (at least
+      one type with |delta|>=0.05), 10 = NULL-RESULT (all within
+      noise), 20 = inconclusive (need more dialogues).
+      Add Makefile targets ablate, ablate-report, ablate-clean,
+      gate2. Append README section "Type-level ablation (Gate 2)"
+      with runbook + thresholds + exit-code contract.
+    files:
+      create: []
+      modify: [Makefile, README.md, agentdiet/cli/ablate.py]
+      test: [tests/type_level_ablation/test_gate2.py, tests/type_level_ablation/test_runbook.py]
+    test_plan:
+      - gate2 classifies deltas into likely/noise/unclear correctly
+      - exit code 0/10/20 for each regime
+      - Makefile declares ablate, ablate-report, ablate-clean, gate2
+      - README mentions Gate 2 and 500-call cap
+
+decisions:
+  - id: D1
+    question: How to define "single_wrong" when we don't have pilot artifacts locally?
+    planner_view: use-pilot-single-artifacts-if-present-fallback-to-run_single_agent-on-demand
+    confidence: 78
+    rationale: |
+      pilot-gate1 writes artifacts/pilot/single/{model_slug}/{qid}.json.
+      If those exist for this qid, load them. If missing (pilot was
+      run on a subset or HPC hasn't synced), run_single_agent once
+      through the cached LLM client — that call counts against the
+      budget. Tests inject a DummyBackend so no live model needed.
+    alternatives:
+      - option: require pilot artifacts present
+        rejected_because: Fragile on HPC cross-sync; extraction runs
+          can outpace pilot.
+      - option: always run_single_agent fresh
+        rejected_because: Wastes LLM budget that is already spent.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: Span-mask strategy when masking whole message to empty?
+    planner_view: keep-as-empty-string-preserve-turn-structure
+    confidence: 88
+    rationale: |
+      Removing the Message entirely would shift (agent_id, round)
+      indices and break the history reconstruction. Empty string
+      is valid, models interpret as "agent was silent".
+    alternatives:
+      - option: remove the Message record
+        rejected_because: Breaks invariants downstream.
+      - option: replace with [REDACTED]
+        rejected_because: Leaks signal about WHAT was removed.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Gate-2 threshold values?
+    planner_view: likely-0.1-noise-0.03-pass-0.05
+    confidence: 70
+    rationale: |
+      Spec §7 "GATE 2: if all Δ_t are within noise" does not
+      quantify noise. With n≈20 dialogues per type the standard
+      error on a fraction is ~sqrt(0.25/20)=0.11, so |delta|<=0.03
+      is well inside noise. PASS threshold 0.05 is a minimal
+      meaningful effect. These are exposed as module constants so
+      Day-3 can adjust.
+    alternatives:
+      - option: flag as tunable
+        rejected_because: Spec explicitly says human decides Gate 2;
+          exposing defaults is enough.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: Where to enforce the 500-call cap?
+    planner_view: shared-counter-on-LLMClient-new-calls-only
+    confidence: 82
+    rationale: |
+      LLMClient already exposes call_count (new calls, not cache
+      hits). Track baseline call_count at entry, compute delta per
+      iteration, stop when delta >= cap. Cache hits are free — the
+      spec phrases the cap as "MAX_NEW_LLM_CALLS=500" which matches.
+    alternatives:
+      - option: pre-compute max possible calls and reject
+        rejected_because: Ignores cache-hit savings; too conservative.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      load_dialogue_and_claims, is_single_wrong_debate_right,
+      select_subset in analysis/ablate.py. Pilot-single artifact at
+      artifacts/pilot/single/{model_slug}/{qid}.json — missing → qid
+      filtered out of subset (no on-demand run_single_agent in this
+      iteration; deferred to unplanned change below).
+    commits: ["6695e25"]
+  S2:
+    status: done
+    confidence: 92
+    notes: |
+      mask_message_text merges overlapping+adjacent spans, drops
+      degenerate ones, preserves message count. reconstruct_masked_history
+      iterates dialogue.messages, rewrites text for rounds
+      1..up_to_round whose (agent_id, round) has drop_type claims.
+    commits: ["18cbbe8"]
+  S3:
+    status: done
+    confidence: 88
+    notes: |
+      replay_final_round rebuilds per-agent api_messages from system
+      prompt + reconstructed (user, assistant) history + final-round
+      user turn using debate.LATER_ROUND_TEMPLATE; majority_vote over
+      fresh responses gives post_final. run_ablation iterates
+      (qid × type), tracking new-calls delta against baseline; on cap
+      exceeded emits skipped=True rows with budget reason.
+    commits: ["5525c23"]
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      cli/ablate.py with --n, --max-calls, --dry-run, --report, --gate2
+      flags. Writes ablation.jsonl + ablation_summary.json +
+      ablation_manifest.json. Backend injectable for tests. Exit 1
+      when subset empty.
+    commits: ["c93f032"]
+  S5:
+    status: done
+    confidence: 92
+    notes: |
+      Makefile gained ablate, ablate-report, ablate-clean, gate2
+      targets. Help section updated. README "Type-level ablation
+      (Gate 2)" section added with thresholds and exit-code contract.
+      --gate2 flag handled inside cli/ablate.py main (no separate
+      script needed).
+    commits: ["b1087d4"]
+
+unplanned_changes:
+  - loc: agentdiet/analysis/ablate.py
+    what: |
+      Removed BudgetExceeded exception class after deciding soft-stop
+      ("mark remaining rows skipped") is more useful than hard-fail.
+      Tests use skip_reason check instead of pytest.raises.
+    reason: |
+      Partial results are more valuable than all-or-nothing for Gate-2
+      decision; aligns with spec §6.4 fallback style.
+    confidence: 92
+  - loc: agentdiet/analysis/ablate.py
+    what: |
+      select_subset does NOT fall back to on-demand run_single_agent
+      when pilot artifact missing — those qids are dropped silently.
+      D1's plan said it would.
+    reason: |
+      Out-of-scope for this iteration; the real workflow runs pilot
+      before ablation and the fallback adds a new hot path that
+      needs its own test plan. Will add if Day-2 shows gaps.
+    confidence: 78
+  - loc: agentdiet/cli/ablate.py
+    what: |
+      Gate-2 classification added as _classify_delta helper
+      (likely/noise/unclear) and _render_gate2 emits a markdown table.
+    reason: |
+      Plan said gate2 report; this is the implementation surface —
+      consistent with cli/gate.py from pilot-gate1.
+    confidence: 90
+
+flags_for_eval:
+  - |
+    Cache hit correctness when drop_type has no claims: the
+    reconstructed api_messages should match the original run_debate
+    sequence verbatim so cached entries are reused. Verify this holds.
+  - |
+    Budget accounting: `llm_client.call_count - baseline_calls` is
+    checked BEFORE each (qid, type) pair. A single pair's calls can
+    push the count over the cap mid-pair, but subsequent pairs will
+    be correctly skipped. Confirm this is acceptable.
+  - |
+    Gate-2 thresholds — exact boundary behavior (>= vs >) when
+    |delta| equals LIKELY/NOISE/PASS thresholds; tests should lock
+    the edge semantics.
+  - |
+    Subset selection silently skips qids missing the pilot-single
+    artifact. Confirm this is the intended behavior (D1 deviation).
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []         # no ask_user: true
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "soft-stop ablation (drop BudgetExceeded class) — strictly better UX for Gate-2 partial reads"
+          - "subset silently skips qids lacking pilot artifact — matches full-collection precedent"
+          - "gate2 fused into ablate CLI as --gate2 flag — fewer scripts, single entry point"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 10
+          fail: 0
+          coverage: 95
+          tests_file: tests/type_level_ablation/test_subset.py
+        S2:
+          pass: 12
+          fail: 0
+          coverage: 100
+          tests_file: tests/type_level_ablation/test_mask.py
+        S3:
+          pass: 7
+          fail: 0
+          coverage: 94
+          tests_file: tests/type_level_ablation/test_replay.py
+        S4:
+          pass: 7
+          fail: 0
+          coverage: 95
+          tests_file: tests/type_level_ablation/test_ablate_cli.py
+        S5:
+          pass: 9 + 7
+          fail: 0
+          coverage: 100
+          tests_file: tests/type_level_ablation/test_gate2.py + test_runbook.py
+        adversarial:
+          pass: 7
+          fail: 0
+          coverage: null
+          tests_file: tests/type_level_ablation/test_adversarial.py
+          notes: |
+            Probed cache-hit when drop_type has zero claims, budget
+            boundary at exactly cap, gate2 verdict on exact threshold
+            values, subset empty without pilot, different drop_types
+            produce different cache entries.
+
+      full_suite_regression:
+        total_pass: 302
+        total_skip: 4
+        total_fail: 0
+        notes: No regressions from prior features.
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/analysis/ablate.py
+        what: |
+          Consider adding on-demand run_single_agent fallback for qids
+          missing pilot artifacts (D1 plan). Low priority — the real
+          workflow always runs pilot first; only matters if ablation
+          is invoked on a standalone dialogue batch.
+      - loc: agentdiet/cli/ablate.py
+        what: |
+          gate2_report.md is overwritten on each run. For audit trail,
+          consider writing gate2_report_{timestamp}.md or appending.
+      - loc: agentdiet/analysis/ablate.py
+        what: |
+          Consider streaming ablation.jsonl rows per-pair (not
+          all-at-once at end) so progress is observable on long runs
+          or interrupts. Current scale (20 × 6 = 120 rows) is fine.
+    final_verdict: MERGE_READY
+
