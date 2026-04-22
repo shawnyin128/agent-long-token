@@ -20,7 +20,7 @@ LATER_ROUND_TEMPLATE = (
 )
 
 
-def _format_other_responses(messages_this_round: list[Message], self_id: int) -> str:
+def format_other_responses(messages_this_round: list[Message], self_id: int) -> str:
     parts = []
     for m in messages_this_round:
         if m.agent_id == self_id:
@@ -60,7 +60,7 @@ def run_debate(
             round_messages = []
             for agent in agents:
                 user_content = LATER_ROUND_TEMPLATE.format(
-                    other_responses=_format_other_responses(prior_round, agent.id)
+                    other_responses=format_other_responses(prior_round, agent.id)
                 )
                 api_msgs = agent.build_api_messages(user_content)
                 response = llm_client.chat(api_msgs, model=model, temperature=temperature)

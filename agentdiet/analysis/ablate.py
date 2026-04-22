@@ -18,7 +18,9 @@ from typing import Optional
 from agentdiet.agents import make_default_agents
 from agentdiet.aggregate import majority_vote
 from agentdiet.config import Config
-from agentdiet.debate import INITIAL_USER_TEMPLATE, LATER_ROUND_TEMPLATE
+from agentdiet.debate import (
+    INITIAL_USER_TEMPLATE, LATER_ROUND_TEMPLATE, format_other_responses,
+)
 from agentdiet.llm_client import LLMClient
 from agentdiet.types import CLAIM_TYPES, Dialogue, Message
 
@@ -127,15 +129,6 @@ def _agent_ids_in_dialogue(dialogue: Dialogue) -> list[int]:
     return sorted({m.agent_id for m in dialogue.messages})
 
 
-def _format_other_responses(prior_messages: list[Message], self_id: int) -> str:
-    parts = []
-    for m in prior_messages:
-        if m.agent_id == self_id:
-            continue
-        parts.append(f"--- Agent {m.agent_id} (round {m.round}) ---\n{m.text}")
-    return "\n\n".join(parts)
-
-
 def _build_agent_api_messages(
     system_prompt: str, dialogue: Dialogue, masked_history: list[Message],
     agent_id: int, final_round: int,
@@ -150,7 +143,7 @@ def _build_agent_api_messages(
         else:
             prior = [m for m in masked_history if m.round == r - 1]
             user = LATER_ROUND_TEMPLATE.format(
-                other_responses=_format_other_responses(prior, agent_id)
+                other_responses=format_other_responses(prior, agent_id)
             )
         self_resp_list = [m for m in round_msgs if m.agent_id == agent_id]
         messages.append({"role": "user", "content": user})
@@ -161,7 +154,7 @@ def _build_agent_api_messages(
     # Final-round user turn (ask for fresh answer given masked history).
     prior = [m for m in masked_history if m.round == final_round - 1]
     final_user = LATER_ROUND_TEMPLATE.format(
-        other_responses=_format_other_responses(prior, agent_id)
+        other_responses=format_other_responses(prior, agent_id)
     )
     messages.append({"role": "user", "content": final_user})
     return messages
