@@ -374,6 +374,40 @@ from Gate-2 reading:
 
 The `evaluation-sweep` feature (next) consumes this policy directly.
 
+## Evaluation sweep
+
+After picking a compression policy, run the sweep to produce
+`artifacts/evaluation/results.json` comparing all 5 methods:
+
+```bash
+make evaluate
+```
+
+Reads `artifacts/compression/policy.json` for the `ours` mode and uses
+canonical defaults for b1/b2/b3 (last_k=1)/b5 (drop_rate=0.3). Each
+(qid, method) pair runs a single synthesizer-style replay against the
+compressed history and records:
+
+- accuracy (vs gold)
+- total input tokens (approx via char/4; relative comparison)
+- acc_per_1k = accuracy / (total_tokens / 1000)
+
+```bash
+make evaluate-report    # print per-method table
+make evaluate-clean     # drop artifacts/evaluation/ only
+```
+
+**Sanity invariants** checked at end of run (recorded in
+`invariant_violations`, not raised):
+
+- `acc(b1) ≥ acc(b2)` — debate should not be worse than single-agent
+- `acc(ours) ≥ acc(b5)` — our selection should not lose to random drop
+- `tokens(b1) ≥ tokens(b3)` — full history uses more tokens than sliding window
+- `tokens(b1) ≥ tokens(ours)` — ours is a subset of b1
+
+Violations do not halt the sweep — the analyst reads the report and
+decides whether to retune the policy.
+
 ## Running tests
 
 ```bash

@@ -4,6 +4,7 @@
         analyze analyze-report analyze-clean \
         ablate ablate-report ablate-clean gate2 \
         policy-sample \
+        evaluate evaluate-report evaluate-clean \
         test smoke
 
 PYTHON ?= .venv/bin/python
@@ -46,6 +47,11 @@ help:
 	@echo ""
 	@echo "Compression policy (Day 3):"
 	@echo "  policy-sample    Seed artifacts/compression/policy.json from the template (no-clobber)"
+	@echo ""
+	@echo "Evaluation sweep:"
+	@echo "  evaluate         5 methods x N questions -> results.json + invariant violations"
+	@echo "  evaluate-report  Print per-method summary"
+	@echo "  evaluate-clean   Remove artifacts/evaluation/ only"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -118,6 +124,15 @@ gate2:
 
 policy-sample:
 	mkdir -p artifacts/compression && cp -n docs/policy.sample.json artifacts/compression/policy.json || true
+
+evaluate:
+	$(PYTHON) -m agentdiet.cli.evaluate
+
+evaluate-report:
+	$(PYTHON) -m agentdiet.cli.evaluate --report
+
+evaluate-clean:
+	rm -rf artifacts/evaluation
 
 test:
 	$(PYTEST) tests/ --timeout=30
