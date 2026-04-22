@@ -5,16 +5,21 @@ Research code for the CSCI3033 LLM Reasoner final project. Spec:
 
 ## Setup
 
+Activate your Python env (conda or venv — whichever you use), then:
+
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+pip install -e ".[dev]"
 ```
 
 For analysis features later in the pipeline:
 
 ```bash
-.venv/bin/pip install -e ".[analysis]"
+pip install -e ".[analysis]"
 ```
+
+All Makefile targets invoke `python` / `pytest` from your active env. If
+you prefer a different interpreter, override via `PYTHON=/path/to/python
+make <target>`.
 
 ## Gate 1 Runbook
 
@@ -60,9 +65,9 @@ existing artifacts and uses the LLM cache for free replays.
 Partial runs:
 
 ```bash
-.venv/bin/python -m agentdiet.cli.pilot --no-debate      # only single
-.venv/bin/python -m agentdiet.cli.pilot --no-single      # only debate
-.venv/bin/python -m agentdiet.cli.pilot --n 10           # subset
+python -m agentdiet.cli.pilot --no-debate      # only single
+python -m agentdiet.cli.pilot --no-single      # only debate
+python -m agentdiet.cli.pilot --n 10           # subset
 ```
 
 ### 4. Gate 1 decision
@@ -124,8 +129,8 @@ The 100-question collection runs on the NYU HPC (Greene). You submit the
 module purge
 module load python/3.11 cuda/12.1     # adjust to your Greene module names
 cd $SCRATCH/final-project               # or wherever you cloned the repo
-python -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+# activate your conda env (or python -m venv .venv && source .venv/bin/activate)
+pip install -e ".[dev]"
 ```
 
 ### 2. Start vLLM and wait for readiness
@@ -265,7 +270,7 @@ Once claim artifacts exist, compute flip events and four independent
 per-claim signals. Install the optional analysis extras first:
 
 ```bash
-.venv/bin/pip install -e ".[analysis]"
+pip install -e ".[analysis]"
 ```
 
 This pulls sentence-transformers, scikit-learn, hdbscan, pyarrow. Then:
@@ -287,8 +292,8 @@ steps and writes to `artifacts/analysis/`:
 Embedder selection:
 
 ```bash
-.venv/bin/python -m agentdiet.cli.analyze --embedder real   # default; needs [analysis]
-.venv/bin/python -m agentdiet.cli.analyze --embedder fake   # offline HashingFakeEmbedder
+python -m agentdiet.cli.analyze --embedder real   # default; needs [analysis]
+python -m agentdiet.cli.analyze --embedder fake   # offline HashingFakeEmbedder
 ```
 
 If `sentence-transformers` is missing the CLI prints a loud stderr
@@ -413,7 +418,7 @@ decides whether to retune the policy.
 Render the figures and LaTeX tables the paper references:
 
 ```bash
-.venv/bin/pip install -e ".[analysis]"    # if not already installed — needs matplotlib
+pip install -e ".[analysis]"    # if not already installed — needs matplotlib
 make report
 ```
 

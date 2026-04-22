@@ -8,8 +8,8 @@
         report report-clean \
         test smoke
 
-PYTHON ?= .venv/bin/python
-PYTEST ?= .venv/bin/pytest
+PYTHON ?= python
+PYTEST ?= pytest
 
 help:
 	@echo "vLLM serving:"
