@@ -1,0 +1,381 @@
+plan_id: debate-runner
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Implement the multi-agent debate protocol: a client-side scheduler
+  that runs N agents for R rounds against a single vLLM-served model,
+  where each agent carries its own system prompt and conversation
+  history, and emits a single Dialogue artifact with final_answer
+  aggregated by majority vote over the last round. Server is stateless
+  (spec §2.2). All LLM calls must flow through the existing cache layer.
+
+steps:
+  - id: S1
+    desc: Core data types (Message, Dialogue, Agent)
+    approach: |
+      Add agentdiet/types.py with pydantic Message (agent_id, round,
+      text), Dialogue (question_id, question, gold_answer, messages,
+      final_answer, meta), and Agent dataclass (id, role, system_prompt,
+      conversation_history). Three role constants:
+      SOLVER/SKEPTIC/SYNTHESIZER with differentiated system prompts
+      drawn from MAD-literature patterns but adapted to produce GSM8K
+      '#### N' final lines. Agent.build_api_messages(round_context)
+      returns the list[dict] ready for llm_client.chat().
+    files:
+      create:
+        - agentdiet/types.py
+        - agentdiet/agents.py
+      modify: []
+      test:
+        - tests/debate_runner/test_types.py
+        - tests/debate_runner/test_agents.py
+    test_plan:
+      - Message / Dialogue reject invalid types (pydantic)
+      - Dialogue JSON round-trips through .model_dump()/model_validate()
+      - three differentiated system prompts are distinct strings
+      - Agent.build_api_messages produces OpenAI-shape messages (role/content pairs)
+      - system prompts explicitly instruct "#### N" format
+    coverage_min: 85
+
+  - id: S2
+    desc: Majority-vote aggregator with tie handling
+    approach: |
+      agentdiet/aggregate.py exposes majority_vote(last_round_messages,
+      parse_fn=parse_answer). Parse each message; filter None; count.
+      If empty after filtering -> None. If unique plurality -> winner.
+      On tie: per user decision D1. Return both the winning answer and
+      the per-agent parsed answers dict for transparency in Dialogue.meta.
+    files:
+      create:
+        - agentdiet/aggregate.py
+      modify: []
+      test:
+        - tests/debate_runner/test_aggregate.py
+    test_plan:
+      - 3 agents all agree -> that answer
+      - 2 of 3 agree -> majority answer
+      - all 3 different -> tie behavior per D1
+      - 2 None + 1 answer -> that answer
+      - all None -> None
+      - numeric equivalence ("42" vs "42.0") treated as same
+    coverage_min: 90
+
+  - id: S3
+    desc: run_debate scheduler
+    approach: |
+      agentdiet/debate.py implements run_debate(question, llm_client,
+      model, n_agents=3, n_rounds=3, temperature=0.0) -> Dialogue.
+      Round-robin within round: for r in 1..R, for agent in agents,
+      compose messages via Agent.build_api_messages(round_context),
+      call llm_client.chat(), append to agent's history, append Message
+      to Dialogue. Round_context for round r > 1 contains the prior
+      round's responses from *other* agents (not self), presented as a
+      consolidated 'user' turn so the chat history remains valid
+      OpenAI-shape. After R rounds, run majority_vote over last-round
+      Messages; populate Dialogue.final_answer and Dialogue.meta.
+    files:
+      create:
+        - agentdiet/debate.py
+      modify: []
+      test:
+        - tests/debate_runner/test_debate.py
+    test_plan:
+      - 2-agent x 1-round debate: exactly 2 messages, both parsable, final_answer populated
+      - 3x3 debate with a scripted DummyBackend: 9 messages, roles assigned correctly
+      - message ordering: round-major (all round r before round r+1), agent round-robin within
+      - meta records model, temperature, seed, timestamp, per_agent_answers
+      - all LLM calls go through cache (cache hit on replay)
+      - invariant violation raises (message count != n_agents * n_rounds)
+    coverage_min: 85
+
+  - id: S4
+    desc: Layer-1 smoke + CLI entrypoint stub
+    approach: |
+      tests/debate_runner/test_smoke.py exercises 2x1 minimal debate
+      under DummyBackend (no network, <2s). Also adds a thin CLI
+      agentdiet/cli/collect.py with --n argument that imports
+      run_debate but guards against actual collection with a --dry-run
+      flag default; full implementation of collection comes in the
+      full-collection feature. Goal here: prove the debate runner is
+      importable from the CLI module path and the Dialogue JSON
+      serializes cleanly to disk.
+    files:
+      create:
+        - tests/debate_runner/test_smoke.py
+        - agentdiet/cli/__init__.py
+        - agentdiet/cli/collect.py
+      modify: []
+      test:
+        - tests/debate_runner/test_smoke.py
+    test_plan:
+      - 2x1 smoke debate produces Dialogue passing schema validation
+      - Dialogue serializes to JSON and round-trips byte-for-byte
+      - CLI --dry-run exits 0 without calling LLM
+      - no network calls during smoke run (openai.OpenAI monkeypatch)
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      Majority-vote tie-breaking when all N agents produce distinct answers
+      in the last round:
+        (a) return None (exclude question from accuracy denominator);
+            most conservative, acknowledges genuine disagreement
+        (b) take the first agent's answer (deterministic, arbitrary);
+            matches some MAD-paper implementations
+        (c) take the most numerically central answer (e.g. median after
+            numeric cast); heuristic, may mask errors
+    planner_view: "(a) return None"
+    confidence: 60
+    rationale: |
+      Research integrity: if the debate protocol could not converge to
+      a majority, reporting its 'accuracy' on that question is a
+      category error. (a) makes this visible rather than fabricating
+      a pseudo-answer. Impact is small — 3 agents ties are rare
+      (requires all 3 distinct).
+    alternatives:
+      - option: "(b) first agent"
+        rejected_because: hides disagreement; biases toward solver role
+      - option: "(c) numeric-central"
+        rejected_because: nonsense when answers are semantically distinct (e.g. 42 vs -42)
+    ask_user: true
+    user_decision: "(a) return None on tie; exclude from accuracy denominator"
+
+  - id: D2
+    question: How does each agent see prior rounds in the chat history?
+    planner_view: |
+      Per-agent chat list uses OpenAI conversation shape:
+        system = agent's fixed system prompt
+        user = question (round 1) OR 'Here are the other agents'
+          responses from round r-1: ...' (round r>1)
+        assistant = agent's own response for that round
+      So each agent's own history is native 'assistant' turns; other
+      agents' contributions are folded into 'user' turns.
+    confidence: 85
+    rationale: |
+      Matches OpenAI chat semantics (own output is assistant), preserves
+      vLLM prefix-cache benefits, and mirrors Du et al. 2023 MAD when
+      adapted to chat-format models. Alternative of one big flat prompt
+      loses structure and prefix-cache hit rate.
+    alternatives:
+      - option: Flat single-user-turn prompt with all history
+        rejected_because: loses role semantics and vLLM prefix caching
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Three agent role personas
+    planner_view: |
+      Solver: "Work through the problem step by step, showing your
+        calculation. End with a line '#### N' giving the final numeric
+        answer."
+      Skeptic: "Read the solutions from other agents. Check each step
+        for computational errors, missed conditions, or unit mistakes.
+        Provide your corrected solution and end with '#### N'."
+      Synthesizer: "Compare the other agents' solutions. Identify
+        points of agreement and disagreement. Produce a final reasoned
+        answer ending with '#### N'."
+      Round-1 prompts drop the 'from other agents' phrasing since there
+      are no prior responses yet.
+    confidence: 78
+    rationale: |
+      Three distinct roles prevent temperature=0 from producing
+      identical outputs; maps to MAD literature (solver/skeptic/judge).
+      Skeptic and synthesizer become meaningful only in round 2+, which
+      is acceptable — round 1 kicks off three independent solutions.
+    alternatives:
+      - option: All three agents identical (homogeneous debate)
+        rejected_because: at temperature=0 produces 3 identical outputs; debate trivially collapses
+      - option: 3 different difficulty-level solvers
+        rejected_because: harder to justify; diverges from MAD literature
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: Temperature for debate turns
+    planner_view: "0.0 (fully deterministic; rely on differentiated system prompts for diversity)"
+    confidence: 90
+    rationale: |
+      Spec §6.5 fixes seeds and acknowledges no multi-seed bootstrap;
+      temp=0 keeps experiments reproducible. Diversity comes from role
+      prompts + evolving histories, not sampling noise.
+    alternatives:
+      - option: "0.3–0.7"
+        rejected_because: introduces variance we cannot afford to average over in a 3-day budget
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: Numeric equivalence in majority vote (e.g. "42" vs "42.0")
+    planner_view: |
+      Canonicalize via parse_answer before comparison (both return
+      "42"). Already enforced by parse_answer's _clean_num integer cast
+      for integer-valued floats. Votes compare canonicalized strings.
+    confidence: 95
+    rationale: |
+      parse_answer already does this normalization (see
+      test_decimal_variant in core-infrastructure). Majority vote
+      simply uses its output; no extra normalization needed here.
+    alternatives:
+      - option: Float-compare with epsilon
+        rejected_because: GSM8K answers are integers; parse_answer already handles "42.0" -> "42"
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 92
+    notes: |
+      Added agentdiet/types.py with pydantic Message/Dialogue and
+      agentdiet/agents.py with Agent dataclass + 3 role constants.
+      build_api_messages produces canonical OpenAI chat shape
+      (system + history + new user turn). 12 tests pass.
+    commits: ["36a597b"]
+  S2:
+    status: done
+    confidence: 95
+    notes: |
+      aggregate.py implements majority_vote with D1 tie-behavior
+      (returns None on no strict plurality). Returns (winner,
+      per_agent_answers) so Dialogue.meta can record raw per-agent
+      votes for debugging. 8 tests pass.
+    commits: ["3210f6b"]
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      run_debate() is a pure scheduler: for each round, for each agent
+      (round-robin), build api_messages via the agent's own history,
+      call llm_client.chat(), record Message. Round 1 uses a simple
+      'Solve the following:' user turn. Round r>1 consolidates other
+      agents' prior-round responses into a single user turn (per D2).
+      Invariant check on message count fires on exit. Meta records
+      model, temp, seed, roles, per_agent_final_answers, timestamp.
+      7 tests pass including cache-replay-no-call and invariant raise.
+    commits: ["a09ff18"]
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      Smoke tests cover 2x1 schema validation, Dialogue byte-roundtrip
+      (normalized to strip time-varying timestamp), CLI dry-run
+      (subprocess + in-process), and non-dry-run exit code.
+      Overall project coverage 95%.
+    commits: ["9023231"]
+
+unplanned_changes:
+  - loc: agentdiet/debate.py meta.per_agent_final_answers
+    what: agent-id keys are stringified ({"0":..., "1":...}) rather than int
+    reason: JSON objects only allow string keys; avoids surprises on round-trip
+    confidence: 95
+  - loc: tests/debate_runner/test_smoke.py
+    what: added in-process main() test + non-dry-run exit test to raise cli/collect.py coverage (subprocess tests don't register for pytest-cov)
+    reason: plan S4 coverage_min=80; subprocess-only tests show 0%
+    confidence: 95
+  - loc: agentdiet/debate.py LATER_ROUND_TEMPLATE
+    what: uses '--- Agent N (round R) ---' headers to separate other agents' responses
+    reason: clear parseable delimiters; later features may want to attribute claims back to agent/round
+    confidence: 85
+  - loc: agentdiet/debate.py
+    what: meta.timestamp is time.time() (float); no tz handling
+    reason: epoch seconds are sufficient and comparable; no ISO formatting needed for research
+    confidence: 90
+
+flags_for_eval:
+  - confirm per-agent history growth is correct (each agent sees own prior responses as 'assistant' + consolidated others' as 'user')
+  - confirm round 1 uses the bare question, not the later-round 'Here are the solutions from other agents' template
+  - confirm at temperature=0, with the cache, a full re-run produces byte-identical messages
+  - confirm final_answer=None path (all distinct / all unparseable) leaves Dialogue otherwise valid
+  - confirm system_prompts for all 3 agents are emitted in the api_messages (spot-check)
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: "agentdiet/aggregate.py:20-28 — returns (None, per_agent) when top[0][1] == top[1][1]; test_all_distinct_returns_none + test_even_split_2_vs_2_is_none confirm"
+          - id: D2
+            verified: true
+            evidence: "agentdiet/agents.py Agent.build_api_messages + record_turn; test_build_api_messages_includes_history confirms role sequence"
+          - id: D3
+            verified: true
+            evidence: "SYSTEM_PROMPTS has 3 distinct entries; test_three_prompts_all_distinct + test_prompts_all_mention_hash_format"
+          - id: D4
+            verified: true
+            evidence: "run_debate(temperature=0.0) default; Config.temperature=0.0"
+          - id: D5
+            verified: true
+            evidence: "majority_vote uses parse_answer canonicalization; test_numeric_equivalence_42_vs_42_point_0"
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "per_agent_final_answers keys stringified for JSON safety"
+          - "in-process main() tests for cli/collect.py coverage"
+          - "Agent N headers in LATER_ROUND_TEMPLATE for attribution"
+          - "meta.timestamp as epoch seconds"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 12
+          fail: 0
+          coverage: 100
+          tests_file: tests/debate_runner/test_types.py + tests/debate_runner/test_agents.py
+          failures: []
+        S2:
+          pass: 8
+          fail: 0
+          coverage: 100
+          tests_file: tests/debate_runner/test_aggregate.py
+          failures: []
+        S3:
+          pass: 7
+          fail: 0
+          coverage: 98
+          tests_file: tests/debate_runner/test_debate.py
+          failures: []
+        S4:
+          pass: 5
+          fail: 0
+          coverage: 96
+          tests_file: tests/debate_runner/test_smoke.py
+          failures: []
+
+      blockers: []
+
+      regressions: []
+
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/debate.py LATER_ROUND_TEMPLATE
+        what: |
+          Prompt text "solutions from other agents" is GSM8K-centric
+          ("solution"). Generalizes badly if task pivots. Low priority
+          given 3-day scope and the pinned GSM8K focus.
+      - loc: agentdiet/aggregate.py
+        what: |
+          Log when a tie occurs (e.g. warning with qid + per_agent).
+          Currently tie returns None silently. Could inform a
+          "non-convergence rate" stat in the report without extra
+          bookkeeping.
+      - loc: tests/debate_runner/test_debate.py test_invariant_violation_raises
+        what: |
+          Synthetic test; the real scheduler code cannot produce a
+          message count mismatch short of a monkey-patched bug.
+          Acceptable for research; worth a comment explaining the
+          assertion is defensive.
+    final_verdict: MERGE_READY

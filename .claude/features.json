@@ -35,7 +35,7 @@
         "add Dialogue invariant assertion at end of run (message count == n_agents \u00d7 n_rounds)",
         "Layer 1 smoke test: minimal 2\u00d71 debate produces schema-valid Dialogue"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "pilot-gate1",
