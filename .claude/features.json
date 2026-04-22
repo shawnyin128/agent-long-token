@@ -151,7 +151,7 @@
         "support policy shapes: drop_types (list of types), drop_low_novelty (threshold), drop_unreferenced (bool), or logistic-regression-derived weighted rule if single signal insufficient",
         "same interface also implements b1 (no-op), b2 (round1 agent1 only), b3 (last-k-rounds), b5 (random drop with seed)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "evaluation-sweep",

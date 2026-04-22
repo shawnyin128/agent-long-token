@@ -1,0 +1,315 @@
+plan_id: compression-policy
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Evaluation-sweep needs a single interface
+  ``compress.apply(dialogue, policy) -> str`` that turns a dialogue
+  into a compressed history string under any of 5 named policies:
+  four baselines (b1 full, b2 single-agent, b3 last-k, b5 random
+  drop) and "ours", a data-driven rule chosen after Gate-2. This
+  feature adds the Policy model, compress.apply with all 5 modes,
+  and a sample policy.json template so Day-3 can fill in the rule
+  name without touching code.
+
+steps:
+  - id: S1
+    desc: Policy model + loader
+    approach: |
+      Add agentdiet/compress.py with:
+        - PolicyMode Literal: "b1","b2","b3","b5","ours"
+        - Policy pydantic model:
+            mode: PolicyMode
+            last_k: int | None        (b3 only, default 1)
+            drop_rate: float | None   (b5 only, 0..1, default 0.3)
+            random_seed: int | None   (b5 default cfg.seed)
+            drop_types: list[ClaimType] | None   (ours)
+            drop_low_novelty: float | None       (ours: threshold 0..1)
+            drop_unreferenced: bool | None       (ours)
+          Validators: mode-specific fields required per mode.
+        - load_policy(path) -> Policy (JSON file, pydantic-validate)
+    files:
+      create: [agentdiet/compress.py]
+      modify: []
+      test: [tests/compression_policy/test_policy_model.py]
+    test_plan:
+      - Policy accepts each mode; rejects invalid mode
+      - b3 requires last_k >= 1
+      - b5 drop_rate in [0,1]; fails outside
+      - ours requires at least one of drop_types / drop_low_novelty / drop_unreferenced
+      - load_policy reads a JSON file + validates
+
+  - id: S2
+    desc: apply for b1, b2, b3, b5
+    approach: |
+      In compress.py:
+        - format_history(messages) -> str  (canonical text format)
+        - apply(dialogue, policy, claims_doc=None) -> str:
+          dispatch on policy.mode.
+        - b1: return format_history(all messages)
+        - b2: return format_history(messages filtered to
+              round==1 AND agent_id==0)
+        - b3: return format_history(messages in last last_k rounds)
+        - b5: seeded RNG drops drop_rate of claims (whose spans are
+              masked from parent messages); requires claims_doc. Then
+              format_history(masked messages).
+    files:
+      create: []
+      modify: [agentdiet/compress.py]
+      test: [tests/compression_policy/test_apply_baselines.py]
+    test_plan:
+      - b1 returns full history string
+      - b2 returns only round-1 agent-0 content
+      - b3(last_k=1) returns only final-round messages
+      - b5(seed fixed) is deterministic
+      - b5(drop_rate=0) is equivalent to b1 under claims_doc
+      - b5(drop_rate=1) masks every claim
+      - b5 requires claims_doc; b1/b2/b3 do not
+
+  - id: S3
+    desc: apply for "ours" (data-driven)
+    approach: |
+      "ours" mode uses any combination of:
+        - drop_types: span-mask every claim in these types via the
+          ablate.reconstruct_masked_history helper (import, not
+          duplicate)
+        - drop_low_novelty: require signal_scores_doc; drop claims
+          whose novelty < threshold
+        - drop_unreferenced: require signal_scores_doc; drop claims
+          whose referenced_later == False
+      When multiple filters given, drop the UNION of their selections.
+      apply(dialogue, policy, claims_doc, signal_scores=None) signature
+      expands to accept optional signal_scores (list of dicts or
+      dict-by-claim-id).
+    files:
+      create: []
+      modify: [agentdiet/compress.py]
+      test: [tests/compression_policy/test_apply_ours.py]
+    test_plan:
+      - ours drop_types=[agreement] removes all agreement claim spans
+      - ours drop_low_novelty=0.5 removes claims below threshold
+      - ours drop_unreferenced=True removes claims with referenced_later=False
+      - ours union of filters removes claims matched by ANY
+      - ours with no claims_doc raises ValueError
+      - ours with signal-filters but no signal_scores raises ValueError
+
+  - id: S4
+    desc: sample policy + runbook
+    approach: |
+      Write artifacts/compression/policy.sample.json with the
+      "ours" shape (fill-in placeholders). Add Makefile target
+      "policy-sample" that copies policy.sample.json into
+      artifacts/compression/policy.json only if not already present.
+      Append README section "Day-3 compression policy" with the
+      5-policy table and pointers to compress.apply signatures.
+    files:
+      create: [artifacts/compression/policy.sample.json]
+      modify: [Makefile, README.md]
+      test: [tests/compression_policy/test_runbook.py]
+    test_plan:
+      - policy.sample.json is valid JSON
+      - Policy.model_validate_json accepts sample (if shape has all required)
+      - Makefile declares policy-sample target
+      - README has a Day-3 compression section with table
+
+decisions:
+  - id: D1
+    question: Where should the random-drop seed for b5 default from?
+    planner_view: cfg-seed-if-random_seed-is-None
+    confidence: 85
+    rationale: |
+      Consistent with the rest of the pipeline (collection, pilot,
+      spot-check all use cfg.seed=42). Policy.random_seed is an
+      explicit override; None means "use cfg.seed".
+    alternatives:
+      - option: require explicit seed
+        rejected_because: Adds friction for the default case.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: drop_unreferenced granularity — per-claim or per-message?
+    planner_view: per-claim-same-as-other-ours-filters
+    confidence: 88
+    rationale: |
+      Signal_scores are per-claim; masking per-claim via its source
+      span is consistent with drop_types + drop_low_novelty. Mixing
+      granularities makes composition brittle.
+    alternatives:
+      - option: drop whole message if any claim unreferenced
+        rejected_because: Over-aggressive; loses signal.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Should compress.apply reuse ablate.reconstruct_masked_history?
+    planner_view: reuse-with-claim-predicate-parameter
+    confidence: 80
+    rationale: |
+      Same operation (mask claim spans from messages, keep indices).
+      Refactor reconstruct_masked_history to accept a claim_predicate
+      callback (default = by type) so compression can pass any
+      predicate (by novelty, by reference, by random-drop).
+    alternatives:
+      - option: duplicate the masking loop in compress.py
+        rejected_because: Two copies drift; violates DRY.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: What's the canonical format_history output format?
+    planner_view: one-line-per-message-with-agent-round-header
+    confidence: 90
+    rationale: |
+      "--- Agent K (round R) ---\n{text}" blocks joined by blank
+      lines. Mirrors debate._format_other_responses so the LLM sees
+      the same structure it did during collection.
+    alternatives:
+      - option: JSON
+        rejected_because: Harder to read, doesn't match collection prompts.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 92
+    notes: |
+      Policy pydantic model with PolicyMode Literal, per-mode defaults
+      via model_validator (b3 last_k=1, b5 drop_rate=0.3), and
+      required-filter check for ours.
+    commits: ["2b1fbca"]
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      _apply_b1/_apply_b2/_apply_b3/_apply_b5 implemented with shared
+      format_history. b5 uses seeded random.Random(seed) with policy
+      seed taking precedence over apply's random_seed fallback.
+    commits: ["fd4ec51"]
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      _apply_ours computes union of drop_types, drop_low_novelty,
+      drop_unreferenced via _mask_claims_by_predicate. Skip behavior
+      for claims lacking signal rows: claim survives (no row means no
+      data to judge on).
+    commits: ["ed1dd97"]
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      Sample policy.json at docs/policy.sample.json (moved from
+      artifacts/ because that path is gitignored). Makefile
+      policy-sample target uses cp -n (no-clobber) so user edits
+      survive re-runs. README section added with 5-mode table.
+    commits: ["cfb5cbe"]
+
+unplanned_changes:
+  - loc: agentdiet/compress.py
+    what: |
+      _apply_ours: empty signal_scores list is a NO-OP filter (skips
+      signal-based filters silently), not an error. Original impl
+      treated empty same as None and raised. Change follows adversarial
+      test finding — partial-signal availability shouldn't crash.
+    reason: |
+      More forgiving for per-qid runs where some dialogues have
+      complete signals and others don't. Explicit None still errors
+      so a pure coding mistake is still caught.
+    confidence: 88
+  - loc: docs/policy.sample.json
+    what: |
+      Sample policy located under docs/ not artifacts/compression/
+      because the latter is gitignored.
+    reason: |
+      Git-tracked sample needs a tracked path; docs/ is the natural
+      home for template files.
+    confidence: 95
+
+flags_for_eval:
+  - |
+    Policy mode validation: b3 with last_k=None falls through to
+    default 1 via model_validator. Confirm this works for
+    model_validate_json on a payload missing last_k.
+  - |
+    b5 seed precedence: Policy.random_seed wins over apply(random_seed=).
+    Verify that a policy loaded from JSON with random_seed set behaves
+    identically to the same policy constructed in Python.
+  - |
+    docs/policy.sample.json must round-trip through
+    Policy.model_validate_json (test locks this).
+  - |
+    ours with drop_unreferenced=False vs None: must be equivalent to
+    "no filter" and REQUIRE another filter. Test locks this.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []          # no ask_user: true
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "empty-signal-scores no-op filter relaxation (caught by adversarial test)"
+          - "docs/ location for policy.sample.json (gitignored artifacts path)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 15
+          fail: 0
+          coverage: 100
+          tests_file: tests/compression_policy/test_policy_model.py
+        S2:
+          pass: 11
+          fail: 0
+          coverage: 98
+          tests_file: tests/compression_policy/test_apply_baselines.py
+        S3:
+          pass: 10
+          fail: 0
+          coverage: 98
+          tests_file: tests/compression_policy/test_apply_ours.py
+        S4:
+          pass: 6
+          fail: 0
+          coverage: 100
+          tests_file: tests/compression_policy/test_runbook.py
+        adversarial:
+          pass: 9
+          fail: 0
+          coverage: null
+          tests_file: tests/compression_policy/test_adversarial.py
+
+      full_suite_regression:
+        total_pass: 353
+        total_skip: 4
+        total_fail: 0
+        notes: No regressions.
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/compress.py
+        what: |
+          Consider adding a logistic-regression weighted-rule shape to
+          Policy for the "single signal insufficient" case (spec §5.3).
+          Not needed unless Gate-2 says no single filter works alone.
+      - loc: agentdiet/compress.py
+        what: |
+          format_history could dedupe consecutive empty messages
+          (all-masked) to avoid back-to-back Agent headers with blank
+          bodies. Downstream LLM tolerates either.
+    final_verdict: MERGE_READY
+
