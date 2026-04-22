@@ -215,6 +215,35 @@ def _strip_json_fences(raw: str) -> str:
     return s
 
 
+_JSON_LEGAL_ESCAPE = set('"\\/bfnrtu')
+
+
+def _fix_json_escapes(raw: str) -> str:
+    """Convert invalid '\\X' sequences (LaTeX '\\(' '\\frac' etc.) to
+    '\\\\X' so JSON string parsing accepts them as literal backslash + X.
+    Leaves legal escapes ('\\"' '\\n' '\\\\' '\\uXXXX') intact. Handles
+    consecutive backslashes correctly (odd count adds one, even stays)."""
+    out: list[str] = []
+    i = 0
+    n = len(raw)
+    while i < n:
+        if raw[i] != "\\":
+            out.append(raw[i])
+            i += 1
+            continue
+        j = i
+        while j < n and raw[j] == "\\":
+            j += 1
+        run = j - i
+        nxt = raw[j] if j < n else ""
+        if run % 2 == 1 and nxt and nxt not in _JSON_LEGAL_ESCAPE:
+            out.append("\\" * (run + 1))
+        else:
+            out.append("\\" * run)
+        i = j
+    return "".join(out)
+
+
 def _parse_claims_payload(
     raw_response: str,
     message_text: str,
@@ -224,7 +253,7 @@ def _parse_claims_payload(
     start_idx: int,
 ) -> tuple[list[Claim], str | None]:
     """Parse + validate JSON payload. Return (claims, error) — error None on success."""
-    stripped = _strip_json_fences(raw_response)
+    stripped = _fix_json_escapes(_strip_json_fences(raw_response))
     try:
         payload = json.loads(stripped)
     except json.JSONDecodeError as e:
