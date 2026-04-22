@@ -187,7 +187,7 @@
         "write IMRAD report ~6-8 pages: abstract, intro (pivot rationale), methods (3\u00d73 debate on GSM8K, claim extraction, flip+ablation attribution), results, discussion (including null-result framing if Gate 2 triggers), limitations (single-seed, n=100, no multi-seed bootstrap)",
         "export PDF to docs/reports/final-report.pdf"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

@@ -1,0 +1,267 @@
+plan_id: report-generation
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  All pipeline artifacts exist (dialogues, claims, flips, signals,
+  ablation, evaluation); what's missing is the "delivery" layer — a
+  deterministic data-prep module, figure renderers, LaTeX tables, and
+  an IMRAD report scaffold so the human author can fill in narrative
+  and produce docs/reports/final-report.pdf. Figure rendering uses a
+  lazy-matplotlib pattern (same as flip-and-signals did for
+  sentence-transformers) so the module imports without the analysis
+  extras.
+
+steps:
+  - id: S1
+    desc: data-prep helpers
+    approach: |
+      Add agentdiet/report.py with pure-Python data-preparation
+      functions (numpy-only, no plotting):
+        - claim_type_distribution(claims: list[dict]) -> dict:
+          dict keyed by (agent_id, round, type) -> count.
+        - signal_flip_correlations(signal_rows: list[dict]) ->
+          dict of {signal_name: correlation_with_flip_coincidence}.
+          Uses numpy Pearson via point-biserial formula.
+        - delta_ranking(ablation_summary: dict) -> list[dict]:
+          sorted by |delta| descending, with type+delta+n_used.
+        - pareto_data(evaluation_results: dict) -> list[dict]:
+          per-method accuracy + total_tokens for plotting.
+      Each function takes the in-memory JSON shape produced by the
+      relevant CLI; tests inject small fixtures.
+    files:
+      create: [agentdiet/report.py]
+      modify: []
+      test: [tests/report_generation/test_data_prep.py]
+    test_plan:
+      - claim_type_distribution counts correctly across multiple dialogues
+      - signal_flip_correlations returns one float per signal, in [-1, 1]
+      - delta_ranking sorts by |delta| with ties broken by type name
+      - pareto_data preserves per-method (acc, tokens) pairs
+      - empty inputs return empty outputs without crash
+
+  - id: S2
+    desc: LaTeX tables + figure renderers
+    approach: |
+      In agentdiet/report.py:
+        - render_table_baselines(evaluation_results) -> str
+          LaTeX tabular with columns: method, accuracy, total_tokens,
+          acc_per_1k.
+        - render_table_claim_stats(claims) -> str
+          LaTeX tabular by type with counts + percentages.
+        - render_figure_type_distribution(dist, out_path) -> Path
+        - render_figure_signal_correlations(corrs, out_path) -> Path
+        - render_figure_delta_ranking(ranking, out_path) -> Path
+        - render_figure_pareto(points, out_path) -> Path
+      Figure renderers lazy-import matplotlib; raise ImportError
+      with a clear message if unavailable. Tests for renderers use
+      pytest.importorskip("matplotlib") so the suite still passes
+      without the analysis extras.
+    files:
+      create: []
+      modify: [agentdiet/report.py]
+      test: [tests/report_generation/test_tables.py, tests/report_generation/test_figures.py]
+    test_plan:
+      - render_table_baselines produces valid LaTeX (contains \\begin{tabular})
+      - render_table_baselines escapes underscores in method names
+      - render_table_claim_stats counts sum to 100%
+      - figure renderers write a PNG file of non-zero size (importorskip)
+      - figure renderers close their figure (no matplotlib state leak)
+
+  - id: S3
+    desc: IMRAD scaffold + CLI + runbook
+    approach: |
+      Add:
+        - docs/reports/final-report.template.md — IMRAD scaffold with
+          section headers (Abstract, Introduction, Methods, Results,
+          Discussion, Limitations) and placeholders that reference the
+          generated figures/tables by filename.
+        - agentdiet/cli/report.py — reads artifacts, writes figs and
+          tables to docs/reports/{figs,tables}/, prints next-step
+          instructions ("open final-report.template.md, fill TODOs,
+          run `pandoc` to produce PDF").
+        - Makefile: report (run the CLI), report-clean.
+        - README: Report generation section.
+      The CLI does NOT generate the final PDF itself (that needs
+      pandoc + latex); it generates the inputs and leaves the human
+      to run pandoc.
+    files:
+      create: [docs/reports/final-report.template.md, agentdiet/cli/report.py]
+      modify: [Makefile, README.md]
+      test: [tests/report_generation/test_report_cli.py, tests/report_generation/test_runbook.py]
+    test_plan:
+      - CLI writes figs + tables given fixture artifacts
+      - --dry-run exits 0 without writing
+      - Template markdown has all 6 IMRAD sections
+      - Makefile declares report + report-clean
+      - README mentions final-report.template.md and pandoc
+
+decisions:
+  - id: D1
+    question: Generate PDF directly (via matplotlib-PDF/pandoc) or leave to human?
+    planner_view: generate-figures-tables-leave-pdf-to-pandoc
+    confidence: 85
+    rationale: |
+      PDF generation requires pandoc + latex toolchain not in Python
+      dependencies. Figures and tables ARE deterministic and can be
+      generated by code. The IMRAD narrative is human-authored so
+      leaving PDF assembly to a final pandoc step matches spec §8's
+      "human writes the report".
+    alternatives:
+      - option: emit PDF via matplotlib + reportlab
+        rejected_because: Heavy dep, brittle layout, narrative is human.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: Where to draw the line on data-prep helpers?
+    planner_view: only-what-spec-step-1-enumerates
+    confidence: 90
+    rationale: |
+      Spec §step-1 lists: claim type distribution, signal-flip
+      correlations (separately), Delta_t ranking, Pareto curve. Match
+      those four exactly; no speculative extras.
+    alternatives:
+      - option: also compute per-agent per-round accuracy
+        rejected_because: Not in spec; would be scope creep.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: Signal-flip correlation method?
+    planner_view: point-biserial-for-bool-signals-pearson-for-float
+    confidence: 80
+    rationale: |
+      flip_coincidence is bool; signals flip_coincidence/referenced_later
+      are bool, novelty/position are float. Point-biserial IS Pearson
+      on the 0/1 encoding so numpy.corrcoef works uniformly. Use
+      scipy-free implementation (mean, std, dot product).
+    alternatives:
+      - option: phi coefficient
+        rejected_because: Less common in reports; reviewers expect
+          Pearson-style.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 92
+    notes: |
+      claim_type_distribution, signal_flip_correlations (with zero-
+      variance → 0.0 fallback), delta_ranking (|delta| desc, type
+      name tiebreak), pareto_data all numpy-only and fixture-testable.
+    commits: []
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      render_table_baselines escapes underscores, render_table_claim_stats
+      has divide-by-zero guard. Four figure renderers lazy-import
+      matplotlib via _ensure_matplotlib; tests use pytest.importorskip.
+    commits: []
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      cli/report.py emits tables regardless of matplotlib and figures
+      only when available. IMRAD template at
+      docs/reports/final-report.template.md has all 6 sections and
+      references every figure/table by filename. Makefile report +
+      report-clean targets; README "Report generation" section
+      includes pandoc invocation hint.
+    commits: []
+
+unplanned_changes:
+  - loc: agentdiet/cli/report.py
+    what: |
+      figures_skipped flag in the returned dict so tests + callers
+      can detect matplotlib-missing path without scraping stderr.
+    reason: |
+      Spec doesn't require a specific return shape; the flag is
+      load-bearing for the downstream "which artifacts did we
+      produce?" question.
+    confidence: 92
+
+flags_for_eval:
+  - |
+    lazy-matplotlib import inside _ensure_matplotlib vs the per-renderer
+    import: confirm both pathways import cleanly on matplotlib-installed
+    systems.
+  - |
+    LaTeX escape currently covers _ % &. Other special chars ($ # { }
+    \) are not escaped; methods/types should not contain them in this
+    project, but worth noting for future-proofing.
+  - |
+    render_figure_pareto uses `label=` and `annotate` — confirm labels
+    are readable when two methods have very close (tokens, accuracy)
+    values (tests only check file existence).
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "figures_skipped flag in run_report_cli return dict — cheap observability"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 9
+          fail: 0
+          coverage: 100
+          tests_file: tests/report_generation/test_data_prep.py
+        S2:
+          pass: 6 + 5
+          fail: 0
+          coverage: 100_tables + matplotlib_gated_figures
+          tests_file: tests/report_generation/test_tables.py + test_figures.py
+          notes: |
+            Figure tests skipped (matplotlib not installed locally) but
+            will run on analysis-extras environment.
+        S3:
+          pass: 5 + 5
+          fail: 0
+          coverage: 90
+          tests_file: tests/report_generation/test_report_cli.py + test_runbook.py
+
+      full_suite_regression:
+        total_pass: 412
+        total_skip: 5
+        total_fail: 0
+        notes: |
+          5 skips = 4 pre-existing network-gated dataset tests + 1
+          matplotlib-gated figure test suite (expected on base deps).
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/report.py
+        what: |
+          LaTeX escape could cover $ # { } \ for defensive future-
+          proofing. Current set (_ % &) is sufficient for this project.
+      - loc: agentdiet/cli/report.py
+        what: |
+          Consider writing a figures_manifest.json listing emitted
+          paths so downstream automation (if any) doesn't have to
+          glob.
+      - loc: docs/reports/final-report.template.md
+        what: |
+          The TODO markers could use a consistent format (e.g.
+          `<!-- TODO: ... -->`) so a pre-commit check could block PDF
+          builds with unfilled placeholders.
+    final_verdict: MERGE_READY
+
