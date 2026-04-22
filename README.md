@@ -112,6 +112,91 @@ make stop          # stop vLLM
 make pilot-clean   # remove pilot artifacts (keeps LLM cache)
 ```
 
+## Full Collection on HPC
+
+The 100-question collection runs on the NYU HPC (Greene). You submit the
+`sbatch`/`srun` job yourself; the instructions below are what to do
+**after you have a compute node allocated and a shell on it**.
+
+### 1. Module + environment
+
+```bash
+module purge
+module load python/3.11 cuda/12.1     # adjust to your Greene module names
+cd $SCRATCH/final-project               # or wherever you cloned the repo
+python -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+```
+
+### 2. Start vLLM and wait for readiness
+
+```bash
+make serve     # backgrounds vLLM; pid -> artifacts/logs/vllm.pid
+make health    # polls /v1/models, waits up to 180s
+```
+
+### 3. Run the 100-question collection
+
+```bash
+make collect
+```
+
+Default `n=100`, `seed=42`, `n_agents=3`, `n_rounds=3`. Per-qid dialogues
+land in `artifacts/dialogues/{model_slug}/{qid}.json`; failures in
+`artifacts/failures/debate/{qid}.json`; manifest in
+`artifacts/dialogues/manifest.json`.
+
+Collection is **resumable**: re-running `make collect` skips qids whose
+dialogue file already exists and re-attempts only failed/missing ones.
+The LLM cache (`artifacts/llm_cache.jsonl`) makes even a full re-run
+cheap if nothing changed.
+
+### 4. Inspect the manifest
+
+```bash
+make collect-report
+```
+
+Prints counts per outcome:
+
+```
+  ok         96
+  cached      0
+  unparsed    2
+  failed      2
+```
+
+Target: `ok + cached >= 95 / 100`. If below, re-run `make collect` — it
+will only retry the failed/unparsed ones (resume), which is often enough
+to clear transient issues.
+
+### 5. Stop vLLM
+
+```bash
+make stop
+```
+
+### 6. Copy artifacts back (optional)
+
+If you want to inspect locally before running the analysis phase on HPC:
+
+```bash
+# from your laptop:
+rsync -avz hpc.nyu.edu:$SCRATCH/final-project/artifacts/ ./artifacts/
+```
+
+### Troubleshooting
+
+- `make health` timing out — check `artifacts/logs/vllm.log` for OOM,
+  port conflicts, or CUDA errors.
+- `make collect` reports many `failed` outcomes — inspect
+  `artifacts/failures/debate/*.json`; traceback usually points at
+  connection refused (health check passed but server died) or context
+  overflow (rare on 8k with 3×3 debate).
+- Cached LLM calls survive vLLM restarts but are keyed by `model`; if
+  you switch model names mid-run, new cache entries are generated and
+  old dialogues remain valid under the previous model-slug directory.
+
 ## Running tests
 
 ```bash
