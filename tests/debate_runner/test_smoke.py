@@ -76,11 +76,3 @@ def test_cli_dry_run_in_process_for_coverage(tmp_path, monkeypatch, capsys):
     assert "dry-run OK" in captured.out
 
 
-def test_cli_no_dry_run_exits_nonzero(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("AGENTDIET_ARTIFACTS_DIR", str(tmp_path))
-    from agentdiet.cli.collect import main
-
-    rc = main([])
-    captured = capsys.readouterr()
-    assert rc != 0
-    assert "not yet implemented" in captured.err
