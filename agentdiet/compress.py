@@ -17,7 +17,6 @@ so evaluation-sweep can compute token counts apples-to-apples.
 """
 from __future__ import annotations
 
-import json
 import random
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional
@@ -25,7 +24,7 @@ from typing import Any, Callable, Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from agentdiet.analysis.ablate import mask_message_text
-from agentdiet.types import CLAIM_TYPES, ClaimType, Dialogue, Message
+from agentdiet.types import ClaimType, Dialogue, Message
 
 
 PolicyMode = Literal["b1", "b2", "b3", "b5", "ours"]

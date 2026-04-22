@@ -13,12 +13,11 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from agentdiet.agents import make_default_agents
 from agentdiet.aggregate import majority_vote
 from agentdiet.config import Config
-from agentdiet.dataset import parse_answer
 from agentdiet.debate import INITIAL_USER_TEMPLATE, LATER_ROUND_TEMPLATE
 from agentdiet.llm_client import LLMClient
 from agentdiet.types import CLAIM_TYPES, Dialogue, Message
