@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -34,16 +33,12 @@ class MethodStats:
         return self.total - self.answered
 
 
-def _model_slug(model: str) -> str:
-    return model.replace("/", "__")
-
-
 def _load_dialogue(path: Path) -> Dialogue:
     return Dialogue.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 def _load_method_stats(cfg: Config, method: str) -> tuple[MethodStats, list[Dialogue]]:
-    dir_ = cfg.artifacts_dir / "pilot" / method / _model_slug(cfg.model)
+    dir_ = cfg.artifacts_dir / "pilot" / method / cfg.model_slug
     paths = sorted(dir_.glob("*.json"))
     dialogues = [_load_dialogue(p) for p in paths]
     total = len(dialogues)

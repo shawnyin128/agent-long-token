@@ -13,14 +13,6 @@ from agentdiet.config import Config, get_config
 from agentdiet.dataset import Question, load_gsm8k
 from agentdiet.debate import run_debate
 from agentdiet.llm_client import LLMClient, OpenAIBackend
-from agentdiet.types import Dialogue
-
-
-log = logging.getLogger("pilot")
-
-
-def _model_slug(model: str) -> str:
-    return model.replace("/", "__")
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -31,7 +23,7 @@ def _atomic_write(path: Path, content: str) -> None:
 
 
 def _pilot_paths(cfg: Config, method: str) -> Path:
-    return cfg.artifacts_dir / "pilot" / method / _model_slug(cfg.model)
+    return cfg.artifacts_dir / "pilot" / method / cfg.model_slug
 
 
 def _write_failure(cfg: Config, method: str, qid: str, exc: BaseException) -> None:

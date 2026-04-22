@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-import urllib.error
 import urllib.request
 
 from agentdiet.config import get_config
@@ -16,8 +15,6 @@ def check_once(url: str, timeout_s: float = 5.0) -> tuple[bool, str]:
             if code == 200:
                 return True, f"200 OK {url}"
             return False, f"{code} {url}"
-    except urllib.error.URLError as e:
-        return False, f"{type(e).__name__}: {e} ({url})"
     except Exception as e:
         return False, f"{type(e).__name__}: {e} ({url})"
 

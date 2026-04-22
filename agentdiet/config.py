@@ -32,6 +32,10 @@ class Config(BaseSettings):
     hf_cache_dir: Path = Field(default=PROJECT_ROOT / "artifacts" / "dataset" / "hf_cache")
 
     @property
+    def model_slug(self) -> str:
+        return self.model.replace("/", "__")
+
+    @property
     def cache_path(self) -> Path:
         return self.artifacts_dir / "llm_cache.jsonl"
 
@@ -41,13 +45,11 @@ class Config(BaseSettings):
 
     @property
     def dialogues_dir(self) -> Path:
-        model_slug = self.model.replace("/", "__")
-        return self.artifacts_dir / "dialogues" / model_slug
+        return self.artifacts_dir / "dialogues" / self.model_slug
 
     @property
     def claims_dir(self) -> Path:
-        model_slug = self.model.replace("/", "__")
-        return self.artifacts_dir / "claims" / model_slug
+        return self.artifacts_dir / "claims" / self.model_slug
 
     @property
     def analysis_dir(self) -> Path:
