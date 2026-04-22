@@ -113,7 +113,7 @@
         "IMPORTANT: do NOT construct a composite score \u2014 store 4 independent fields only (spec \u00a75.2)",
         "invariant: every triggering_claim_id exists in claims artifact"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "type-level-ablation",

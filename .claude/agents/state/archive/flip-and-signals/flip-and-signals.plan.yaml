@@ -1,0 +1,438 @@
+plan_id: flip-and-signals
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  With per-claim records landed, we still lack two attribution-critical
+  artifacts: (a) localized "flip events" — rounds where the agent
+  majority flipped from wrong to right — and (b) four INDEPENDENT
+  per-claim signals (flip_coincidence, novelty, referenced_later,
+  position) that Day-2 analysis can inspect without a composite-score
+  shortcut (spec §5.2 forbids the shortcut). This feature adds
+  analysis/flip.py, analysis/signals.py, and a CLI that writes
+  flip_events.jsonl + signal_scores.parquet, keeping the four signals
+  strictly separate and invariant-checked against the claims artifact.
+
+steps:
+  - id: S1
+    desc: types + flip locator
+    approach: |
+      Add FlipEvent pydantic model (spec §3.3) to agentdiet/types.py.
+      Create agentdiet/analysis/__init__.py and agentdiet/analysis/flip.py.
+      flip.py exposes:
+        - round_majority(dialogue, round) -> Optional[str]  (uses
+          agentdiet.aggregate.majority_vote over messages in that
+          round)
+        - locate_flips(dialogue, claims_doc) -> list[FlipEvent]
+          detects rounds r >= 2 where round_majority(r-1) is wrong
+          (not equal gold) and round_majority(r) is right. Emits one
+          FlipEvent with pre_flip_answers / post_flip_answers maps and
+          triggering_claim_id = first claim in round r whose type is
+          in {"proposal","correction"} and whose text or quote
+          mentions the post-flip answer (fallback: first claim in r).
+      Inline invariant: every returned triggering_claim_id exists in
+      claims_doc["claims"].
+    files:
+      create: [agentdiet/analysis/__init__.py, agentdiet/analysis/flip.py]
+      modify: [agentdiet/types.py]
+      test: [tests/flip_and_signals/test_types.py, tests/flip_and_signals/test_flip.py]
+    test_plan:
+      - FlipEvent accepts valid fields, rejects empty triggering_claim_id
+      - No flip when all rounds correct
+      - No flip when all rounds wrong
+      - Flip detected when r-1 wrong and r right
+      - Multiple flips (w,r,w,r) detected correctly
+      - triggering_claim_id references a real claim
+      - Fallback path: no proposal/correction in flip round → picks first claim
+    coverage_min: 90
+
+  - id: S2
+    desc: signals with embedder protocol
+    approach: |
+      Create agentdiet/analysis/signals.py exposing:
+        - Embedder protocol: encode(texts: list[str]) -> np.ndarray
+          of shape (N, D) with L2-normalized rows.
+        - SentenceTransformerEmbedder: wraps
+          sentence_transformers.SentenceTransformer("all-MiniLM-L6-v2"),
+          lazy import so the module imports even without the analysis
+          extras installed.
+        - HashingFakeEmbedder(dim=16): deterministic, network-free;
+          hashes (text) -> bytes -> np.array -> L2-normalize. For
+          tests and for environments without sentence-transformers.
+        - compute_signals(claims, flip_events, embedder) -> list[dict]
+          with keys exactly: claim_id, flip_coincidence, novelty,
+          referenced_later, position. No composite field.
+      Semantics:
+        - flip_coincidence: bool, True iff claim.round equals a
+          FlipEvent.round.
+        - novelty: 1.0 - max(cos_sim(claim, prior_claims)) with
+          strict "claims earlier than this one by (round, agent_id,
+          in-message index)". For the first claim: novelty = 1.0.
+        - referenced_later: True iff any LATER claim has cos_sim >= 0.7.
+        - position: claim.round as int.
+      Uses numpy only (cos-sim on L2-normalized is one dot product).
+    files:
+      create: [agentdiet/analysis/signals.py]
+      modify: []
+      test: [tests/flip_and_signals/test_signals.py]
+    test_plan:
+      - HashingFakeEmbedder returns unit-norm vectors of correct shape
+      - compute_signals returns exactly the 4 specified fields + id
+      - flip_coincidence True on claims in a flip round, False otherwise
+      - novelty of first claim is 1.0; novelty drops when a near-duplicate follows
+      - referenced_later True when a later near-duplicate claim exists
+      - position equals round index
+      - NO composite_score / importance / weighted_score key present
+      - Identical claim text across rounds → later one has low novelty
+    coverage_min: 90
+
+  - id: S3
+    desc: analyze CLI + parquet
+    approach: |
+      Add agentdiet/cli/analyze.py with flags --dry-run, --report,
+      --embedder {real,fake} (default real, but falls back to fake
+      with a stderr warning if sentence-transformers is not importable).
+      For each qid with both a dialogue and claims artifact:
+        - load dialogue + claims_doc
+        - locate_flips(dialogue, claims_doc) -> list[FlipEvent]
+        - compute_signals(claims_doc["claims"], flip_events, embedder)
+      Aggregate output:
+        - artifacts/analysis/flip_events.jsonl (one json line per
+          FlipEvent, with a qid field prepended for joinability)
+        - artifacts/analysis/signal_scores.parquet (pyarrow Table
+          with columns: qid, claim_id, flip_coincidence, novelty,
+          referenced_later, position)
+        - artifacts/analysis/manifest.json with per-qid counts
+      Exit 1 only if 0 qids are eligible (catastrophic).
+    files:
+      create: [agentdiet/cli/analyze.py]
+      modify: []
+      test: [tests/flip_and_signals/test_analyze_cli.py]
+    test_plan:
+      - Given 2 dialogues with matching claim artifacts, CLI produces
+        flip_events.jsonl, signal_scores.parquet, manifest.json
+      - --dry-run exits 0 without touching embedder
+      - --embedder fake forces HashingFakeEmbedder (test default)
+      - parquet has exact 6-column schema with correct row count
+      - exit 1 when no eligible qids exist
+      - manifest counts match actual file contents
+    coverage_min: 85
+
+  - id: S4
+    desc: no-composite invariant test
+    approach: |
+      Add tests/flip_and_signals/test_no_composite.py that scans
+      agentdiet/analysis/ source code with ast for any function or
+      attribute whose name matches /composite|importance_score|
+      weighted_score|combined_score/i. Must return zero hits. This
+      is a hard architectural guard per spec §5.2 — failing this test
+      means someone added a shortcut. Also verify compute_signals
+      return type has exactly 5 keys (id + 4 signals).
+    files:
+      create: []
+      modify: []
+      test: [tests/flip_and_signals/test_no_composite.py]
+    test_plan:
+      - AST scan of analysis/ finds no composite/importance/weighted identifiers
+      - compute_signals output dict has exactly keys
+        {claim_id, flip_coincidence, novelty, referenced_later, position}
+    coverage_min: 100
+
+  - id: S5
+    desc: make targets + runbook
+    approach: |
+      Add Makefile targets: analyze, analyze-report, analyze-clean.
+      Append README section "Analysis: flip points + signals" mirroring
+      the extract runbook style. Document: must install .[analysis]
+      extras for real embedder; --embedder fake is available for quick
+      local sanity but not recommended for the real 100-dialogue run.
+    files:
+      create: []
+      modify: [Makefile, README.md]
+      test: [tests/flip_and_signals/test_runbook.py]
+    test_plan:
+      - Makefile declares analyze, analyze-report, analyze-clean targets
+        in .PHONY with recipes
+      - README contains an "Analysis" heading and mentions make analyze
+      - analyze-clean removes only artifacts/analysis
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: How to select triggering_claim_id for a FlipEvent?
+    planner_view: first-proposal-or-correction-in-flip-round-mentioning-new-answer-fallback-first-claim
+    confidence: 72
+    rationale: |
+      Spec leaves this ambiguous. A claim in the flip round that is a
+      proposal or correction AND mentions the new majority answer is
+      the tightest causal proxy we can compute without a real
+      intervention (that is the ablation feature's job). Fallback to
+      first claim in the round so we never emit FlipEvent without an
+      anchor. This is an anchor pointer — the ablation feature will
+      do the actual causal test. Independent per-claim signals are
+      NOT derived from this choice, so the heuristic does not leak
+      into the forbidden composite score.
+    alternatives:
+      - option: all-claims-in-flip-round (list)
+        rejected_because: Schema specifies singular triggering_claim_id.
+      - option: first-claim-of-round-unconditionally
+        rejected_because: Weaker signal; proposal/correction filter is
+          cheap and defensible.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: Embedder dependency handling — hard require vs soft fallback?
+    planner_view: soft-fallback-with-warning
+    confidence: 82
+    rationale: |
+      sentence-transformers is an optional extra. Requiring it at
+      import time would break the CLI on environments that only have
+      base deps. Soft fallback: try to import; if unavailable AND the
+      user did not pass --embedder fake, print a loud stderr warning
+      and use HashingFakeEmbedder. Real HPC run must pass real flag
+      explicitly OR install the extra.
+    alternatives:
+      - option: hard-require
+        rejected_because: Breaks the dev_mode=local test workflow.
+      - option: silent fallback
+        rejected_because: Risks a real run silently using the toy
+          embedder; loud warning is the fix.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: referenced_later cos-sim threshold — exactly 0.7 per spec or tunable?
+    planner_view: hardcode-0.7-to-match-spec-expose-as-named-constant
+    confidence: 90
+    rationale: |
+      Spec §3.3 says 0.7 explicitly. Hardcode as
+      REFERENCED_LATER_THRESHOLD = 0.7 module constant for auditability.
+      Tunable later if Day-2 spot check shows drift.
+    alternatives:
+      - option: CLI flag --threshold
+        rejected_because: Premature; spec is explicit.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: Parquet writer — pyarrow direct or pandas?
+    planner_view: pyarrow-direct
+    confidence: 85
+    rationale: |
+      pandas adds a heavy import for six columns of uniform dtype.
+      pyarrow is already pinned in the [analysis] extras and supports
+      direct Table construction from column dicts.
+    alternatives:
+      - option: pandas.DataFrame.to_parquet
+        rejected_because: Heavier and needs pandas in extras.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: Should compute_signals dedupe claims across messages?
+    planner_view: no-dedup-one-signal-row-per-claim
+    confidence: 88
+    rationale: |
+      claims from extract_claims.py already have unique ids
+      ({qid}_r{round}_a{agent}_c{idx}). Compute a signal row per
+      claim. Downstream can dedup if needed.
+    alternatives:
+      - option: dedup by normalized text
+        rejected_because: Hides signal; dedup is a downstream choice.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      FlipEvent model added to types.py (round ≥ 2, non-empty
+      triggering_claim_id). analysis/flip.py exposes round_majority
+      and locate_flips. Triggering-claim heuristic: first
+      proposal/correction in the flip round mentioning the gold
+      answer → fallback first proposal/correction → fallback first
+      claim. Inline invariant asserts triggering_claim_id exists in
+      claims_doc.
+    commits: ["bd85b00"]
+  S2:
+    status: done
+    confidence: 88
+    notes: |
+      analysis/signals.py: Embedder protocol, HashingFakeEmbedder
+      (signed-centered bytes so distinct texts produce near-
+      orthogonal vectors), SentenceTransformerEmbedder (lazy import).
+      compute_signals returns exactly 5 keys via SIGNAL_KEYS tuple;
+      novelty uses matmul on L2-normalized rows; referenced_later
+      uses REFERENCED_LATER_THRESHOLD=0.7 module constant.
+    commits: ["be44495"]
+  S3:
+    status: done
+    confidence: 87
+    notes: |
+      cli/analyze.py reads dialogues + claims, writes flip_events.jsonl
+      (atomic), signal_scores.parquet (pyarrow direct Table), and
+      manifest.json. Flags: --dry-run, --report, --embedder {real,fake}.
+      Soft fallback: if sentence-transformers import fails, prints
+      WARNING to stderr and uses HashingFakeEmbedder. Exit 1 only
+      when zero eligible qids.
+    commits: ["ceb220e"]
+  S4:
+    status: done
+    confidence: 95
+    notes: |
+      AST scan of agentdiet/analysis/ for forbidden identifiers
+      (composite, importance, importance_score, weighted_score,
+      combined_score) — zero hits. compute_signals key count frozen
+      at exactly 5 via SIGNAL_KEYS.
+    commits: ["6f9112f"]
+  S5:
+    status: done
+    confidence: 92
+    notes: |
+      Makefile: analyze, analyze-report, analyze-clean targets in
+      .PHONY with recipes. README.md: new "Analysis" section
+      between claim-extraction and tests; documents .[analysis]
+      extras requirement and --embedder {real,fake} flag.
+    commits: ["575ca8a"]
+
+unplanned_changes:
+  - loc: agentdiet/analysis/signals.py
+    what: |
+      HashingFakeEmbedder maps uint8 bytes to signed floats (centered
+      at -127.5) before L2-normalization. Without this, all vectors
+      share a strong positive correlation and distinct texts show
+      high cos sim, breaking novelty semantics.
+    reason: |
+      Discovered via failing test_distinct_later_claim_has_high_novelty.
+      Root cause is that uniform-positive bytes never approach
+      orthogonality under cosine sim; signed centering fixes it while
+      preserving determinism.
+    confidence: 90
+  - loc: agentdiet/cli/analyze.py
+    what: |
+      Added `qids_skipped_no_claims` manifest counter (dialogues that
+      exist without a matching claims artifact — surfaces partial
+      extraction gaps that would otherwise silently drop coverage).
+    reason: |
+      Not specified in the plan but essential for the Day-2 runbook:
+      tells the user how many qids are excluded from analysis.
+    confidence: 90
+
+flags_for_eval:
+  - |
+    FlipEvent round validation rejects round=1 but allows large
+    arbitrary integers. Confirm this is correct (no upper bound
+    needed since debates are bounded by n_rounds in cfg).
+  - |
+    _select_embedder's _ensure call eagerly imports sentence-
+    transformers at CLI startup when --embedder real is used. This
+    makes every real-embedder invocation pay the import cost even
+    if no dialogues are eligible. Confirm this is acceptable (the
+    exit-1 path runs AFTER run_analysis so it would import).
+  - |
+    Parquet writing uses BufferOutputStream in-memory before atomic
+    rename. For 100-dialogue runs (~3000 rows × 6 cols) this is
+    fine; verify memory is not a concern for much larger scales.
+  - |
+    compute_signals returns rows in sort order (round, agent_id, id).
+    If downstream expects original claim order, they must re-sort.
+    Confirm this is documented or not a concern.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []          # no ask_user: true decisions
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "signed-centered HashingFakeEmbedder — correctness fix validated by test"
+          - "qids_skipped_no_claims manifest counter — cheap observability win"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 14
+          fail: 0
+          coverage: 96
+          tests_file: tests/flip_and_signals/test_types.py + tests/flip_and_signals/test_flip.py
+        S2:
+          pass: 16
+          fail: 0
+          coverage: 83
+          tests_file: tests/flip_and_signals/test_signals.py
+          notes: |
+            83% is capped by SentenceTransformerEmbedder real path
+            (requires network + model weights). All reachable paths
+            covered; spec §9 accepts this.
+        S3:
+          pass: 8
+          fail: 0
+          coverage: 94
+          tests_file: tests/flip_and_signals/test_analyze_cli.py
+        S4:
+          pass: 3
+          fail: 0
+          coverage: 100
+          tests_file: tests/flip_and_signals/test_no_composite.py
+        S5:
+          pass: 6
+          fail: 0
+          coverage: 100
+          tests_file: tests/flip_and_signals/test_runbook.py
+        adversarial:
+          pass: 12
+          fail: 0
+          coverage: null
+          tests_file: tests/flip_and_signals/test_adversarial.py
+          notes: |
+            Probed HashingFakeEmbedder empty/unicode, 3+-round flip
+            sequences, real-embedder import fallback (monkeypatched),
+            parquet dtype round-trip, and FlipEvent with multiple
+            flip rounds.
+
+      full_suite_regression:
+        total_pass: 243
+        total_skip: 4
+        total_fail: 0
+        notes: No regressions from prior features.
+
+      blockers: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/analysis/signals.py
+        what: |
+          SentenceTransformerEmbedder._ensure imports eagerly. For
+          large runs, consider batch-encode (the library already
+          batches but exposing batch_size could help on long claims).
+      - loc: agentdiet/cli/analyze.py
+        what: |
+          flip_events.jsonl is written all-at-once. For 100+
+          dialogues this is fine, but for a future large-scale run
+          consider streaming per-qid so partial progress is
+          observable on interrupt.
+      - loc: agentdiet/analysis/flip.py
+        what: |
+          _pick_triggering_claim's "mentions post_flip_answer" check
+          inspects claim.text only (_quote_text currently returns "");
+          if we carried the dialogue forward we could also search
+          the verbatim message text for stronger grounding. Low
+          priority — the ablation feature does the real causal work.
+      - loc: agentdiet/cli/analyze.py
+        what: |
+          No resume: re-running analyze recomputes all qids. For the
+          current scale this is cheap; add resume later if needed.
+    final_verdict: MERGE_READY
+
