@@ -1,0 +1,352 @@
+plan_id: full-collection
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Implement full 100-question debate collection as a resumable CLI
+  (collect.py, currently a stub). Per-qid atomic dialogue artifacts
+  under artifacts/dialogues/{model_slug}/, per-qid failure records
+  under artifacts/failures/debate/, and a manifest enumerating
+  outcomes. The run itself happens on NYU HPC (user has no local GPU);
+  this feature delivers the runnable code + SLURM job script + HPC
+  runbook so the user can launch and verify the 100-Q collection.
+  Local development uses DummyBackend.
+
+steps:
+  - id: S1
+    desc: Replace collect.py stub with real collection runner
+    approach: |
+      Rewrite agentdiet/cli/collect.py replacing the --dry-run-only
+      stub. Provide a testable run_collection(cfg, questions, *,
+      backend=None) -> dict that iterates questions, skips if artifact
+      exists under cfg.dialogues_dir, otherwise calls run_debate and
+      writes atomically. On exception, write artifacts/failures/debate/
+      {qid}.json with traceback + raw prompt context and mark the
+      outcome failed. Preserve --dry-run for a fast import+config
+      check. Default n = cfg.n_questions (100); default seed =
+      cfg.seed; split defaults to 'test'.
+    files:
+      create: []
+      modify:
+        - agentdiet/cli/collect.py
+      test:
+        - tests/full_collection/test_collect_cli.py
+    test_plan:
+      - run_collection with DummyBackend produces n artifacts (small n=3)
+      - resume: second run makes 0 LLM calls (skip-if-exists)
+      - per-qid failure does not stop loop; failure artifact written
+      - manifest.json enumerates qid + outcome (ok|cached|unparsed|failed)
+      - --dry-run exits 0 without calling LLM (regression: prior stub behavior preserved)
+    coverage_min: 85
+
+  - id: S2
+    desc: End-of-run invariant + exit-code semantics
+    approach: |
+      After the loop, assert that
+        len(manifest.outcomes) == len(questions) (no silent drops),
+      and that n_ok + n_cached + n_unparsed + n_failed == len(questions).
+      CLI exit code: 0 on any success; 1 if ALL qids failed (catastrophic);
+      never >0 for partial failures (the manifest records them for
+      downstream analysis). Log to stderr n_ok, n_cached, n_unparsed,
+      n_failed, and a 'next step' hint referring the user to
+      `python -m agentdiet.cli.collect --report-manifest`.
+    files:
+      create: []
+      modify:
+        - agentdiet/cli/collect.py
+      test:
+        - tests/full_collection/test_collect_invariants.py
+    test_plan:
+      - manifest count == questions count always
+      - all-failed run returns exit 1
+      - majority-failed (but some ok) returns exit 0
+      - counts in stderr summary match manifest
+    coverage_min: 85
+
+  - id: S3
+    desc: On-compute-node runbook (README only, no SLURM script)
+    approach: |
+      Add 'Full Collection on HPC Compute Node' section to README that
+      walks through the exact shell commands to run AFTER the user has
+      been allocated a compute node (via their own sbatch/srun). Covers:
+        (1) load module cuda + python (Greene-style)
+        (2) cd to repo under $SCRATCH
+        (3) create venv + pip install -e ".[dev]"
+        (4) make serve  (uses existing scripts/serve_vllm.sh)
+        (5) make health
+        (6) make collect
+        (7) make collect-report (inspect manifest)
+        (8) make stop
+        (9) rsync artifacts/ back to local if needed
+      No SLURM script is produced; user handles job submission themself.
+    files:
+      create: []
+      modify:
+        - README.md
+      test:
+        - tests/full_collection/test_runbook.py
+    test_plan:
+      - README contains 'Full Collection on HPC' section header
+      - section references make serve / health / collect / collect-report / stop in order
+      - section mentions scripts/serve_vllm.sh (the script that Makefile wraps)
+    coverage_min: 70
+
+  - id: S4
+    desc: Makefile target + manifest report helper
+    approach: |
+      Add `make collect` target (thin wrapper over python -m agentdiet
+      .cli.collect). Add `collect-report` target that pretty-prints
+      the manifest (counts per outcome). Add --report-manifest CLI
+      flag to collect.py that reads manifest.json and prints a table
+      without running anything, so HPC users can SSH in and check
+      status without re-triggering collection.
+    files:
+      create: []
+      modify:
+        - Makefile
+        - agentdiet/cli/collect.py
+      test:
+        - tests/full_collection/test_manifest_report.py
+    test_plan:
+      - --report-manifest reads existing manifest.json and prints counts
+      - --report-manifest exits 2 if no manifest present (clear error)
+      - `make -n collect` and `make -n collect-report` both exit 0
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      SLURM job parameters for NYU Greene. Suggested defaults:
+        #SBATCH --time=04:00:00       # 100 Q × 9 calls × ~1-3s each -> 30-60 min,
+                                       # 4h gives 4x margin for queuing + warmup
+        #SBATCH --mem=64G              # vLLM Qwen-7B ~30G host RAM; 64G safe
+        #SBATCH --gres=gpu:1           # any single GPU (A100/H100/V100 all work)
+        #SBATCH --cpus-per-task=8
+        #SBATCH --partition=<default>  # leave user to set based on their account
+      Reason to ask: Greene has multiple partitions (e.g., a100, h100,
+      rtx8000, cpu) and user's account may have specific QoS limits.
+    planner_view: "use the defaults above, leave --partition commented out for user to set"
+    confidence: 55
+    rationale: |
+      I don't know the user's Greene account / partition access. Time
+      and memory estimates come from vLLM Qwen-7B documentation and
+      the 900-call volume for 100 questions. User should verify the
+      partition name.
+    alternatives:
+      - option: Hardcode partition=h100
+        rejected_because: user's account may not have h100 access
+      - option: time=01:00:00
+        rejected_because: too tight if HPC has queuing delay before start
+      - option: no SLURM script at all, just document manual runs
+        rejected_because: defeats the 'HPC runnable' deliverable
+    ask_user: true
+    user_decision: "Skip SLURM script. User handles sbatch manually. Only produce README 'On-Compute-Node Runbook' section covering: env setup, make serve / health / collect / collect-report, post-run verification."
+
+  - id: D2
+    question: Does run_collection share code with pilot.run_pilot?
+    planner_view: |
+      No. Keep pilot.run_pilot and collect.run_collection as separate
+      implementations. They share pattern but differ in what artifacts
+      they write and which methods they run. Extracting a shared
+      'artifact-writing loop' would save ~30 lines but risks regressing
+      pilot's passing tests.
+    confidence: 80
+    rationale: |
+      Spec principle: don't add abstractions beyond what the task
+      requires. This feature needs collection to work; sharing code is
+      optional. Hygiene can flag duplication later if it matters.
+    alternatives:
+      - option: Extract agentdiet.collection_runner with a runner= callable
+        rejected_because: risk of regressing pilot tests; scope creep
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: --report-manifest missing-file exit code
+    planner_view: "2 (clear distinction from normal 0/1)"
+    confidence: 90
+    rationale: |
+      0 = success, 1 = all-failed, 2 = 'no manifest to report' (user
+      hasn't run collection yet). Makes failure modes distinguishable
+      in shell pipelines.
+    alternatives:
+      - option: 1 (treat as generic failure)
+        rejected_because: conflates 'no data' with 'data but all failed'
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: How to verify the '>= 95 / 100' success threshold?
+    planner_view: |
+      Do not enforce in code. Record n_ok in manifest and let user
+      read the collect summary. Forcing a 95 threshold in code would
+      make the pipeline brittle (a cluster hiccup that fails 10 qids
+      but which could be resumed would block everything).
+    confidence: 88
+    rationale: |
+      Resume is the real safety net: user re-runs `make collect`, it
+      only re-attempts failed qids. The 95/100 bar is a quality check
+      the human does after reading the manifest, not a code gate.
+    alternatives:
+      - option: Hard-fail if <95 succeed, force user to debug
+        rejected_because: too rigid; the resume mechanism is better
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 92
+    notes: |
+      Rewrote agentdiet/cli/collect.py. run_collection is the testable
+      entry point; main is thin CLI wrapper. Per-qid logic: if dialogue
+      artifact exists -> 'cached'; else run_debate with atomic_write;
+      on exception write failure record and continue. Added
+      --report-manifest flag for inspecting prior runs without invoking
+      LLM. 5 tests pass + existing debate_runner smoke tests all still
+      green after removing obsolete test_cli_no_dry_run_exits_nonzero
+      that asserted stub-era behavior.
+    commits: ["676fccf"]
+  S2:
+    status: done
+    confidence: 92
+    notes: |
+      run_collection runs two asserts at the end: outcome count equals
+      question count, and bucket sums match. main() returns rc=1 only
+      when ALL qids failed (catastrophic), else rc=0; partial failures
+      are information captured in the manifest. 5 invariant tests pass
+      covering count equality, bucket sums, all-failed exit code,
+      partial-failure exit zero, and stderr per-qid summary.
+    commits: ["6117c11"]
+  S3:
+    status: done
+    confidence: 95
+    notes: |
+      README gains 'Full Collection on HPC' section with 6-step runbook
+      (module load, venv, serve, health, collect, report, stop, rsync).
+      Scope adjusted per D1: no SLURM script produced — user handles
+      sbatch; runbook starts from 'you have a compute node'.
+      Troubleshooting sub-section covers health timeout, failed
+      outcomes, cache partitioning. 4 runbook tests verify section
+      header, make-target order, manifest path mention, resume mention.
+    commits: ["5b5afd6"]
+  S4:
+    status: done
+    confidence: 93
+    notes: |
+      Makefile gains collect / collect-report / collect-clean targets
+      under a 'Full collection (100Q)' heading in help. CLI
+      --report-manifest flag prints counts from
+      artifacts/dialogues/manifest.json (exit 2 if missing). 5 tests
+      pass (missing-manifest exit 2; counts rendering; make -n dry-run
+      for all 3 targets).
+    commits: ["5b5afd6"]
+
+unplanned_changes:
+  - loc: tests/debate_runner/test_smoke.py
+    what: removed test_cli_no_dry_run_exits_nonzero
+    reason: asserted stub behavior "not yet implemented" that is replaced by real collection in this feature
+    confidence: 95
+  - loc: agentdiet/cli/collect.py manifest location
+    what: manifest written to artifacts/dialogues/manifest.json (not under model_slug)
+    reason: manifest spans collection attempts across model switches via --report-manifest; keeping it at top-level of dialogues/ avoids stale pointers when user changes AGENTDIET_MODEL
+    confidence: 85
+
+flags_for_eval:
+  - verify run_collection on a mix of (ok | unparsed | failed) does not skip any qid and counts all correctly
+  - verify resume skip semantics when some qids have artifacts AND some don't
+  - verify --report-manifest exits 0 even when the manifest indicates all-failed (distinguish reading from running)
+  - verify the README HPC section references only commands that actually exist in Makefile
+  - confirm that atomic_write never leaves an empty or partial JSON file on disk in any test path
+  - confirm no regressions in pilot tests (pilot.py was NOT touched this feature but shares the cache + config layer)
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: "no scripts/hpc_greene_run.sh was created; README §'Full Collection on HPC' starts from 'you have a compute node' per user decision"
+          - id: D2
+            verified: true
+            evidence: "collect.py has own _atomic_write / _make_client; pilot tests all still pass unchanged"
+          - id: D3
+            verified: true
+            evidence: "test_report_manifest_missing_exits_2 confirms rc=2 when manifest is absent"
+          - id: D4
+            verified: true
+            evidence: "no 95/100 threshold in code; only counts in stderr + manifest"
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "removed obsolete test_cli_no_dry_run_exits_nonzero from debate_runner smoke tests"
+          - "manifest at artifacts/dialogues/manifest.json (not under model_slug, matches pilot pattern)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 5
+          fail: 0
+          coverage: 99
+          tests_file: tests/full_collection/test_collect_cli.py
+          failures: []
+        S2:
+          pass: 5
+          fail: 0
+          coverage: 99
+          tests_file: tests/full_collection/test_collect_invariants.py
+          failures: []
+        S3:
+          pass: 4
+          fail: 0
+          coverage: n/a
+          tests_file: tests/full_collection/test_runbook.py
+          failures: []
+        S4:
+          pass: 5
+          fail: 0
+          coverage: 99
+          tests_file: tests/full_collection/test_manifest_report.py
+          failures: []
+
+      blockers: []
+
+      regressions: []
+
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: README.md §'Full Collection on HPC'
+        what: |
+          Add pre-cache hint: NYU Greene compute nodes sometimes have
+          restricted outbound HTTP. From a login node with internet,
+          pre-download the GSM8K dataset AND the vLLM model before
+          sbatch. One-liner for dataset:
+          `.venv/bin/python -c "from datasets import load_dataset; load_dataset('gsm8k', 'main', cache_dir='artifacts/dataset/hf_cache')"`
+          Model weights are handled by vLLM at first run; if compute
+          has no internet, user should also pre-pull via
+          `huggingface-cli download Qwen/Qwen2.5-7B-Instruct`.
+      - loc: agentdiet/cli/collect.py + agentdiet/cli/pilot.py
+        what: |
+          _atomic_write, _make_client, and the per-qid artifact loop
+          pattern are duplicated across pilot and collect. Next
+          hygiene pass (trigger at completed=6) should extract to
+          agentdiet.collection_runner. Deferred per D2 to avoid
+          regressing pilot tests now.
+      - loc: agentdiet/cli/collect.py manifest location
+        what: |
+          Consider writing manifest to
+          artifacts/dialogues/{model_slug}/manifest.json so model
+          switches preserve per-model history. Low priority — current
+          design matches pilot and is simpler.
+    final_verdict: MERGE_READY

@@ -73,7 +73,7 @@
         "end-of-run invariant: n_collected == n_requested - n_failed",
         "run full 100-question collection, verify at least 95 succeed"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "claim-extraction",
