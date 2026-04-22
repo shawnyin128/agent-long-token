@@ -42,3 +42,11 @@ class Claim(BaseModel):
         if start >= end:
             raise ValueError(f"span start must be < end, got {(start, end)}")
         return self
+
+
+class FlipEvent(BaseModel):
+    question_id: str
+    round: int = Field(ge=2)
+    triggering_claim_id: str = Field(min_length=1)
+    pre_flip_answers: dict[int, Optional[str]] = Field(default_factory=dict)
+    post_flip_answers: dict[int, Optional[str]] = Field(default_factory=dict)
