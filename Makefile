@@ -6,6 +6,7 @@
         policy-sample \
         evaluate evaluate-report evaluate-clean \
         report report-clean \
+        reparse \
         test smoke
 
 PYTHON ?= python
@@ -57,6 +58,10 @@ help:
 	@echo "Report:"
 	@echo "  report           Render figures + LaTeX tables into docs/reports/"
 	@echo "  report-clean     Remove docs/reports/figs/ and docs/reports/tables/ (keeps template)"
+	@echo ""
+	@echo "Maintenance:"
+	@echo "  reparse          Recompute final_answer on existing pilot + dialogue"
+	@echo "                   artifacts in place (no LLM calls) — run after a parser fix"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -144,6 +149,9 @@ report:
 
 report-clean:
 	rm -rf docs/reports/figs docs/reports/tables
+
+reparse:
+	$(PYTHON) -m agentdiet.cli.reparse
 
 test:
 	$(PYTEST) tests/ --timeout=30

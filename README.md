@@ -117,6 +117,25 @@ make stop          # stop vLLM
 make pilot-clean   # remove pilot artifacts (keeps LLM cache)
 ```
 
+### Reparse after a parser fix (no LLM calls)
+
+If `make gate` reports a surprisingly small `delta` or you notice the
+model emits `#### N<num>` (literal 'N' — Qwen learned the placeholder)
+and you just pulled a parser fix, you do **not** need to re-run
+`make pilot`. The `messages[].text` in each artifact is untouched; only
+the `final_answer` field needs recomputing. Run:
+
+```bash
+git pull                       # get the parser fix
+make reparse                   # rewrite final_answer in place
+make gate                      # re-run Gate-1 decision
+```
+
+`make reparse` walks `artifacts/pilot/{single,debate}/{model_slug}/*.json`
+and `artifacts/dialogues/{model_slug}/*.json`, reruns `parse_answer`
++ majority vote, and atomically rewrites each file. Zero LLM calls.
+Also applies to the full-collection dialogues once you've run them.
+
 ## Full Collection on HPC
 
 The 100-question collection runs on the NYU HPC (Greene). You submit the
