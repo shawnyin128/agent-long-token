@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentdiet"
+version = "0.1.0"
+description = "Multi-agent debate claim-level gain attribution and compression on GSM8K"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.30",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.2",
+    "datasets>=2.18",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "pytest-timeout>=2.2",
+]
+analysis = [
+    "sentence-transformers>=2.7",
+    "scikit-learn>=1.4",
+    "hdbscan>=0.8.33",
+    "matplotlib>=3.8",
+    "pyarrow>=15.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agentdiet*"]
+exclude = ["tests*", "docs*", "artifacts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "smoke: fast smoke tests (<30s, no network)",
+]
