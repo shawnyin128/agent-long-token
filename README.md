@@ -300,6 +300,51 @@ make analyze-report   # print counts from the manifest
 make analyze-clean    # drop artifacts/analysis/ only
 ```
 
+## Type-level ablation (Gate 2)
+
+Causal per-type Δ_t = acc(with) − acc(without) on the
+`single_wrong ∧ debate_right` subset. Requires prior `make pilot`
+(single-agent artifacts), `make collect` (debate dialogues), and
+`make extract` (claim artifacts).
+
+```bash
+make ablate
+```
+
+Samples `--n` dialogues (default 20, seeded) from the eligible
+subset and for each of 6 claim types removes all type-t claim spans
+from rounds 1..N-1 of history, then replays the final round through
+the cached LLM client. A hard `--max-calls` cap (default **500**)
+enforces spec §6.1's new-call budget — cache hits are free.
+
+Artifacts in `artifacts/analysis/`:
+
+- `ablation.jsonl` — one row per (qid, drop_type) with
+  `correct_with`, `correct_without`, `skipped`, `skip_reason`
+- `ablation_summary.json` — per-type aggregates `{n_used, acc_with,
+  acc_without, delta}`
+- `ablation_manifest.json` — run metadata with call counts
+
+```bash
+make ablate-report   # print summary
+make gate2           # emit gate2_report.md; exit code encodes verdict
+```
+
+Gate-2 exit codes (from `make gate2`):
+
+- `0` — **PASS** (at least one |Δ| ≥ 0.05 → data-supported rule viable)
+- `10` — **NULL_RESULT** (all |Δ| ≤ 0.03 → Day-3 switches to
+  descriptive comparison; spec §5.4)
+- `20` — **INCONCLUSIVE** (between thresholds — gather more dialogues
+  or adjust thresholds)
+
+Thresholds (module constants in `cli/ablate.py`): LIKELY 0.10 · PASS
+0.05 · NOISE 0.03. Adjust before Gate-2 decision if n is very small.
+
+```bash
+make ablate-clean    # drop ablation artifacts only
+```
+
 ## Running tests
 
 ```bash

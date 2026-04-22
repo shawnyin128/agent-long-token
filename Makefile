@@ -2,6 +2,7 @@
         collect collect-report collect-clean \
         extract extract-report extract-clean spot-check \
         analyze analyze-report analyze-clean \
+        ablate ablate-report ablate-clean gate2 \
         test smoke
 
 PYTHON ?= .venv/bin/python
@@ -35,6 +36,12 @@ help:
 	@echo "  analyze          Compute flip_events.jsonl + signal_scores.parquet"
 	@echo "  analyze-report   Print existing analysis manifest summary"
 	@echo "  analyze-clean    Remove artifacts/analysis/ (not cache / dialogues / claims)"
+	@echo ""
+	@echo "Type-level ablation (Gate 2):"
+	@echo "  ablate           Per-type ablation on single_wrong AND debate_right subset"
+	@echo "  ablate-report    Print existing ablation summary"
+	@echo "  ablate-clean     Remove ablation artifacts only"
+	@echo "  gate2            Emit gate2_report.md; exit 0 PASS / 10 null / 20 inconclusive"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -92,6 +99,18 @@ analyze-report:
 
 analyze-clean:
 	rm -rf artifacts/analysis
+
+ablate:
+	$(PYTHON) -m agentdiet.cli.ablate
+
+ablate-report:
+	$(PYTHON) -m agentdiet.cli.ablate --report
+
+ablate-clean:
+	rm -f artifacts/analysis/ablation.jsonl artifacts/analysis/ablation_summary.json artifacts/analysis/ablation_manifest.json artifacts/analysis/gate2_report.md
+
+gate2:
+	$(PYTHON) -m agentdiet.cli.ablate --gate2
 
 test:
 	$(PYTEST) tests/ --timeout=30
