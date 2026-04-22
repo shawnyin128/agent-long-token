@@ -14,7 +14,7 @@ class Question:
     gold_answer: str
 
 
-_ANSWER_RE_FINAL_HASHES = re.compile(r"####\s*(-?[\d,]+\.?\d*)")
+_ANSWER_RE_FINAL_HASHES = re.compile(r"####\s*[A-Za-z]*\s*(-?[\d,]+\.?\d*)")
 _ANSWER_RE_DOLLAR = re.compile(r"(?:^|[^\d])\$\s*(-?[\d,]+\.?\d*)")
 _ANSWER_RE_LAST_NUMBER = re.compile(r"(-?\d[\d,]*\.?\d*)")
 
