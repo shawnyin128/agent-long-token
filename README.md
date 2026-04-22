@@ -259,6 +259,20 @@ Target: `ok + partial >= 95 / 100`. `partial` is tolerated — those
 dialogues still have usable claims; the failed messages are skipped by
 downstream analysis via `extraction_failed` flags.
 
+**High `partial` rate troubleshooting.** If `partial` is > 20%, check
+`artifacts/failures/claim_extraction/*.json` `reason` field. Invalid
+`\escape` errors come from LLM embedding LaTeX (`\(`, `\[`, `\frac`)
+in quote strings — these are auto-handled by the JSON pre-processor.
+To re-parse with the latest parser against cached LLM responses (no
+new LLM calls):
+
+```bash
+make extract-clean && make extract
+```
+
+This keeps `artifacts/llm_cache.jsonl` and replays every response
+through the updated parser.
+
 ### 3. 10-dialogue spot check (spec §9.3)
 
 ```bash

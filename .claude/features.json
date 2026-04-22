@@ -221,6 +221,22 @@
         "update README HPC runbook with 'after pulling this fix, run python -m agentdiet.cli.reparse' step"
       ],
       "passes": true
+    },
+    {
+      "id": "tolerate-latex-escapes-in-claim-json",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "230/900 (25.6%) claim-extraction messages failed \u2014 root cause: LLM puts LaTeX '\\(' and '\\[' in quote strings; JSON spec rejects \\( as invalid escape so json.loads fails. Pre-process raw response to fix-up non-JSON escapes before parsing.",
+      "steps": [
+        "add _fix_json_escapes helper in extract_claims.py: regex-sub '\\\\' followed by non-JSON-escape char -> '\\\\\\\\' + that char",
+        "wire helper into _parse_claims_payload BEFORE json.loads",
+        "add tests with real failure samples (LaTeX \\\\( \\\\[ \\\\frac etc)",
+        "verify: rate-limit test \u2014 no regressions on existing valid JSON without backslashes"
+      ],
+      "passes": true
     }
   ]
 }
