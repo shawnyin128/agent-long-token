@@ -145,9 +145,6 @@ def test_non_array_top_level_triggers_retry(tmp_path):
         json.dumps([{"type": "proposal", "text": "x", "quote": "#### 7"}]),
     ]
     calls = {"n": 0}
-    client = _client(tmp_path, lambda msgs, m, t: responses[calls["n"]] if calls.update({"n": calls["n"] + 1}) or True else None)
-    # Above trick is ugly; redo with simple counter:
-    calls["n"] = 0
 
     def resp(msgs, m, t):
         out = responses[calls["n"]]

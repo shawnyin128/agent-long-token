@@ -12,10 +12,10 @@ causal claim — the ablation feature does the actual intervention.
 """
 from __future__ import annotations
 
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 from agentdiet.aggregate import majority_vote
-from agentdiet.types import Dialogue, FlipEvent, Message
+from agentdiet.types import Dialogue, FlipEvent
 
 
 _PREFERRED_TYPES = ("proposal", "correction")
@@ -51,21 +51,12 @@ def _pick_triggering_claim(
     then any proposal/correction, then the first claim in the round."""
     ordered = sorted(round_claims, key=_claim_sort_key)
     for c in ordered:
-        if c["type"] in _PREFERRED_TYPES and post_flip_answer in (
-            (c.get("text") or "") + " " + _quote_text(c)
-        ):
+        if c["type"] in _PREFERRED_TYPES and post_flip_answer in (c.get("text") or ""):
             return c
     for c in ordered:
         if c["type"] in _PREFERRED_TYPES:
             return c
     return ordered[0]
-
-
-def _quote_text(claim: dict[str, Any]) -> str:
-    """Returned for lookup of the verbatim substring if we want it;
-    here we don't have the message text so return empty. Used only to
-    stabilize the 'mentions post_flip_answer' check."""
-    return ""
 
 
 def locate_flips(

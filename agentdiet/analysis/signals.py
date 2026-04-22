@@ -17,15 +17,11 @@ network-free fallback for tests and offline environments.
 from __future__ import annotations
 
 import hashlib
-import logging
 from typing import Any, Iterable, Protocol
 
 import numpy as np
 
 from agentdiet.types import FlipEvent
-
-
-log = logging.getLogger(__name__)
 
 
 REFERENCED_LATER_THRESHOLD = 0.7
