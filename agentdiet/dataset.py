@@ -39,9 +39,9 @@ def parse_answer(text: str) -> Optional[str]:
     if not t:
         return None
 
-    m = _ANSWER_RE_FINAL_HASHES.search(t)
-    if m:
-        return _clean_num(m.group(1))
+    hash_matches = list(_ANSWER_RE_FINAL_HASHES.finditer(t))
+    if hash_matches:
+        return _clean_num(hash_matches[-1].group(1))
 
     m = _ANSWER_RE_DOLLAR.search(t)
     if m:
@@ -54,10 +54,10 @@ def parse_answer(text: str) -> Optional[str]:
 
 
 def _parse_gsm8k_gold(answer_field: str) -> str:
-    m = _ANSWER_RE_FINAL_HASHES.search(answer_field)
-    if not m:
+    matches = list(_ANSWER_RE_FINAL_HASHES.finditer(answer_field))
+    if not matches:
         raise ValueError(f"GSM8K gold answer missing '#### N' marker: {answer_field!r}")
-    cleaned = _clean_num(m.group(1))
+    cleaned = _clean_num(matches[-1].group(1))
     if cleaned is None:
         raise ValueError(f"GSM8K gold answer not numeric: {answer_field!r}")
     return cleaned
