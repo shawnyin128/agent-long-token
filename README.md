@@ -197,6 +197,68 @@ rsync -avz hpc.nyu.edu:$SCRATCH/final-project/artifacts/ ./artifacts/
   you switch model names mid-run, new cache entries are generated and
   old dialogues remain valid under the previous model-slug directory.
 
+## Claim extraction
+
+Once dialogues exist under `artifacts/dialogues/{model_slug}/`, run claim
+extraction on the same node (it still needs the vLLM server). The
+pipeline is resumable per-qid and the LLM cache makes reruns cheap.
+
+### 1. Extract claims
+
+```bash
+make extract
+```
+
+Default reads every `*.json` in `artifacts/dialogues/{model_slug}/` and
+writes a per-qid artifact to `artifacts/claims/{model_slug}/{qid}.json`
+with fields `qid`, `claims[]` (6-type taxonomy per spec §3.4),
+`per_message_status[]`, and `extraction_failed`. Failures land in
+`artifacts/failures/claim_extraction/`. Manifest:
+`artifacts/claims/manifest.json`.
+
+### 2. Inspect the manifest
+
+```bash
+make extract-report
+```
+
+Prints counts per outcome:
+
+```
+  ok         94
+  partial     5     # at least one message failed extraction
+  cached      0
+  failed      1     # whole-dialogue failure (IO or parse error)
+```
+
+Target: `ok + partial >= 95 / 100`. `partial` is tolerated — those
+dialogues still have usable claims; the failed messages are skipped by
+downstream analysis via `extraction_failed` flags.
+
+### 3. 10-dialogue spot check (spec §9.3)
+
+```bash
+make spot-check
+```
+
+Samples 10 dialogues (seeded with `AGENTDIET_SEED`, default 42) and
+writes:
+
+- `artifacts/spot_check.csv` — one row per claim with blank
+  `manual_pass` and `notes` columns for you to fill
+- `artifacts/spot_check_notes.md` — companion with each dialogue
+  printed next to its claims for faster reading
+
+Open the markdown, skim each dialogue, then mark yes/no in the CSV.
+Target: ≥ 70 % manual_pass rate — that meets spec §9.3's "not trivially
+wrong" bar and unblocks Day 2 attribution work.
+
+### Clean up
+
+```bash
+make extract-clean    # drops artifacts/claims/ (keeps cache + dialogues)
+```
+
 ## Running tests
 
 ```bash

@@ -1,5 +1,7 @@
 .PHONY: help serve stop status health pilot gate pilot-full pilot-clean \
-        collect collect-report collect-clean test smoke
+        collect collect-report collect-clean \
+        extract extract-report extract-clean spot-check \
+        test smoke
 
 PYTHON ?= .venv/bin/python
 PYTEST ?= .venv/bin/pytest
@@ -21,6 +23,12 @@ help:
 	@echo "  collect          Run 100-question 3x3 debate collection (resumable)"
 	@echo "  collect-report   Print existing collection manifest summary"
 	@echo "  collect-clean    Remove artifacts/dialogues/ (not the LLM cache)"
+	@echo ""
+	@echo "Claim extraction:"
+	@echo "  extract          Extract 6-type claims from all collected dialogues (resumable)"
+	@echo "  extract-report   Print existing claim-extraction manifest summary"
+	@echo "  extract-clean    Remove artifacts/claims/ (not cache or dialogues)"
+	@echo "  spot-check       Sample K dialogues (default 10) -> spot_check.csv"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Full pytest suite (no network)"
@@ -57,6 +65,18 @@ collect-report:
 
 collect-clean:
 	rm -rf artifacts/dialogues
+
+extract:
+	$(PYTHON) -m agentdiet.cli.extract
+
+extract-report:
+	$(PYTHON) -m agentdiet.cli.extract --report-manifest
+
+extract-clean:
+	rm -rf artifacts/claims
+
+spot-check:
+	$(PYTHON) -m agentdiet.cli.spot_check --k 10
 
 test:
 	$(PYTEST) tests/ --timeout=30
