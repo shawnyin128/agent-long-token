@@ -1,0 +1,161 @@
+% =====================================================================
+% Check-in (2026-04-22) — Multi-Agent Debate Claim-Level Attribution
+% Builds on the original proposal (keeps Problem + Prior Work) and adds
+% sections for feedback response, expanded method, preliminary results,
+% limitations, and one-week plan.
+% =====================================================================
+
+\section*{Problem}
+
+In multi-agent LLM systems, agents communicate over multiple rounds to collaboratively solve a task. Each agent's prompt must carry the full communication history, so prompt length grows as $O(N \times R \times L)$ where $N$ is agent count, $R$ is rounds, and $L$ is average message length. This raises inference cost and introduces noise from redundant or outdated content.
+
+We observe that this history is not homogeneous---it contains \textit{redundancy} (multiple agents restating the same point), \textit{superseded information} (early claims later corrected), and \textit{convergence overhead} (full debate retained after consensus). Yet existing compression methods \cite{li2023compressingcontextenhanceinference, pan2024llmlingua2datadistillationefficient} treat prompts as flat token sequences, and training-based approaches \cite{chen2025optimaoptimizingeffectivenessefficiency} require parameter updates. No prior work has systematically analyzed \textit{what} accumulates in multi-agent communication and \textit{why}.
+
+\section*{Prior Work}
+
+Token-level compression (Selective Context \cite{li2023compressingcontextenhanceinference}, LLMLingua \cite{pan2024llmlingua2datadistillationefficient}) reduces prompt length but ignores inter-message structure. OPTIMA \cite{chen2025optimaoptimizingeffectivenessefficiency} trains agents to communicate concisely via SFT/DPO but requires fine-tuning. AgentDiet \cite{xiao2026reducingcostllmagents} removes waste from single-agent trajectories. None analyze the structure of multi-agent communication itself---our work fills this gap.
+
+\textbf{Multi-agent debate.} Du et al.\ \cite{du2023improvingfactualityreasoninglanguage} established the 3-agent iterative critique protocol that we use as our debate scaffold and show it yields reproducible gains on GSM8K. \textbf{Ensembling as a baseline mechanism.} Self-Consistency \cite{wang2023selfconsistencyimproveschainthought} aggregates multiple reasoning paths via majority vote without any inter-agent dialogue. One of our central preliminary findings (\S\,5) is that 3-agent debate on GSM8K appears to reduce to self-consistency in disguise.
+
+\section*{Response to Proposal Feedback}
+
+The proposal received two concrete critiques that shaped the current design.
+
+\paragraph{(F1) MMLU is the wrong benchmark for this question.}
+Multi-agent debate often does not meaningfully outperform single-agent on MMLU; analyzing communication structure on a protocol that barely helps risks dissecting noise. \textbf{Response:} we pivoted to GSM8K, where MAD has reproducible gains in the literature (Du et al.\ \cite{du2023improvingfactualityreasoninglanguage}). Gate 1 of our pipeline (\S\,4) verifies the gain empirically before any downstream analysis.
+
+\paragraph{(F2) Verify gain exists before attributing it.}
+The proposal's original pipeline (HDBSCAN clustering $\to$ ICL compression) assumed upfront that debate communication carries useful, non-trivial information. \textbf{Response:} we replaced the clustering-first design with an \textit{attribution-first} workflow: before designing compression, we measure which claim types causally contribute to the accuracy gain via type-level ablation (\S\,4.3). Compression decisions are data-supported (spec \S\,5.3) or fall back to a declared null-result path (spec \S\,5.4) based on what the ablation reveals. This makes the compression rule falsifiable rather than assumed.
+
+The original P0 (structural analysis) and P1 (ICL-guided communication) ideas are preserved as follow-up work but are deferred until we confirm that communication content is, in fact, compressible---the preliminary results below put this assumption in question.
+
+\section*{RQ0: Attribution-First Pipeline}
+
+\subsection*{Method}
+
+All components are LLM-only. No training.
+
+\paragraph{Debate protocol.} 3 agents $\times$ 3 rounds on GSM8K. Agents have differentiated role prompts (solver / skeptic / synthesizer) drawn from the MAD pattern. Temperature~0. Served locally via vLLM on an A100. Final answer is the majority vote over the last round's per-agent parsed answers.
+
+\paragraph{Claim extraction.} Each message is decomposed by an LLM into atomic claims tagged with one of 6 types: \textit{proposal, evidence, correction, agreement, question, other}. Each claim carries a \texttt{source\_message\_span} pointer for verifiable provenance. Schema-guided JSON output, one strict-prompt retry on validation failure.
+
+\paragraph{Type-level ablation.} For each type~$t$, mask every message in rounds $1..N{-}1$ of the \textit{single\_wrong~$\wedge$~debate\_right} subset that contains any type-$t$ claim, replay the final round through the 3 agents, and measure $\Delta_t=\text{acc}(\text{with})-\text{acc}(\text{without})$. Large $\Delta_t$ indicates a causally important claim type; $\Delta_t \approx 0$ indicates the type is not load-bearing.
+
+\subsection*{Experimental Design}
+
+\begin{itemize}
+  \item \textbf{Dataset.} 100 GSM8K test questions (seed 42). Compared with the proposal's MMLU sample, this is a direct response to F1.
+  \item \textbf{Model.} Qwen2.5-7B-Instruct. Single model in this check-in; cross-model replication is listed as a pre-Day-3 confounder check (\S\,7).
+  \item \textbf{Gate 1}: Run single-agent and 3$\times$3 debate on 100 questions. Proceed only if $\Delta_{\text{debate}-\text{single}} \ge 3\,\text{pp}$.
+  \item \textbf{Gate 2}: Type-level ablation on the \textit{single\_wrong~$\wedge$~debate\_right} subset. Classify per-type $\Delta_t$ as \textit{likely} ($|\Delta|\ge 0.10$), \textit{noise} ($|\Delta|\le 0.03$), or \textit{unclear} otherwise. PASS if at least one type has $|\Delta|\ge 0.05$.
+\end{itemize}
+
+\subsection*{Ablation Controls}
+
+Two design issues surfaced during the Gate 2 run and required explicit controls:
+
+\paragraph{Control 1: masking granularity.} Our first ablation used \textit{span-level} masking (delete only the claim's \texttt{source\_message\_span} characters). Claim spans averaged only $26\%$ of each message's length, leaving most of the reasoning intact. The LLM re-solved independently and $\Delta \equiv 0$ was mechanically forced. We switched the default to \textit{message-level} masking (if any claim of drop-type exists in a message, blank the entire message). The span-level mode is preserved as an explicit flag for inspection.
+
+\paragraph{Control 2: drop-all baseline.} Even under message-level ablation, every $\Delta_t$ was $0$. This is ambiguous between (a) \textit{no type matters} and (b) \textit{single-type signal is still too weak}. To disambiguate, we added a drop-all control: blank \textit{every} message in rounds $1..N{-}1$ (no type filter), leaving only the question and the debate turn structure. If accuracy still holds, (a) is confirmed; if accuracy drops, (b) is the correct reading and we must use descriptive attribution (spec \S\,5.4) instead of causal $\Delta_t$.
+
+\section*{Preliminary Results}
+
+All numbers are from \texttt{make pilot}, \texttt{make ablate}, and \texttt{make ablate-control} runs on the HPC node; raw artifacts are in \texttt{artifacts/} in the repo.
+
+\paragraph{Gate 1: Debate does help on GSM8K.}
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+method & accuracy & delta \\
+\midrule
+single-agent & 86.7\% (87/100) & --- \\
+3$\times$3 debate & 93.3\% (93/100) & $+6.7$\,pp \\
+\bottomrule
+\end{tabular}
+\end{center}
+Gate 1 PASSES (threshold 3\,pp). This replicates the MAD-literature range of 3--10\,pp for GSM8K. Note: two parser bugs (Qwen emitting \texttt{\#\#\#\# N66} due to prompt literal-\texttt{N}; LaTeX escape errors in claim JSON) initially masked this result as $\Delta=0$; both are fixed and the pipeline now ships with regression tests. This was a useful reminder that preliminary-results work includes verifying the measurement instrument.
+
+\paragraph{Claim distribution is heavily skewed.}
+Across 2\,846 extracted claims from 100 dialogues:
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+type & count & \% \\
+\midrule
+proposal   & 1\,249 & 43.9 \\
+evidence   & 1\,114 & 39.1 \\
+agreement  &    430 & 15.1 \\
+other      &     44 &  1.5 \\
+correction &      9 &  0.3 \\
+question   &      0 &  0.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Three types account for $98\%$ of claims. A keyword sanity check on 20 skeptic round-2/3 messages found only 1/20 containing error/wrong/mistake terms---and that one said ``all steps appear to be \textit{correct}'', not a correction. An AI-assisted 10-dialogue spot check against a 6-item checklist passed 10/10 at mean 5.6/6, confirming the skew is real and not an extraction artifact. \textbf{On GSM8K, Qwen's 3$\times$3 debate behaves cooperatively, not adversarially}: there is little to correct and nothing to ask about on short arithmetic chains.
+
+\paragraph{Gate 2: All $\Delta_t=0$.}
+On $n=9$ qids in the \textit{single\_wrong~$\wedge$~debate\_right} subset, using message-level masking:
+\begin{center}
+\begin{tabular}{lrrrl}
+\toprule
+type & $n$ & acc(with) & acc(without) & $\Delta_t$ \\
+\midrule
+proposal   & 9 & 1.000 & 1.000 & $+0.000$ \\
+evidence   & 9 & 1.000 & 1.000 & $+0.000$ \\
+correction & 9 & 1.000 & 1.000 & $+0.000$ \\
+agreement  & 9 & 1.000 & 1.000 & $+0.000$ \\
+question   & 9 & 1.000 & 1.000 & $+0.000$ \\
+other      & 9 & 1.000 & 1.000 & $+0.000$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\texttt{make gate2} returns exit code 10 (NULL\_RESULT). A sanity dump of one masked transcript (\texttt{gsm8k-test-1034}, drop\_type = proposal) confirms the mask is real: 5 of 6 rounds-1-and-2 messages are empty strings.
+
+\paragraph{Control: drop-all.}
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+condition & acc(with) & acc(without) & $\Delta$ \\
+\midrule
+drop single type (avg) & 1.000 & 1.000 & $+0.000$ \\
+\textbf{drop ALL messages}      & 1.000 & 1.000 & $\mathbf{+0.000}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+Even with every rounds-$1..N{-}1$ message replaced by the empty string---leaving only the question text and the turn-structure labels---all 9 subset questions are still answered correctly by the 3-agent majority vote. Option (a) is confirmed: the null is real, not a signal-strength artifact.
+
+\section*{Interim Conclusion}
+
+Taking the four results together:
+
+\begin{quote}
+\itshape
+The $+6.7$\,pp 3$\times$3 debate gain on GSM8K with Qwen2.5-7B cannot be attributed to information exchanged between agents. It emerges from majority voting over three independent re-solves of the same question. ``Debate'' in this regime functions as self-consistency \cite{wang2023selfconsistencyimproveschainthought} with extra inference cost, not as a dialogue that transfers information.
+\end{quote}
+
+This is consistent with the claim-distribution skew (there is essentially no \textit{correction} or \textit{question} content for information transfer to be conveyed in) and satisfies the null-result path in our design spec. It also reshapes RQ1 (compression): if the message content is causally inert, any compression that preserves 3-agent voting structure should retain full accuracy---only the \texttt{b2} single-agent baseline (no voting) should underperform. This prediction will be tested in the next-week plan (\S\,8).
+
+\section*{Limitations and RQ1 (What We're About to Check)}
+
+The interim conclusion rests on two assumptions that we are not yet willing to commit to. Before running the compression sweep (original Day-3 plan), we will ablate them explicitly:
+
+\paragraph{(L1) Single-model generalization.}
+Qwen2.5-7B's single-agent GSM8K accuracy is already 86.7\%---residual error only 13.3\%. At such a high baseline, message content may feel unimportant even if it would matter at a lower one. \textbf{RQ1a:} Does the Gate-2 null and the drop-all control replicate on a second model (\texttt{gpt-4o-mini} via API, or Llama-3.1-8B-Instruct on HPC)? If yes, ``debate is voting'' is a task-level property of GSM8K-style arithmetic. If one model shows $\Delta_{\text{control}} > 0$, the finding is Qwen-specific.
+
+\paragraph{(L2) Debate prompts may under-drive adversarial behavior.}
+Our role prompts (solver / skeptic / synthesizer) are the standard MAD pattern but may be too cooperative for Qwen on easy problems. \textbf{RQ1b:} If the skeptic prompt is rewritten to \textit{require} at least one disagreement and the synthesizer prompt is rewritten to \textit{require} at least one clarifying question, does the claim-type distribution diversify (more \textit{correction}, $>0$ \textit{question}) and does the ablation signal emerge? A null here strengthens the voting hypothesis; a positive result shows that our original prompts suppressed the structure we were trying to study.
+
+Additional smaller limitations: $n=9$ subset is narrow (upper-bounded by the intersection size on $100$ questions); no multi-seed bootstrap yet; single temperature setting.
+
+\section*{Plan for Next Week}
+
+\begin{itemize}
+  \item \textbf{Days 1--2.} RQ1a replication. Stand up \texttt{gpt-4o-mini} as a second backend (the project's cache layer is model-partitioned, so no code changes needed); rerun Gate 1, Gate 2, and the drop-all control on 100 GSM8K questions. If the HPC queue has room, also run Llama-3.1-8B-Instruct as a third point. Decide whether the null generalizes.
+  \item \textbf{Days 3--4.} RQ1b prompt audit. Design two adversarial-variant prompt sets and rerun the \texttt{extract}~$\to$~\texttt{analyze}~$\to$~\texttt{ablate}~$\to$~\texttt{gate2}~$\to$~\texttt{ablate-control} chain. Quantify whether prompt design changes the claim distribution and/or the ablation signal.
+  \item \textbf{Day 5.} Given RQ1a+b outcomes, run the compression sweep (\texttt{make evaluate}): 5 methods (\texttt{b1} full, \texttt{b2} single, \texttt{b3} sliding-window, \texttt{b5} random-drop, \texttt{ours} heuristic dropping \textit{agreement}+\textit{other}) $\times$ 100 questions $\times$ (accuracy, tokens, acc-per-1k). This produces the Pareto figure that will be the paper's main result.
+  \item \textbf{Days 6--7.} Assemble IMRAD report; generate figures via \texttt{make report}; \texttt{pandoc} to PDF.
+\end{itemize}
+
+The cache-partitioned design keeps the cost manageable---cross-model replication reuses all claim-extraction and analysis code without modification, and the LLM cache (\texttt{artifacts/llm\_cache.jsonl}, currently $\sim 1.1$\,MB) amortizes repeated calls.
+
+\paragraph{Repository.} The full codebase, per-feature plan YAMLs, and all preliminary artifacts are at \url{https://github.com/shawnyin128/agent-long-token}. The design document governing the above pipeline is \texttt{docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md}.
