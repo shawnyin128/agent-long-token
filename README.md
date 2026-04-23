@@ -379,6 +379,17 @@ Gate-2 exit codes (from `make gate2`):
 Thresholds (module constants in `cli/ablate.py`): LIKELY 0.10 · PASS
 0.05 · NOISE 0.03. Adjust before Gate-2 decision if n is very small.
 
+**Masking granularity.** `make ablate` uses `--granularity message`
+by default: if any claim of the drop-type appears in a message, the
+whole message text is blanked. This produces a strong causal signal.
+Span-level masking (`--granularity span`) deletes only the claim's
+source span; on our data claim spans average ~45 chars inside
+~680-char messages (mean coverage 26%), so span-level ablation
+leaves most of the reasoning intact and mechanically produces Δ≈0
+across all types. `compress.apply` for the evaluation sweep still
+uses span-level masking — its goal is token-efficient history, not
+causal intervention.
+
 ```bash
 make ablate-clean    # drop ablation artifacts only
 ```

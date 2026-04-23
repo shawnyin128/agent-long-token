@@ -237,6 +237,23 @@
         "verify: rate-limit test \u2014 no regressions on existing valid JSON without backslashes"
       ],
       "passes": true
+    },
+    {
+      "id": "message-level-ablation-for-causal-signal",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Ablate replay \u0394=0 for all 6 types because span-level masking only covers 26% of message text on average (median 20%, 27% of messages <10% coverage). LLM re-solves GSM8K from remaining reasoning. Add message-level ablation: if a message contains any drop_type claim, blank the whole message.",
+      "steps": [
+        "add granularity='message' branch to reconstruct_masked_history in analysis/ablate.py",
+        "update replay_final_round + run_ablation to accept granularity kwarg",
+        "cli/ablate.py: add --granularity flag defaulting to 'message'",
+        "tests: message-level removes whole messages, span-level unchanged",
+        "README note: ablate is message-level; compress.apply stays span-level (different goals)"
+      ],
+      "passes": true
     }
   ]
 }

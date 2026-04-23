@@ -164,6 +164,7 @@ def replay_final_round(
     *,
     dialogue: Dialogue, claims_doc: dict, drop_type: str,
     llm_client: LLMClient, model: str, temperature: float = 0.0,
+    granularity: str = "message",
 ) -> dict:
     rounds = sorted({m.round for m in dialogue.messages})
     if not rounds:
@@ -173,7 +174,8 @@ def replay_final_round(
         raise ValueError("final round must be >= 2 for ablation replay")
 
     masked = reconstruct_masked_history(
-        dialogue, claims_doc, drop_type=drop_type, up_to_round=final_round - 1,
+        dialogue, claims_doc, drop_type=drop_type,
+        up_to_round=final_round - 1, granularity=granularity,
     )
     agent_ids = _agent_ids_in_dialogue(dialogue)
     agents = make_default_agents(len(agent_ids))
@@ -212,6 +214,7 @@ def run_ablation(
     cfg: Config, qids: list[str], llm_client: LLMClient,
     max_new_llm_calls: int = MAX_NEW_LLM_CALLS_DEFAULT,
     types: Optional[list[str]] = None,
+    granularity: str = "message",
 ) -> list[dict]:
     type_list = list(types or CLAIM_TYPES)
     rows: list[dict] = []
@@ -240,7 +243,7 @@ def run_ablation(
                 row = replay_final_round(
                     dialogue=dialogue, claims_doc=claims_doc, drop_type=t,
                     llm_client=llm_client, model=cfg.model,
-                    temperature=cfg.temperature,
+                    temperature=cfg.temperature, granularity=granularity,
                 )
             except Exception as exc:  # noqa: BLE001
                 rows.append({
@@ -254,12 +257,32 @@ def run_ablation(
 
 def reconstruct_masked_history(
     dialogue: Dialogue, claims_doc: dict, *, drop_type: str, up_to_round: int,
+    granularity: str = "message",
 ) -> list[Message]:
     """Return a new list of Messages mirroring ``dialogue.messages`` where
-    rounds ``1..up_to_round`` have all ``drop_type`` claims span-masked
-    out. Message count and (agent_id, round) indices are preserved so
-    downstream replay can rebuild the transcript."""
+    rounds ``1..up_to_round`` have all ``drop_type`` claims masked out.
+
+    ``granularity``:
+      - ``"message"`` (default) — if a message contains ANY claim of
+        drop_type, replace its text with the empty string. Used by
+        causal ablation so the removal signal is strong enough to
+        measure (span-level masking on sparse claims mechanically
+        produces Δ≈0).
+      - ``"span"`` — delete only the specific claim-span characters,
+        leaving the rest of the message text intact. Kept for callers
+        (compression policy) whose goal is token-efficient history
+        rather than causal intervention.
+
+    Message count and (agent_id, round) indices are preserved in both
+    modes so downstream replay can rebuild the transcript.
+    """
+    if granularity not in ("message", "span"):
+        raise ValueError(
+            f"granularity must be 'message' or 'span', got {granularity!r}"
+        )
+
     spans_by_key: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    msgs_to_blank: set[tuple[int, int]] = set()
     for c in claims_doc.get("claims", []):
         if c.get("type") != drop_type:
             continue
@@ -267,18 +290,37 @@ def reconstruct_masked_history(
         if r > up_to_round:
             continue
         key = (int(c["agent_id"]), r)
-        a, b = c["source_message_span"]
-        spans_by_key.setdefault(key, []).append((int(a), int(b)))
+        if granularity == "message":
+            msgs_to_blank.add(key)
+        else:
+            a, b = c["source_message_span"]
+            spans_by_key.setdefault(key, []).append((int(a), int(b)))
 
     new_messages: list[Message] = []
     for m in dialogue.messages:
-        if m.round > up_to_round or (m.agent_id, m.round) not in spans_by_key:
+        key = (m.agent_id, m.round)
+        if m.round > up_to_round:
             new_messages.append(Message(
                 agent_id=m.agent_id, round=m.round, text=m.text,
             ))
             continue
-        masked = mask_message_text(m.text, spans_by_key[(m.agent_id, m.round)])
-        new_messages.append(Message(
-            agent_id=m.agent_id, round=m.round, text=masked,
-        ))
+        if granularity == "message":
+            if key in msgs_to_blank:
+                new_messages.append(Message(
+                    agent_id=m.agent_id, round=m.round, text="",
+                ))
+            else:
+                new_messages.append(Message(
+                    agent_id=m.agent_id, round=m.round, text=m.text,
+                ))
+        else:
+            if key not in spans_by_key:
+                new_messages.append(Message(
+                    agent_id=m.agent_id, round=m.round, text=m.text,
+                ))
+            else:
+                masked = mask_message_text(m.text, spans_by_key[key])
+                new_messages.append(Message(
+                    agent_id=m.agent_id, round=m.round, text=masked,
+                ))
     return new_messages

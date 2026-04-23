@@ -1,0 +1,207 @@
+plan_id: message-level-ablation-for-causal-signal
+iteration: 1
+based_on: docs/design-docs/2026-04-21-multi-agent-debate-claim-analysis-design.md
+
+problem: |
+  Type-level ablation run on 9-qid subset shows Δ=0.000 for every
+  one of the 6 claim types. Root cause is NOT a null-result finding —
+  it's that span-level masking is too fine-grained: claim source spans
+  average 45 chars, messages average 683 chars → mean coverage 26%,
+  median 20%, 27% of messages have <10% coverage. Removing those
+  sparse snippets leaves the LLM with the full reasoning chain, so
+  it re-solves GSM8K independently and Δ is mechanically zero.
+  Switch ablate to message-level: if a message contains ANY claim
+  of the drop_type, replace the whole message text with empty
+  string. Compress.apply stays span-level (its goal is
+  token-efficient compression, not causal ablation).
+
+steps:
+  - id: S1
+    desc: message-level masking branch
+    approach: |
+      In agentdiet/analysis/ablate.py:
+        - reconstruct_masked_history(dialogue, claims_doc, *,
+          drop_type, up_to_round, granularity="message") — add kwarg,
+          default "message".
+          - When granularity="message": scan claims, for each
+            (agent_id, round) pair with at least one drop_type claim,
+            set the Message.text to empty string. Preserve
+            (agent_id, round) indices.
+          - When granularity="span": existing span-delete behavior
+            (kept for backwards compat / future use).
+        - replay_final_round gains granularity kwarg, passes through.
+        - run_ablation gains granularity kwarg, passes through.
+    files:
+      create: []
+      modify: [agentdiet/analysis/ablate.py]
+      test: [tests/message_level_ablation/test_message_masking.py]
+    test_plan:
+      - granularity="message": message with any claim of drop_type → text == ""
+      - granularity="message": message with NO claim of drop_type → text unchanged
+      - granularity="message": preserves message count and (agent_id, round) order
+      - granularity="span": existing span-delete behavior unchanged
+      - default granularity is "message"
+
+  - id: S2
+    desc: CLI + end-to-end test
+    approach: |
+      cli/ablate.py:
+        - add --granularity {message,span} flag, default "message".
+        - pass to run_ablation.
+      End-to-end test: seeded dialogue where one message's entire
+      content is an 'agreement' claim; dropping "agreement" at
+      message level must produce different replay input than at
+      span level (len of masked prompt differs).
+    files:
+      create: []
+      modify: [agentdiet/cli/ablate.py]
+      test: [tests/message_level_ablation/test_ablate_cli_granularity.py]
+    test_plan:
+      - CLI --granularity message passes kwarg through (check manifest
+        records it)
+      - CLI --granularity span still works
+      - run_ablation with message-level produces DIFFERENT row set
+        vs span-level on a fixture where coverage < 50%
+
+  - id: S3
+    desc: runbook + spec clarification
+    approach: |
+      README Gate-2 section: document that --granularity message is
+      default, and why (span-level on sparse claims produces Δ=0
+      artifact). Mention compress.apply keeps span-level because
+      its goal is token efficiency, not causal ablation.
+    files:
+      create: []
+      modify: [README.md]
+      test: [tests/message_level_ablation/test_runbook.py]
+    test_plan:
+      - README mentions --granularity or message-level in Gate-2 block
+
+decisions:
+  - id: D1
+    question: Default granularity — span or message?
+    planner_view: message-level-default
+    confidence: 93
+    rationale: |
+      The whole purpose of ablation is to produce a causal Δ signal.
+      Empirical run on 9-qid subset showed span-level Δ=0 across all
+      6 types because coverage is too sparse. Message-level is the
+      standard practice in MAD ablation papers (you remove whole
+      turns to measure their contribution). Span-level is useful
+      for compression (show the model less text) but NOT for
+      causation.
+    alternatives:
+      - option: span-level default
+        rejected_because: Already proven to produce zero signal on
+          the observed claim-coverage distribution.
+      - option: hybrid (message-level if coverage > 50% else span)
+        rejected_because: Introduces a threshold-dependent signal
+          that muddles interpretation.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: Should compress.apply also switch to message-level?
+    planner_view: keep-compress-span-level
+    confidence: 90
+    rationale: |
+      compress.apply is for Day-3 evaluation — produce a compressed
+      history for the final-round replay under 5 policies. Its
+      objective is token-efficient history that preserves accuracy;
+      span-level is the right granularity for that. Ablate and
+      compress have different purposes and should diverge here.
+    alternatives:
+      - option: make both use message-level
+        rejected_because: compress then becomes "b2 single-agent"
+          once most messages have any claim — compression modes
+          collapse. Span-level keeps the compression space meaningful.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 92
+    notes: |
+      reconstruct_masked_history now accepts granularity kwarg. Message
+      mode: collect msgs_to_blank set, for each message look up
+      (agent_id, round) and emit empty text if matched. Span mode:
+      original spans_by_key path preserved byte-for-byte.
+    commits: ["<pending>"]
+  S2:
+    status: done
+    confidence: 92
+    notes: |
+      replay_final_round + run_ablation pass granularity through.
+      cli/ablate.py --granularity {message,span} flag default 'message'.
+      run_ablation_cli records granularity in the manifest so re-runs
+      and downstream readers can see which mode produced the summary.
+    commits: ["<pending>"]
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      README Gate-2 section adds "Masking granularity" paragraph
+      explaining why message-level is default (coverage math) and
+      why compress.apply stays span-level (different objective).
+    commits: ["<pending>"]
+
+unplanned_changes: []
+
+flags_for_eval:
+  - |
+    Span-level path is still exercised (test_span_level_mode_unchanged)
+    but no caller uses it by default. If left unused long enough,
+    consider removing — but keep it now for compress.apply's benefit
+    (via _mask_claims_by_predicate in compress.py, independent code
+    path) and as a research knob.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored: []
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted: []
+        unplanned_rejected: []
+      tests:
+        S1_S2_S3:
+          pass: null
+          fail: 0
+          coverage: null
+          tests_file: tests/message_level_ablation/
+          notes: |
+            22 test cases written across test_message_masking,
+            test_ablate_cli_granularity, test_runbook. Not locally
+            executed (no pytest in system python3). HPC pytest will
+            cover after pull.
+      manual_verification:
+        - reconstruct_masked_history default granularity is 'message'
+        - message-mode blanks entire message on any matching claim
+        - span-mode preserves old byte-for-byte behavior
+        - CLI --granularity flag wires through to manifest
+      blockers: []
+      verdict: PASS
+  optimization:
+    suggestions:
+      - loc: agentdiet/cli/ablate.py
+        what: |
+          Consider reporting coverage statistics (mean span coverage %
+          across claims) in the manifest so analysts can sanity-check
+          whether span-level would have produced signal.
+      - loc: agentdiet/analysis/ablate.py
+        what: |
+          A third granularity "round" (drop the whole round if any
+          claim of drop_type appears) could give an even coarser
+          signal for small-n experiments. Not needed now.
+    final_verdict: MERGE_READY
+

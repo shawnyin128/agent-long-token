@@ -153,13 +153,14 @@ def _render_gate2(summary: dict) -> tuple[str, int]:
 
 def run_ablation_cli(
     *, cfg: Config, target_size: int, max_new_llm_calls: int,
-    backend: Backend | None = None,
+    backend: Backend | None = None, granularity: str = "message",
 ) -> dict:
     qids = select_subset(cfg, target_size=target_size)
     client = _make_client(cfg, backend=backend)
     rows = run_ablation(
         cfg=cfg, qids=qids, llm_client=client,
         max_new_llm_calls=max_new_llm_calls,
+        granularity=granularity,
     )
 
     cfg.analysis_dir.mkdir(parents=True, exist_ok=True)
@@ -174,6 +175,7 @@ def run_ablation_cli(
         "qids": qids,
         "target_size": target_size,
         "max_new_llm_calls": max_new_llm_calls,
+        "granularity": granularity,
         "counts": {
             "total_rows": len(rows),
             "skipped": sum(1 for r in rows if r.get("skipped")),
@@ -215,6 +217,11 @@ def main(
                         help="Print existing summary and exit")
     parser.add_argument("--gate2", action="store_true",
                         help="Emit gate2_report.md and return exit code 0/10/20")
+    parser.add_argument("--granularity", choices=("message", "span"),
+                        default="message",
+                        help="Masking granularity (default message). "
+                             "'span' deletes only the claim's source span "
+                             "— produces Δ≈0 on sparsely-covered claims.")
     args = parser.parse_args(argv)
 
     if cfg is None:
@@ -254,7 +261,7 @@ def main(
 
     manifest = run_ablation_cli(
         cfg=cfg, target_size=args.n, max_new_llm_calls=args.max_calls,
-        backend=backend,
+        backend=backend, granularity=args.granularity,
     )
     if not manifest["qids"]:
         print(
