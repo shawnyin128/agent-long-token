@@ -2,7 +2,7 @@
         collect collect-report collect-clean \
         extract extract-report extract-clean spot-check \
         analyze analyze-report analyze-clean \
-        ablate ablate-report ablate-clean gate2 \
+        ablate ablate-report ablate-clean gate2 ablate-control \
         policy-sample \
         evaluate evaluate-report evaluate-clean \
         report report-clean \
@@ -46,6 +46,7 @@ help:
 	@echo "  ablate-report    Print existing ablation summary"
 	@echo "  ablate-clean     Remove ablation artifacts only"
 	@echo "  gate2            Emit gate2_report.md; exit 0 PASS / 10 null / 20 inconclusive"
+	@echo "  ablate-control   Control experiment: blank ALL messages, replay. Distinguishes real null vs weak signal."
 	@echo ""
 	@echo "Compression policy (Day 3):"
 	@echo "  policy-sample    Seed artifacts/compression/policy.json from the template (no-clobber)"
@@ -131,6 +132,9 @@ ablate-clean:
 
 gate2:
 	$(PYTHON) -m agentdiet.cli.ablate --gate2
+
+ablate-control:
+	$(PYTHON) -m agentdiet.cli.ablate --control
 
 policy-sample:
 	mkdir -p artifacts/compression && cp -n docs/policy.sample.json artifacts/compression/policy.json || true

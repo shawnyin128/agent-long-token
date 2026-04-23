@@ -254,6 +254,21 @@
         "README note: ablate is message-level; compress.apply stays span-level (different goals)"
       ],
       "passes": true
+    },
+    {
+      "id": "drop-all-control-ablation",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Control experiment for Gate-2 null-result: blank ALL messages in history (keep only question), same 9 subset, measure acc_without. Distinguishes (a) no type matters from (b) single-type ablation too weak. Prerequisite to deciding if descriptive attribution is needed.",
+      "steps": [
+        "add --control flag to cli/ablate.py that blanks every message round 1..final-1",
+        "compute single control row per qid, output control_result.json",
+        "README note on how to interpret control result vs gate2_report"
+      ],
+      "passes": true
     }
   ]
 }

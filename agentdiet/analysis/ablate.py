@@ -209,6 +209,95 @@ def replay_final_round(
     }
 
 
+def replay_final_round_blank_all(
+    *,
+    dialogue: Dialogue,
+    llm_client: LLMClient, model: str, temperature: float = 0.0,
+) -> dict:
+    """Control experiment: blank ALL messages in rounds 1..final-1 and
+    replay the final round. Answers the question: can the 3-agent vote
+    recover the correct answer using only the question + debate
+    structure, with zero message content? Contrasts with type-level
+    ablation to distinguish (a) no-type-matters vs (b) signal-too-weak."""
+    rounds = sorted({m.round for m in dialogue.messages})
+    if not rounds:
+        raise ValueError("dialogue has no messages")
+    final_round = rounds[-1]
+    if final_round < 2:
+        raise ValueError("final round must be >= 2 for replay")
+
+    masked = [
+        Message(agent_id=m.agent_id, round=m.round,
+                text="" if m.round < final_round else m.text)
+        for m in dialogue.messages
+    ]
+    agent_ids = _agent_ids_in_dialogue(dialogue)
+    agents = make_default_agents(len(agent_ids))
+
+    new_final_round: list[Message] = []
+    for agent, agent_id in zip(agents, agent_ids):
+        api_msgs = _build_agent_api_messages(
+            agent.system_prompt, dialogue, masked, agent_id, final_round,
+        )
+        response = llm_client.chat(api_msgs, model=model, temperature=temperature)
+        new_final_round.append(Message(
+            agent_id=agent_id, round=final_round, text=response,
+        ))
+
+    post_final, per_agent = majority_vote(new_final_round)
+    pre_final = dialogue.final_answer
+    gold = str(dialogue.gold_answer).strip()
+
+    def _eq(a: Optional[str]) -> bool:
+        return a is not None and str(a).strip() == gold
+
+    return {
+        "qid": dialogue.question_id,
+        "drop_type": "__control_all__",
+        "pre_final": pre_final,
+        "post_final": post_final,
+        "gold": gold,
+        "correct_with": _eq(pre_final),
+        "correct_without": _eq(post_final),
+        "per_agent_post": {str(k): v for k, v in per_agent.items()},
+        "skipped": False,
+    }
+
+
+def run_control_ablation(
+    *, cfg: Config, qids: list[str], llm_client: LLMClient,
+    max_new_llm_calls: int = MAX_NEW_LLM_CALLS_DEFAULT,
+) -> list[dict]:
+    rows: list[dict] = []
+    baseline = llm_client.call_count
+    for qid in qids:
+        used = llm_client.call_count - baseline
+        if used >= max_new_llm_calls:
+            rows.append({"qid": qid, "drop_type": "__control_all__",
+                         "skipped": True,
+                         "skip_reason": f"budget exceeded ({used}/{max_new_llm_calls})"})
+            continue
+        try:
+            dialogue, _ = load_dialogue_and_claims(cfg, qid)
+        except FileNotFoundError as e:
+            rows.append({"qid": qid, "drop_type": "__control_all__",
+                         "skipped": True,
+                         "skip_reason": f"missing artifact: {e}"})
+            continue
+        try:
+            row = replay_final_round_blank_all(
+                dialogue=dialogue, llm_client=llm_client, model=cfg.model,
+                temperature=cfg.temperature,
+            )
+        except Exception as exc:  # noqa: BLE001
+            rows.append({"qid": qid, "drop_type": "__control_all__",
+                         "skipped": True,
+                         "skip_reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        rows.append(row)
+    return rows
+
+
 def run_ablation(
     *,
     cfg: Config, qids: list[str], llm_client: LLMClient,

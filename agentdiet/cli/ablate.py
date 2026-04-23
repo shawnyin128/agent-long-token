@@ -20,7 +20,8 @@ import sys
 from pathlib import Path
 
 from agentdiet.analysis.ablate import (
-    MAX_NEW_LLM_CALLS_DEFAULT, run_ablation, select_subset,
+    MAX_NEW_LLM_CALLS_DEFAULT, run_ablation, run_control_ablation,
+    select_subset,
 )
 from agentdiet.config import Config, get_config
 from agentdiet.llm_client import Backend, LLMClient, OpenAIBackend
@@ -54,6 +55,10 @@ def _manifest_path(cfg: Config) -> Path:
 
 def _gate2_path(cfg: Config) -> Path:
     return cfg.analysis_dir / "gate2_report.md"
+
+
+def _control_path(cfg: Config) -> Path:
+    return cfg.analysis_dir / "control_result.json"
 
 
 def _make_client(cfg: Config, backend: Backend | None = None) -> LLMClient:
@@ -222,6 +227,13 @@ def main(
                         help="Masking granularity (default message). "
                              "'span' deletes only the claim's source span "
                              "— produces Δ≈0 on sparsely-covered claims.")
+    parser.add_argument("--control", action="store_true",
+                        help="Control experiment: blank ALL messages in "
+                             "rounds 1..final-1 (no type filter) and replay "
+                             "the final round on the same subset. Writes "
+                             "control_result.json. Use to distinguish 'no "
+                             "type matters' from 'single-type ablation too "
+                             "weak'.")
     args = parser.parse_args(argv)
 
     if cfg is None:
@@ -258,6 +270,58 @@ def main(
         _atomic_write(_gate2_path(cfg), report)
         print(report)
         return exit_code
+
+    if args.control:
+        qids = select_subset(cfg, target_size=args.n)
+        if not qids:
+            print("ERROR: subset empty for control", file=sys.stderr)
+            return 1
+        client = _make_client(cfg, backend=backend)
+        rows = run_control_ablation(
+            cfg=cfg, qids=qids, llm_client=client,
+            max_new_llm_calls=args.max_calls,
+        )
+        completed = [r for r in rows if not r.get("skipped")]
+        n_used = len(completed)
+        n_correct_without = sum(1 for r in completed if r.get("correct_without"))
+        n_correct_with = sum(1 for r in completed if r.get("correct_with"))
+        acc_with = n_correct_with / n_used if n_used else 0.0
+        acc_without = n_correct_without / n_used if n_used else 0.0
+        delta = acc_with - acc_without
+        payload = {
+            "model": cfg.model,
+            "qids": qids,
+            "rows": rows,
+            "summary": {
+                "n_used": n_used,
+                "n_skipped": len(rows) - n_used,
+                "acc_with": acc_with,
+                "acc_without": acc_without,
+                "delta": delta,
+                "new_llm_calls": client.call_count,
+            },
+        }
+        _atomic_write(_control_path(cfg), json.dumps(payload, indent=2))
+        print(f"# Control (drop-all-messages) result", file=sys.stderr)
+        print(f"  n                = {n_used}", file=sys.stderr)
+        print(f"  acc(with)        = {acc_with:.3f}", file=sys.stderr)
+        print(f"  acc(without_all) = {acc_without:.3f}", file=sys.stderr)
+        print(f"  delta            = {delta:+.3f}", file=sys.stderr)
+        print(file=sys.stderr)
+        if delta <= 0.03:
+            print("Interpretation: Δ ≤ 0.03 → history content has NO causal "
+                  "effect. Debate gain is voting-based, not dialogue-based. "
+                  "Gate-2 null-result is a REAL finding.", file=sys.stderr)
+        elif delta >= 0.10:
+            print("Interpretation: Δ ≥ 0.10 → history content DOES matter. "
+                  "Type-level Δ=0 reflects signal-too-weak, not 'no type "
+                  "matters'. Descriptive attribution via signal_scores is "
+                  "needed (spec §5.4 path).", file=sys.stderr)
+        else:
+            print("Interpretation: Δ between thresholds — history has some "
+                  "effect but single-type ablation likely misses it. "
+                  "Consider descriptive attribution.", file=sys.stderr)
+        return 0
 
     manifest = run_ablation_cli(
         cfg=cfg, target_size=args.n, max_new_llm_calls=args.max_calls,
