@@ -19,15 +19,13 @@ Token-level compression (Selective Context \cite{li2023compressingcontextenhance
 
 \section*{Response to Proposal Feedback}
 
-The proposal received two concrete critiques that shaped the current design.
+The proposal received two linked critiques: the benchmark was poorly matched to the research question, and the pipeline assumed unverified gain. We responded by redesigning the workflow along three lines.
 
-\paragraph{(F1) MMLU is the wrong benchmark for this question.}
-Multi-agent debate often does not meaningfully outperform single-agent on MMLU; analyzing communication structure on a protocol that barely helps risks dissecting noise. \textbf{Response:} we pivoted to GSM8K, where MAD has reproducible gains in the literature (Du et al.\ \cite{du2023improvingfactualityreasoninglanguage}). Gate 1 of our pipeline (\S\,4) verifies the gain empirically before any downstream analysis.
-
-\paragraph{(F2) Verify gain exists before attributing it.}
-The proposal's original pipeline (HDBSCAN clustering $\to$ ICL compression) assumed upfront that debate communication carries useful, non-trivial information. \textbf{Response:} we replaced the clustering-first design with an \textit{attribution-first} workflow: before designing compression, we measure which claim types causally contribute to the accuracy gain via type-level ablation (\S\,4.3). Compression decisions are data-supported (spec \S\,5.3) or fall back to a declared null-result path (spec \S\,5.4) based on what the ablation reveals. This makes the compression rule falsifiable rather than assumed.
-
-The original P0 (structural analysis) and P1 (ICL-guided communication) ideas are preserved as follow-up work but are deferred until we confirm that communication content is, in fact, compressible---the preliminary results below put this assumption in question.
+\begin{itemize}
+  \item \textbf{Benchmark pivot (MMLU $\to$ GSM8K).} Multi-agent debate does not reliably outperform single-agent on MMLU, so analyzing its communication structure risks dissecting noise. GSM8K has documented, reproducible debate gains \cite{du2023improvingfactualityreasoninglanguage}, giving the attribution analysis actual signal to attribute.
+  \item \textbf{Attribution before compression.} The original plan jumped from clustering directly to ICL-guided compression, implicitly assuming that message content was both useful and compressible. We inserted a causal-attribution stage (type-level ablation, \S\,4.3) \textit{between} analysis and compression, and a drop-all control baseline (\S\,4) that makes the compression rule falsifiable rather than assumed.
+  \item \textbf{Gates make null outcomes explicit.} Gate 1 verifies debate gain ($\ge 3$\,pp) before spending budget on extraction; Gate 2 decides whether compression is data-supported (spec \S\,5.3) or falls back to a declared null-result path (spec \S\,5.4). Both original ideas---clustering (P0) and ICL-guided compression (P1)---are preserved as follow-up work, deferred until the preliminary results confirm that communication content is, in fact, compressible.
+\end{itemize>
 
 \section*{RQ0: Attribution-First Pipeline}
 
