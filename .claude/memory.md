@@ -42,6 +42,17 @@ Keep under 30 lines.
   path applies. Report main thesis should be "debate is voting, not
   dialogue" on simple arithmetic tasks.
 
+- [2026-04-22] [finding-confirmed-via-control] Control experiment
+  resolved the Gate-2 concern: blanking ALL messages in rounds 1..N-1
+  (keep only question) on the same n=9 subset gives acc(without)=1.000
+  matching acc(with)=1.000, Δ=+0.000. No claim type matters because
+  no claim CONTENT matters — debate gain is ensembling+voting over
+  3 independent re-solves. Spec §1.2 RQ#2 and RQ#3 answer: "no type
+  is causally important on this task". Spec §1.2 RQ#4 (compression)
+  remains open and now has a sharper prior: any compression
+  preserving 3-agent voting structure should recover ~full accuracy.
+  Day-3 Pareto will test this.
+
 ## In-flight
 
-<!-- Replaced (not appended) as investigation progresses. -->
+<!-- Replaced as investigation progresses. -->
