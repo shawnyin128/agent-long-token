@@ -31,6 +31,13 @@ log = logging.getLogger(__name__)
 MAX_NEW_LLM_CALLS_DEFAULT = 500
 
 
+def load_dialogue(cfg: Config, qid: str) -> Dialogue:
+    dpath = cfg.dialogues_dir / f"{qid}.json"
+    if not dpath.exists():
+        raise FileNotFoundError(f"dialogue artifact missing: {dpath}")
+    return Dialogue.model_validate_json(dpath.read_text(encoding="utf-8"))
+
+
 def load_dialogue_and_claims(cfg: Config, qid: str) -> tuple[Dialogue, dict]:
     dpath = cfg.dialogues_dir / f"{qid}.json"
     cpath = cfg.claims_dir / f"{qid}.json"
@@ -65,10 +72,15 @@ def is_single_wrong_debate_right(
         str(d_final).strip() == str(gold).strip()
 
 
-def select_subset(cfg: Config, target_size: int) -> list[str]:
+def select_subset(
+    cfg: Config, target_size: int, *, require_claims: bool = True
+) -> list[str]:
     dialogue_qids = {p.stem for p in cfg.dialogues_dir.glob("*.json")}
-    claim_qids = {p.stem for p in cfg.claims_dir.glob("*.json")}
-    both = sorted(dialogue_qids & claim_qids)
+    if require_claims:
+        claim_qids = {p.stem for p in cfg.claims_dir.glob("*.json")}
+        both = sorted(dialogue_qids & claim_qids)
+    else:
+        both = sorted(dialogue_qids)
 
     eligible: list[str] = []
     for qid in both:
@@ -278,7 +290,7 @@ def run_control_ablation(
                          "skip_reason": f"budget exceeded ({used}/{max_new_llm_calls})"})
             continue
         try:
-            dialogue, _ = load_dialogue_and_claims(cfg, qid)
+            dialogue = load_dialogue(cfg, qid)
         except FileNotFoundError as e:
             rows.append({"qid": qid, "drop_type": "__control_all__",
                          "skipped": True,

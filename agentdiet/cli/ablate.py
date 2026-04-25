@@ -272,7 +272,7 @@ def main(
         return exit_code
 
     if args.control:
-        qids = select_subset(cfg, target_size=args.n)
+        qids = select_subset(cfg, target_size=args.n, require_claims=False)
         if not qids:
             print("ERROR: subset empty for control", file=sys.stderr)
             return 1

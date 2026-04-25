@@ -7,6 +7,7 @@ import pytest
 
 from agentdiet.analysis.ablate import (
     is_single_wrong_debate_right,
+    load_dialogue,
     load_dialogue_and_claims,
     select_subset,
 )
@@ -151,3 +152,46 @@ def test_load_dialogue_and_claims_raises_when_missing(tmp_path):
     cfg.ensure_dirs()
     with pytest.raises(FileNotFoundError):
         load_dialogue_and_claims(cfg, "nope")
+
+
+def _seed_dialogue_only(cfg: Config, qid: str, *, single: str, debate: str, gold: str = "7") -> None:
+    """Seed dialogue + pilot single but NO claims artifact."""
+    d = _debate_dialogue(qid, final=debate, gold=gold)
+    cfg.dialogues_dir.mkdir(parents=True, exist_ok=True)
+    (cfg.dialogues_dir / f"{qid}.json").write_text(d.model_dump_json())
+    pilot_dir = cfg.artifacts_dir / "pilot" / "single" / cfg.model_slug
+    pilot_dir.mkdir(parents=True, exist_ok=True)
+    (pilot_dir / f"{qid}.json").write_text(json.dumps(_single_doc(qid, final=single, gold=gold)))
+
+
+def test_select_subset_no_claims_required_finds_eligible(tmp_path):
+    cfg = _cfg(tmp_path)
+    cfg.ensure_dirs()
+    _seed_dialogue_only(cfg, "q1", single="3", debate="7")
+    _seed_dialogue_only(cfg, "q2", single="3", debate="7")
+    picked = select_subset(cfg, target_size=10, require_claims=False)
+    assert set(picked) == {"q1", "q2"}
+
+
+def test_select_subset_no_claims_still_filters_non_eligible(tmp_path):
+    cfg = _cfg(tmp_path)
+    cfg.ensure_dirs()
+    _seed_dialogue_only(cfg, "q1", single="3", debate="7")   # eligible
+    _seed_dialogue_only(cfg, "q2", single="7", debate="7")   # single right -> skip
+    picked = select_subset(cfg, target_size=10, require_claims=False)
+    assert picked == ["q1"]
+
+
+def test_load_dialogue_returns_dialogue(tmp_path):
+    cfg = _cfg(tmp_path)
+    cfg.ensure_dirs()
+    _seed_dialogue_only(cfg, "q1", single="3", debate="7")
+    d = load_dialogue(cfg, "q1")
+    assert d.question_id == "q1"
+
+
+def test_load_dialogue_raises_when_missing(tmp_path):
+    cfg = _cfg(tmp_path)
+    cfg.ensure_dirs()
+    with pytest.raises(FileNotFoundError):
+        load_dialogue(cfg, "nope")

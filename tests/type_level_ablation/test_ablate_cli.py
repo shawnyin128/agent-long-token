@@ -150,3 +150,37 @@ def test_cli_enforces_max_calls_flag(tmp_path):
                                 backend=backend)
     skipped = manifest["counts"]["skipped"]
     assert skipped > 0
+
+
+def _seed_dialogue_only(cfg: Config, qid: str) -> None:
+    """Seed dialogue + pilot single but NO claims — matches L1 HPC state."""
+    d = Dialogue(
+        question_id=qid, question="Q", gold_answer="7",
+        messages=[
+            Message(agent_id=0, round=1, text="ok #### 7"),
+            Message(agent_id=1, round=1, text="agree #### 7"),
+            Message(agent_id=0, round=2, text="#### 7"),
+            Message(agent_id=1, round=2, text="#### 7"),
+        ],
+        final_answer="7",
+    )
+    cfg.dialogues_dir.mkdir(parents=True, exist_ok=True)
+    (cfg.dialogues_dir / f"{qid}.json").write_text(d.model_dump_json())
+    pilot_dir = cfg.artifacts_dir / "pilot" / "single" / cfg.model_slug
+    pilot_dir.mkdir(parents=True, exist_ok=True)
+    (pilot_dir / f"{qid}.json").write_text(json.dumps({
+        "question_id": qid, "question": "Q", "gold_answer": "7",
+        "messages": [{"agent_id": 0, "round": 1, "text": "#### 3"}],
+        "final_answer": "3", "meta": {},
+    }))
+
+
+def test_control_works_without_claim_artifacts(tmp_path):
+    """--control must succeed even when claims/ dir has no files."""
+    cfg = _cfg(tmp_path)
+    cfg.ensure_dirs()
+    _seed_dialogue_only(cfg, "qa")
+    _seed_dialogue_only(cfg, "qb")
+    backend = DummyBackend(lambda m, mo, t: "#### 7")
+    rc = main(["--control", "--n", "5"], cfg=cfg, backend=backend)
+    assert rc == 0
