@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import traceback
 from pathlib import Path
 from typing import Any
@@ -334,7 +335,6 @@ def _log_failure(
     }
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    import os
     os.replace(tmp, path)
 
 

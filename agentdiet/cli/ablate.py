@@ -302,7 +302,7 @@ def main(
             },
         }
         _atomic_write(_control_path(cfg), json.dumps(payload, indent=2))
-        print(f"# Control (drop-all-messages) result", file=sys.stderr)
+        print("# Control (drop-all-messages) result", file=sys.stderr)
         print(f"  n                = {n_used}", file=sys.stderr)
         print(f"  acc(with)        = {acc_with:.3f}", file=sys.stderr)
         print(f"  acc(without_all) = {acc_without:.3f}", file=sys.stderr)
