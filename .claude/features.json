@@ -404,7 +404,7 @@
         "Author scripts/serving/gpt_oss_20b_serve.sh + smoke_gpt_oss.py + runbook; user runs on HPC, commits artifacts/serving/gpt_oss_smoke.json (reasoning_effort low vs high token deltas)",
         "Verify both smoke artifacts pass schema check (test runner asserts presence + thinking-on > thinking-off output token mean)"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

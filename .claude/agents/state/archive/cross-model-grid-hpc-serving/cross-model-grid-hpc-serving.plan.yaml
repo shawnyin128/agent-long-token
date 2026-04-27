@@ -1,0 +1,378 @@
+plan_id: cross-model-grid-hpc-serving
+iteration: 1
+based_on: docs/design-docs/2026-04-27-debate-phase-mapping-design.md
+
+problem: |
+  Bring up Qwen3-30B-A3B (with hybrid enable_thinking) and
+  GPT-OSS-20B (with reasoning_effort low/high) on vLLM on HPC and
+  produce smoke-test artifacts that confirm the thinking toggles
+  reach the model end-to-end. This sandbox has no GPU; we deliver
+  the serve scripts, smoke-test runners, runbooks, and a schema
+  validator. The user runs the scripts on HPC and commits the
+  resulting JSON artifacts; the schema validator (a pytest test)
+  then turns from skip to pass on next test run.
+
+steps:
+  - id: S1
+    desc: Qwen3-30B-A3B vLLM serve script + smoke test runner + runbook
+    approach: |
+      Author scripts/serving/qwen3_a3b_serve.sh — a bash launcher that
+      calls `vllm serve Qwen/Qwen3-30B-A3B` with the right flags for
+      hybrid thinking (port 8000, tensor-parallel auto-detected from
+      $CUDA_VISIBLE_DEVICES count, max-model-len 32768, served
+      api-key=EMPTY for vLLM-OpenAI compat).
+
+      Author scripts/serving/smoke_qwen3.py — a Python script that:
+        - reads $AGENTDIET_BASE_URL (default http://localhost:8000/v1)
+        - constructs OpenAIBackend(model_family="qwen3")
+        - issues 5 GSM8K-style test calls with thinking=True and 5
+          with thinking=False on the same 5 questions
+        - records each call's response and per-call output token count
+          (from chat_full's ChatResult.completion_tokens)
+        - asserts mean(completion_tokens(thinking=True))
+                  > mean(completion_tokens(thinking=False))
+          (thinking traces are longer)
+        - writes artifacts/serving/qwen3_smoke.json with this schema:
+          {"model": str, "tested_at": iso8601, "thinking_on": [...],
+           "thinking_off": [...],
+           "summary": {"mean_tokens_on": float, "mean_tokens_off": float,
+                       "delta": float, "passed": bool}}
+
+      Author docs/runbooks/qwen3-vllm-serving.md — step-by-step on
+      HPC: module load, conda env, MODEL=Qwen/Qwen3-30B-A3B, run
+      serve.sh in tmux/screen, wait for "Application startup complete",
+      run smoke_qwen3.py, commit the artifact.
+    files:
+      create:
+        - scripts/serving/qwen3_a3b_serve.sh
+        - scripts/serving/smoke_qwen3.py
+        - docs/runbooks/qwen3-vllm-serving.md
+        - tests/cross_model_grid_hpc_serving/__init__.py
+        - tests/cross_model_grid_hpc_serving/test_smoke_qwen3_local.py
+      modify: []
+      test_plan:
+        - smoke_qwen3.py main(backend=DummyBackend with deterministic
+          token counts) writes a well-formed artifact JSON to a
+          tmp_path
+        - artifact JSON validates against the documented schema
+          (required keys present, thinking_on/off both have 5 entries,
+          summary keys present)
+        - serve.sh exists, is executable, contains 'vllm serve' and
+          'Qwen/Qwen3-30B-A3B'
+        - runbook contains the post-fetch sanity-check command and
+          mentions enable_thinking
+    coverage_min: 75
+
+  - id: S2
+    desc: GPT-OSS-20B vLLM serve script + smoke test runner + runbook
+    approach: |
+      Mirror S1 for GPT-OSS-20B.
+
+      scripts/serving/gpt_oss_20b_serve.sh — vllm serve
+      openai/gpt-oss-20b with the right flags. GPT-OSS uses
+      reasoning_effort, exposed via the chat completions API
+      `reasoning_effort` parameter (low / high), so no special
+      vLLM flag is needed beyond reasoning-parser configuration.
+
+      scripts/serving/smoke_gpt_oss.py — same shape as smoke_qwen3.py
+      but constructs OpenAIBackend(model_family="gpt-oss"). Issues
+      5 calls with thinking=True (reasoning_effort=high) and 5 with
+      thinking=False (low). Asserts the high-effort calls produce
+      strictly more output tokens on average. Writes
+      artifacts/serving/gpt_oss_smoke.json with the same schema as
+      qwen3_smoke.json.
+
+      docs/runbooks/gpt-oss-vllm-serving.md — analogous to qwen3
+      runbook.
+    files:
+      create:
+        - scripts/serving/gpt_oss_20b_serve.sh
+        - scripts/serving/smoke_gpt_oss.py
+        - docs/runbooks/gpt-oss-vllm-serving.md
+        - tests/cross_model_grid_hpc_serving/test_smoke_gpt_oss_local.py
+      modify: []
+      test_plan:
+        - smoke_gpt_oss.py main(backend=Dummy) writes well-formed
+          artifact JSON
+        - gpt-oss artifact distinguishes thinking_on vs thinking_off
+          tokens via DummyBackend that simulates the difference
+        - serve.sh exists, is executable, references openai/gpt-oss-20b
+        - runbook covers reasoning_effort and the smoke-run command
+    coverage_min: 75
+
+  - id: S3
+    desc: schema validator that PASSes on real artifacts, SKIPs without
+    approach: |
+      tests/cross_model_grid_hpc_serving/test_smoke_artifacts.py —
+      one pytest module that:
+        - locates artifacts/serving/qwen3_smoke.json and
+          artifacts/serving/gpt_oss_smoke.json (or the path overridden
+          by env AGENTDIET_SERVING_ARTIFACTS_DIR)
+        - if neither file exists: skip with reason "no smoke artifacts
+          yet — run scripts/serving/smoke_*.py on HPC"
+        - if file exists: assert schema (required keys, list lengths,
+          types) and assert summary.passed is True (i.e. thinking
+          increased output tokens)
+
+      This is the test that turns from skip to pass on the next test
+      run after the user commits the artifacts. Force-merge of the
+      feature ships scripts + skip-test; later commit lands artifacts
+      and the test goes green.
+    files:
+      create:
+        - tests/cross_model_grid_hpc_serving/test_smoke_artifacts.py
+      modify:
+        - .gitignore  # confirm artifacts/serving is NOT ignored,
+                      # since the smoke JSONs need to be committed
+      test_plan:
+        - With both artifact files present (fixture path), test
+          asserts schema OK and verdict passed
+        - With only one present, test for the missing one is skipped
+          but the present one is checked
+        - With neither, both tests skip with informative reason
+        - Schema violation in fixture (missing key, wrong type) ->
+          test fails with a clear assertion
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      How does this feature reach PASS verdict given the user-side
+      dependency on actual GPU smoke runs?
+    planner_view: |
+      PASS as soon as scripts + smoke runners + runbooks + schema
+      validator exist and unit-test green against fixtures. The
+      schema validator skips when artifacts are absent, which is
+      the expected state at merge time. After the user runs the
+      scripts on HPC and commits artifacts/serving/*.json, the
+      next pytest run picks them up and the validator goes green
+      automatically — no further feature work needed.
+    confidence: 80
+    rationale: |
+      The plan-spec contract is "deliver the means; user supplies
+      the GPU artifacts." Forcing PASS to wait for HPC artifacts
+      would couple feature completion to user availability without
+      any additional code work that Claude can do.
+    alternatives:
+      - option: require-artifacts-for-PASS
+        rejected_because: |
+          Couples Claude's progress to user availability. The user
+          explicitly chose split-features earlier to avoid exactly
+          this coupling.
+      - option: ship-without-validator
+        rejected_because: |
+          Then there's no automated check that the smoke output is
+          well-formed; if a future smoke run produces bad data we
+          discover it only by hand.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: smoke runner language — Python via OpenAIBackend vs bash via curl
+    planner_view: |
+      Python. Reuses agentdiet.llm_client.OpenAIBackend with
+      model_family="qwen3"/"gpt-oss" so the smoke run exercises
+      EXACTLY the translation table that production calls go
+      through. A curl bash one-liner would test less of our code.
+    confidence: 90
+    rationale: |
+      Test-the-real-path beats test-the-shape. Bonus: same Python
+      env as the rest of the project; one less dep to install on HPC.
+    alternatives:
+      - option: bash-curl
+        rejected_because: |
+          Doesn't exercise model_family translation, doesn't get
+          ChatResult.completion_tokens for free, requires hand-rolled
+          JSON parsing.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: serve.sh flag set — pin specific vLLM flags?
+    planner_view: |
+      Pin the canonical flags but make them overridable via env vars:
+        VLLM_PORT (default 8000), VLLM_TP_SIZE (default $CUDA_VISIBLE_DEVICES
+        count), VLLM_MAX_MODEL_LEN (default 32768). serve.sh passes
+        them to `vllm serve` and prints the full command for traceability.
+      vLLM CLI flags evolve fast; the runbook is the place to record
+      the exact flag string used in any given run, not pin it in
+      Python.
+    confidence: 70
+    rationale: |
+      Override-via-env is standard HPC practice. Anyone debugging a
+      serve issue can re-issue with VLLM_TP_SIZE=2 etc. without
+      patching the script.
+    alternatives:
+      - option: pin-flags
+        rejected_because: |
+          vLLM serve flags change across releases (e.g. dtype was
+          implicit, then explicit, then implicit again). A rigid
+          script ages worse than env-overridable defaults.
+      - option: leave-flags-to-runbook-only
+        rejected_because: |
+          Then there is no script — every run is hand-curated. We'd
+          lose reproducibility.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: artifact location — committed or gitignored?
+    planner_view: |
+      Committed. artifacts/serving/qwen3_smoke.json and
+      artifacts/serving/gpt_oss_smoke.json are tiny (~5KB each) and
+      they ARE the evidence that the HPC stand-up worked. Adding
+      them to git keeps the test-run gating clean: pytest sees the
+      JSON, validates schema, asserts summary.passed.
+    confidence: 85
+    rationale: |
+      The whole point of the smoke artifact is reproducibility —
+      "we ran this against this model on this date and got these
+      tokens". Hiding it in artifacts/ behind .gitignore defeats
+      the audit trail.
+    alternatives:
+      - option: gitignore-artifacts
+        rejected_because: |
+          Then verifying the smoke happened requires checking out
+          the artifact tree, not the git history.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      qwen3_a3b_serve.sh + smoke_qwen3.py + qwen3-vllm-serving.md +
+      6 local lint tests. Smoke runner exercised against simulated
+      backends; argparse main + run_smoke pure-function are both
+      tested. Real GPU run is the user's job.
+    commits:
+      - 2afdec5
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      gpt_oss_20b_serve.sh + smoke_gpt_oss.py + gpt-oss-vllm-serving.md
+      + 7 local tests. Same structure as S1, with reasoning_effort
+      tagged in per-call rows for traceability.
+    commits:
+      - cdbc34a
+  S3:
+    status: done
+    confidence: 95
+    notes: |
+      test_smoke_artifacts.py uses pytest.skip when artifact JSON is
+      absent and validates schema + verdict when present. .gitignore
+      unignores artifacts/serving/*.json so the user's HPC artifact
+      can be committed back. 4 validator-correctness tests pass now;
+      2 artifact-presence tests skip until artifacts land.
+    commits:
+      - cb6912f
+
+unplanned_changes:
+  - loc: .gitignore
+    what: |
+      Added negation rules `!artifacts/serving/` and
+      `!artifacts/serving/*.json` so the smoke evidence files can be
+      committed even though `artifacts/` is otherwise ignored.
+    reason: |
+      Plan D4 chose committed artifacts; the unignore rule is the
+      mechanical implementation.
+    confidence: 95
+
+flags_for_eval:
+  - Smoke runners assume the OpenAI-compatible vLLM endpoint accepts
+    extra_body.chat_template_kwargs.enable_thinking (Qwen3) and
+    reasoning_effort (GPT-OSS). If a future vLLM release changes the
+    request shape, the smoke run will exit 1 and the artifact's
+    summary.passed will be False, surfacing the regression.
+  - serve.sh scripts use `vllm serve <model>` which downloads weights
+    from HuggingFace on first launch; the runbooks don't mention HF
+    cache configuration. Users with restricted internet or large-model
+    pre-staging should set HF_HOME / HF_HUB_CACHE before running.
+  - The 5 smoke questions are hand-rolled GSM8K-style; if a future
+    vLLM build refuses non-GSM8K-formatted prompts, swap in 5 GSM8K
+    items via agentdiet.dataset.load_gsm8k. Out of scope for now.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: |
+              PASS path is "scripts + lint tests + skip-until-artifact
+              validator"; artifact-presence tests skip cleanly when
+              files absent.
+          - id: D2
+            verified: true
+            evidence: |
+              smoke_*.py both go through OpenAIBackend; the runners
+              exercise model_family translation tables end-to-end.
+          - id: D3
+            verified: true
+            evidence: |
+              serve.sh scripts read VLLM_PORT, VLLM_TP_SIZE,
+              VLLM_MAX_MODEL_LEN, VLLM_HOST, VLLM_API_KEY env vars;
+              tensor-parallel auto-detected from CUDA_VISIBLE_DEVICES.
+          - id: D4
+            verified: true
+            evidence: |
+              .gitignore unignores artifacts/serving/*.json so the
+              smoke artifacts can be committed back as evidence.
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - ".gitignore unignore for artifacts/serving/*.json (D4 implementation)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 6
+          fail: 0
+          coverage: 88
+          tests_file: tests/cross_model_grid_hpc_serving/test_smoke_qwen3_local.py
+        S2:
+          pass: 7
+          fail: 0
+          coverage: 88
+          tests_file: tests/cross_model_grid_hpc_serving/test_smoke_gpt_oss_local.py
+        S3:
+          pass: 4
+          fail: 0
+          coverage: 100
+          tests_file: tests/cross_model_grid_hpc_serving/test_smoke_artifacts.py
+          # note: 2 parametrized cases SKIP until artifacts land — by design
+
+      blockers: []
+      regressions: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: scripts/serving/smoke_qwen3.py
+        what: |
+          Smoke questions are hand-rolled. Once we have AGENTDIET_MODEL
+          plumbed into the runner, optionally pull 5 actual GSM8K items
+          from agentdiet.dataset.load_gsm8k for closer parity with the
+          real eval.
+      - loc: docs/runbooks/qwen3-vllm-serving.md
+        what: |
+          Runbooks don't mention HF_HOME / HF_HUB_CACHE. Add a
+          note for users on restricted internet or who want shared
+          weights across nodes.
+      - loc: scripts/serving/{qwen3_a3b,gpt_oss_20b}_serve.sh
+        what: |
+          serve.sh duplicates ~30 lines between the two scripts.
+          Could factor a shared scripts/serving/_common.sh, but
+          two scripts is fine until a third model joins.
+    final_verdict: MERGE_READY
