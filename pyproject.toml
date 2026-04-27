@@ -28,6 +28,10 @@ analysis = [
     "matplotlib>=3.8",
     "pyarrow>=15.0",
 ]
+code_eval = [
+    "evalplus>=0.2",
+    "evalscope>=0.5",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
