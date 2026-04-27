@@ -386,7 +386,7 @@
         "Add agentdiet/voting.py: calibrate_n(debate_tokens, sa_tokens) -> CalibrationResult with N>=3 floor + over_budget_factor; run_voting(question, n_samples, llm_client, ...) -> VotingResult using nonce-prefix sample-id trick",
         "Integration tests covering toggle round-trip, calibration determinism, voting + calibrate composition"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "cross-model-grid-hpc-serving",

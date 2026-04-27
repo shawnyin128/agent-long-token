@@ -1,0 +1,451 @@
+plan_id: cross-model-grid-client
+iteration: 1
+based_on: docs/design-docs/2026-04-27-debate-phase-mapping-design.md
+
+problem: |
+  Local half of the original cross-model-grid feature: extend
+  agentdiet/llm_client.py to support thinking-mode toggling
+  (Qwen3 enable_thinking and GPT-OSS reasoning_effort, exposed
+  uniformly as thinking: bool) with per-(model, thinking, top_p)
+  cache partitioning, then add agentdiet/voting.py with the
+  token-matched majority-voting (self-consistency) baseline per
+  spec §5.3 — pure calibrate_n() + run_voting() functions, no CLI.
+  HPC vLLM stand-up moved to cross-model-grid-hpc-serving.
+
+steps:
+  - id: S1
+    desc: extend llm_client with thinking + ChatResult with usage
+    approach: |
+      Add `thinking: bool = False` parameter to Backend.chat protocol
+      and to LLMClient.chat. Cache key extended to include thinking
+      and top_p so existing cache keys (with thinking=False, top_p=1.0)
+      stay valid: cache_key(model, temperature, messages, thinking=False,
+      top_p=1.0) MUST equal the legacy 3-arg key for back-compat.
+      Add a ChatResult dataclass {response: str, prompt_tokens: int,
+      completion_tokens: int}. Add LLMClient.chat_full() returning
+      ChatResult; the existing chat() keeps its str return for
+      back-compat. OpenAIBackend gains a model_family: Literal["qwen3",
+      "gpt-oss", "generic"] = "generic" __init__ param. Translation
+      table:
+        - family="qwen3" + thinking=True  -> extra_body={"chat_template_kwargs":
+                                            {"enable_thinking": True}}
+        - family="qwen3" + thinking=False -> extra_body={"chat_template_kwargs":
+                                            {"enable_thinking": False}}
+        - family="gpt-oss" + thinking=True/False -> reasoning_effort="high"/"low"
+        - family="generic" -> thinking ignored (warn-once on True)
+      Token counts come from response.usage when present (live calls).
+      For cache hits, fill ChatResult with char-based approximation
+      using TOKENS_PER_CHAR=0.25 (matching evaluate.count_tokens) so
+      callers always receive non-None integers.
+    files:
+      create: []
+      modify:
+        - agentdiet/llm_client.py
+      test:
+        - tests/cross_model_grid_client/test_llm_client_thinking.py
+    test_plan:
+      - cache_key(model, temp, messages) defaults match
+        cache_key(model, temp, messages, thinking=False, top_p=1.0)
+        — old cache entries remain valid
+      - thinking=True and thinking=False produce different cache keys
+        for same (model, temp, messages, top_p)
+      - top_p=0.95 vs top_p=1.0 produce different cache keys
+      - chat_full returns ChatResult with prompt_tokens / completion_tokens
+        populated from a synthetic backend's reported usage
+      - cache hit returns ChatResult with non-None token counts even
+        when usage was None when the entry was stored (char approx)
+      - OpenAIBackend(model_family="qwen3", thinking=True) issues
+        request with chat_template_kwargs.enable_thinking=True
+        (mock at the OpenAI SDK boundary)
+      - OpenAIBackend(model_family="gpt-oss", thinking=True/False)
+        issues request with reasoning_effort="high"/"low"
+      - OpenAIBackend(model_family="generic", thinking=True) emits
+        a single warning and ignores the flag
+    coverage_min: 85
+
+  - id: S2
+    desc: voting.py with calibrate_n + run_voting + over_budget logging
+    approach: |
+      New module agentdiet/voting.py.
+
+      calibrate_n(debate_token_counts: list[int],
+                  sa_token_counts: list[int]) -> CalibrationResult:
+        - mean_debate = sum/len; mean_sa = sum/len
+        - N_raw = ceil(mean_debate / mean_sa)
+        - N = max(N_raw, 3); floor_active = (N_raw < 3)
+        - over_budget_factor = (N * mean_sa) / mean_debate
+        - returns dataclass CalibrationResult with all six fields
+        - raises ValueError if either input is empty or any count <= 0
+
+      run_voting(question: str,
+                 n_samples: int,
+                 llm_client: LLMClient,
+                 model: str,
+                 system_prompt: str,
+                 temperature: float = 0.7,
+                 top_p: float = 0.95,
+                 thinking: bool = False,
+                 parser: Callable[[str], str|None] = parse_answer,
+                 ) -> VotingResult:
+        - For k in 0..n_samples-1, build messages =
+            [{"role":"system","content":system_prompt},
+             {"role":"user","content":f"Sample id: {k}\n\n{question}"}]
+          and call llm_client.chat_full(messages, model, temperature,
+          thinking=thinking, top_p=top_p).
+        - Collect responses, parse each, run agentdiet.aggregate.majority_vote
+          on synthetic Messages constructed with agent_id=k, round=1.
+        - Sum prompt_tokens + completion_tokens across calls into
+          total_tokens.
+        - Return VotingResult{samples, parsed_answers, final_answer,
+          total_tokens}.
+
+      Both dataclasses use @dataclass(frozen=True) so they serialize
+      via dataclasses.asdict to JSON cleanly. The caller (a future
+      thinking-axis-grid CLI) writes artifacts/sc_calibration_{cell}.json.
+
+      Backend.chat protocol gains top_p: float = 1.0. OpenAIBackend
+      forwards top_p when temperature > 0; ignores it when temperature
+      == 0 (vLLM tolerates it but it's a no-op). DummyBackend simply
+      records it.
+    files:
+      create:
+        - agentdiet/voting.py
+      modify:
+        - agentdiet/llm_client.py
+      test:
+        - tests/cross_model_grid_client/test_voting.py
+    test_plan:
+      - calibrate_n on (debate=[3000]*10, sa=[300]*10) gives N_raw=10,
+        N=10, floor_active=False, over_budget_factor=1.0
+      - calibrate_n on (debate=[3000]*10, sa=[2500]*10) gives
+        N_raw=2, N=3, floor_active=True, over_budget_factor>1
+      - calibrate_n raises ValueError on empty inputs
+      - calibrate_n raises ValueError on any zero/negative count
+      - run_voting on a DummyBackend whose responder returns
+        f"#### {k}" for sample k yields a parsed_answers list of
+        n_samples distinct integers, final_answer is one of them,
+        total_tokens is the sum of per-call usages
+      - run_voting with n_samples=1 returns the single sample's
+        parsed answer (degenerate but well-defined)
+      - run_voting with n_samples=3 and all responses agreeing
+        returns that agreed answer
+      - run_voting forwards thinking=True through to chat_full
+        (verify by spying on the DummyBackend's call args)
+    coverage_min: 85
+
+  - id: S3
+    desc: integration tests for thinking + calibration determinism
+    approach: |
+      Cross-cutting tests beyond per-step coverage:
+        - Toggle round-trip: same (model, temp, messages, top_p)
+          with thinking=True followed by thinking=False stores 2
+          distinct cache entries; reading back returns the right
+          response per toggle.
+        - Calibration determinism: calibrate_n(same_input) is
+          referentially transparent across 100 invocations.
+        - End-to-end mini composition: build a DummyBackend that
+          returns usage proportional to len(messages_json); run
+          run_voting(n=5) collecting per-call token totals; pass the
+          observed total_tokens (split across 5 calls) into
+          calibrate_n alongside synthetic debate token counts; assert
+          the recomputed over_budget_factor matches an externally
+          calculated value within 1e-9.
+    files:
+      create: []
+      modify: []
+      test:
+        - tests/cross_model_grid_client/test_thinking_integration.py
+        - tests/cross_model_grid_client/test_calibration_determinism.py
+    test_plan:
+      - toggle round-trip produces 2 entries in cache
+      - calibrate_n is deterministic (100 trials, identical output)
+      - run_voting + calibrate_n composition yields expected
+        over_budget_factor numerically
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      How should the HPC stand-up steps be handled?
+    planner_view: |
+      Split — done. Original cross-model-grid feature replaced by:
+        - cross-model-grid-client (this plan): S1+S2+S3 above
+        - cross-model-grid-hpc-serving: HPC scripts + smoke runs
+      thinking-axis-grid depends on both halves.
+    confidence: 100
+    rationale: |
+      User chose split-features. Local code can pass and unblock
+      voting.py-dependent unit tests before HPC GPU time is scheduled.
+    alternatives:
+      - option: keep-HPC-in-feature
+        rejected_because: User chose split.
+      - option: drop-HPC
+        rejected_because: User chose split.
+    ask_user: false
+    user_decision: split-features
+
+  - id: D2
+    question: |
+      OpenAIBackend extension shape: subclass per family
+      (Qwen3VLLMBackend, GPTOSSVLLMBackend) vs. single OpenAIBackend
+      with model_family parameter that branches in chat()?
+    planner_view: |
+      Single OpenAIBackend with model_family: Literal["qwen3",
+      "gpt-oss", "generic"] constructor parameter.
+    confidence: 75
+    rationale: |
+      Two families differ in 2-3 keys of extra_body — too thin to
+      justify subclass overhead. Branching is small and confined.
+      Extension to a third family is a one-line addition to the
+      Literal + one branch.
+    alternatives:
+      - option: subclass-per-family
+        rejected_because: |
+          Two subclasses for ~5 lines each; encourages mock-isolation
+          by family which slows tests.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: |
+      Token counting source in chat_full: real OpenAI response.usage
+      vs. char-based approximation (TOKENS_PER_CHAR=0.25)?
+    planner_view: |
+      Read response.usage when present (live calls). Cache stores
+      response text only; on cache hit, fill ChatResult tokens with
+      the char approximation so callers never see None.
+    confidence: 85
+    rationale: |
+      Real tokens for live calls, cheap fallback for cache hits.
+      Avoids a JSONL cache schema migration.
+    alternatives:
+      - option: store-usage-in-cache
+        rejected_because: Schema change to llm_cache.jsonl breaks back-compat.
+      - option: char-only
+        rejected_because: Loses real tokens during calibration where they matter most.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: |
+      voting.py scope — include end-to-end CLI or stop at run_voting +
+      calibrate_n functions?
+    planner_view: |
+      Stop at the functions. CLI orchestration belongs in
+      thinking-axis-grid.
+    confidence: 90
+    rationale: |
+      Matches the feature's scope; CLI was never a feature step. The
+      CLI also needs dataset loaders (evalscope) owned by
+      coding-eval-infra.
+    alternatives:
+      - option: include-CLI
+        rejected_because: Scope creep + cross-feature dependency violation.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: |
+      How to force n_samples deterministically-different responses
+      under temperature=0.7?
+    planner_view: |
+      Append "Sample id: K\n\n" to the user message for k in 0..n-1.
+      Different messages -> different cache keys -> independent samples
+      reproducibly.
+    confidence: 80
+    rationale: |
+      Simplest deterministic-diversity mechanism. Nonce is explicit
+      in the cache so calibration logs are reproducible.
+    alternatives:
+      - option: pass-seed-to-backend
+        rejected_because: |
+          OpenAI/vLLM seed is per-request and would not survive cache
+          reuse cleanly.
+      - option: temp-only-no-nonce
+        rejected_because: |
+          temp=0.7 with same prompt + same provider seed often returns
+          the same string on vLLM — n=8 would collapse to n=1.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      Extended agentdiet/llm_client.py with ChatResult dataclass,
+      thinking + top_p kwargs on Backend.chat / chat_full /
+      LLMClient.chat / chat_full, model_family literal on
+      OpenAIBackend with translation table to extra_body.chat_template_kwargs
+      (Qwen3) or reasoning_effort (GPT-OSS). cache_key gained
+      thinking + top_p kwargs that conditionally append to the hash
+      payload only when non-default — legacy on-disk cache entries
+      stay valid. _invoke_backend wraps a getattr(chat_full)
+      fallback chain so legacy FakeBackend test fixtures (chat-only,
+      no kwargs) still work.
+    commits:
+      - a1b58c0
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      New module agentdiet/voting.py with calibrate_n and run_voting
+      per spec §5.3. CalibrationResult and VotingResult are frozen
+      dataclasses + asdict-serializable. run_voting forces sample
+      diversity via "Sample id: K\n\n" nonce-prefix on the user
+      message — different cache keys per sample.
+    commits:
+      - 21db0c0
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      Added tests/cross_model_grid_client/{test_thinking_integration.py,
+      test_calibration_determinism.py}. The legacy-cache-entry test
+      verifies an on-disk entry written under the legacy 3-arg
+      cache_key path resolves on the new default-args read path.
+    commits:
+      - a3df82a
+
+unplanned_changes:
+  - loc: agentdiet/llm_client.py
+    what: |
+      Added _invoke_backend helper inside LLMClient that does a
+      getattr-based fallback from chat_full to chat, plus a TypeError
+      fallback inside chat for legacy backends that don't accept
+      thinking/top_p kwargs.
+    reason: |
+      Existing tests in tests/full_collection and tests/pilot_gate1
+      use FakeBackend classes that only define chat(messages, model,
+      temperature). Without the fallback, LLMClient.chat (now routed
+      through chat_full) would AttributeError or TypeError on those
+      tests. Two prior tests went from passing to failing in the
+      first run; the fallback restored both.
+    confidence: 85
+  - loc: agentdiet/llm_client.py
+    what: |
+      Added TOKENS_PER_CHAR=0.25 and _approx_tokens / _approx_prompt_tokens
+      module-private helpers used to fill ChatResult tokens on cache hits.
+    reason: |
+      Plan called for char-approximation on cache hits to avoid None
+      tokens propagating to callers. Helpers are module-private and
+      mirror agentdiet.evaluate.count_tokens.
+    confidence: 95
+
+flags_for_eval:
+  - cache_key conditional payload — the hash includes thinking only
+    when True and top_p only when != 1.0. Confirm test
+    test_cache_key_default_args_match_legacy still asserts that and
+    inspect cache_key for any other parameters that should also be
+    conditional.
+  - DummyBackend.responder accepts (msg, model, temp) OR
+    (msg, model, temp, **kw) — the chat() method TypeError-falls-back
+    to the no-kwargs form. Verify both shapes work in all 3 call
+    paths (legacy chat, new chat with thinking, new chat_full).
+  - run_voting "Sample id: K" nonce — make sure no caller of
+    run_voting embeds question text that itself starts with
+    "Sample id:" (would collide with the prefix). Spec doesn't
+    forbid this but a sanity test could make it explicit.
+  - The 4 pre-existing test failures in tolerate_latex_escapes /
+    type_level_ablation persist; they are unrelated to this feature.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: |
+              Feature was split into cross-model-grid-client (this) and
+              cross-model-grid-hpc-serving (next) in commit a626b67;
+              thinking-axis-grid depends on both halves.
+          - id: D2
+            verified: true
+            evidence: |
+              OpenAIBackend.__init__ accepts model_family literal; chat
+              and chat_full both branch on it. No subclasses created.
+          - id: D3
+            verified: true
+            evidence: |
+              chat_full reads response.usage on live backends; cache
+              hit branch falls back to TOKENS_PER_CHAR=0.25 approx.
+              See test_chat_full_cache_hit_fills_approx_tokens.
+          - id: D4
+            verified: true
+            evidence: |
+              voting.py exposes calibrate_n + run_voting only — no CLI
+              entry point in agentdiet/cli/.
+          - id: D5
+            verified: true
+            evidence: |
+              run_voting prepends f"Sample id: {k}\n\n" to user content;
+              cache_key partitions hold per (k). See
+              test_run_voting_distinct_samples_via_nonce.
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "_invoke_backend fallback chain (legitimate back-compat for legacy FakeBackend test fixtures)"
+          - "TOKENS_PER_CHAR + _approx_tokens helpers (mirrors plan-spec'd S1 cache-hit behavior)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 18
+          fail: 0
+          coverage: 93
+          tests_file: tests/cross_model_grid_client/test_llm_client_thinking.py
+        S2:
+          pass: 17
+          fail: 0
+          coverage: 98
+          tests_file: tests/cross_model_grid_client/test_voting.py
+        S3:
+          pass: 7
+          fail: 0
+          coverage: 88
+          tests_file: tests/cross_model_grid_client/{test_thinking_integration.py, test_calibration_determinism.py}
+
+      blockers: []
+      regressions: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/llm_client.py
+        what: |
+          DummyBackend.chat catches TypeError to fall back to the
+          no-kwargs responder shape. This swallows TypeErrors raised
+          inside the responder body itself. Use inspect.signature to
+          detect kwarg support up front, or scope the catch with a
+          string match on "unexpected keyword argument".
+      - loc: agentdiet/llm_client.py
+        what: |
+          cache_key includes top_p in payload even at temperature=0
+          (where vLLM ignores top_p). Two callers asking the same
+          question at temp=0 with different top_p settings would get
+          two separate cache slots for what's the same backend
+          response. Cheap win: only include top_p in payload when
+          temperature > 0.
+      - loc: agentdiet/voting.py
+        what: |
+          run_voting nonce prefix "Sample id: K" collides if the
+          caller's question text itself starts with "Sample id:".
+          Defensive option: hash the prefix marker instead of using
+          natural text (e.g. "<__voting_sample_id__>K</__...__>").
+      - loc: agentdiet/llm_client.py
+        what: |
+          ChatResult is frozen but prompt_tokens / completion_tokens
+          are typed Optional[int]. After fill-in on cache hit, callers
+          can rely on them being non-None — but the type still says
+          Optional. Consider a non-None ChatResult.tokens_filled()
+          helper or adjust types per construction site.
+    final_verdict: MERGE_READY
