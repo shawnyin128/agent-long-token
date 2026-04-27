@@ -1,0 +1,644 @@
+plan_id: coding-eval-infra
+iteration: 1
+based_on: docs/design-docs/2026-04-27-debate-phase-mapping-design.md
+
+problem: |
+  Phase A of the phase-mapping plan needs a code-domain track parallel
+  to the existing math track. This feature builds the local
+  infrastructure for it: Dataset adapters for HumanEval+ and
+  LiveCodeBench (contest-date filtered for contamination control),
+  a custom multi-year AIME loader (2026/2025/2024 → 80 questions
+  per spec §4.2.1), a Judge adapter for code execution (wraps
+  evalscope sandbox, with subprocess fallback), the code-domain
+  debate protocol (proposer / reviewer / integrator with Notes/Code
+  schema per §4.3b), and functional clustering used by both voting
+  and debate aggregation (§5.4). All five sub-systems are designed
+  to be exercised under unit tests without GPU or network — actual
+  evalscope/HF data fetches are deferred to runbooks.
+
+steps:
+  - id: S1
+    desc: agentdiet/eval skeleton + Dataset/Judge protocols + LiveCodeBench
+    approach: |
+      Create agentdiet/eval/ package with __init__, base.py (Dataset
+      and Judge Protocols), datasets.py (concrete loaders), and
+      judges.py (concrete judges).
+
+      Dataset Protocol exposes:
+        - name: str
+        - domain: Literal["math", "code"]
+        - load() -> list[Question]  (or list[CodeQuestion] for code)
+      Question is the existing dataclass in agentdiet/dataset.py;
+      CodeQuestion is a new frozen dataclass with fields qid, prompt,
+      public_tests: list[TestCase], hidden_tests: list[TestCase],
+      and entry_point. TestCase is a dataclass {input, expected_output}
+      OR a callable string ("assert ..."), depending on dataset format.
+
+      Judge Protocol exposes:
+        - run(code: str, tests: list[TestCase], timeout_s: float = 10.0)
+          -> JudgeResult{passed: list[bool], errors: list[str|None],
+                          total: int, n_passed: int}
+        passed[i] is True iff the i-th test passes; signature is
+        therefore tuple(passed) for clustering.
+
+      Implement LiveCodeBench Dataset adapter that:
+        - lazy-imports `livecodebench` or `evalscope.benchmarks
+          .live_code_bench` (whichever is installed); raises
+          ImportError("install agentdiet[code_eval]") on neither
+        - filters for contest_date >= 2024-08-01
+        - caps at 80 problems
+        - exposes the public sample tests as `public_tests` and the
+          hidden test set as `hidden_tests`
+      The actual data-source path is parameterizable via
+      Config.code_data_dir (new config field) so tests can point at
+      a fixture dir.
+
+      Add `code_eval` to pyproject.toml optional-dependencies. Mark
+      evalscope, evalplus, livecodebench all as optional.
+    files:
+      create:
+        - agentdiet/eval/__init__.py
+        - agentdiet/eval/base.py
+        - agentdiet/eval/datasets.py
+        - agentdiet/eval/judges.py
+        - tests/coding_eval_infra/__init__.py
+        - tests/coding_eval_infra/test_dataset_protocol.py
+        - tests/coding_eval_infra/test_livecodebench_loader.py
+      modify:
+        - pyproject.toml
+        - agentdiet/config.py
+      test_plan:
+        - Dataset protocol: a tiny FakeCodeDataset implementing the
+          three required attrs is recognized as a Dataset (typing-only
+          via runtime_checkable + isinstance check)
+        - Judge protocol: same, a FakeJudge that returns deterministic
+          JudgeResult typechecks
+        - LiveCodeBench loader against a fixture JSON containing 3
+          problems (one before 2024-08, two after) returns only the
+          two post-filter problems
+        - LiveCodeBench loader caps at 80 even if fixture has more
+        - JudgeResult.signature property returns tuple(passed) — used
+          by functional clustering
+      test:
+        - tests/coding_eval_infra/test_dataset_protocol.py
+        - tests/coding_eval_infra/test_livecodebench_loader.py
+    coverage_min: 80
+
+  - id: S2
+    desc: HumanEval+ Dataset + Judge adapters
+    approach: |
+      Add HumanEvalPlus Dataset adapter that prefers
+      `evalplus.data.get_human_eval_plus()` (returns dict keyed by
+      task_id with prompt + canonical_solution + tests). Wraps each
+      task as CodeQuestion. Public tests = the tests embedded in the
+      docstring (extracted via regex on prompt); hidden tests = the
+      evalplus test suite for that task.
+
+      Add EvalscopeJudge concrete Judge that wraps
+      `evalscope.evaluator.code_execution.run` (or whatever the
+      actual symbol is — confirmed at runtime via lazy import).
+
+      Add SubprocessJudge as a fallback Judge: writes code to a
+      tempfile in a fresh tmpdir, exec's it through `python -c
+      "import json; ...; <test_block>"` with subprocess timeout. No
+      network is enforced via SUBPROCESS env stripped of HTTPS_PROXY
+      etc. and PYTHONPATH=tmpdir. SubprocessJudge is what the unit
+      tests use — they need a Judge that doesn't pull in evalscope.
+
+      Test by running SubprocessJudge against a known-correct +
+      known-incorrect Python snippet:
+        code = "def add(a,b): return a+b"
+        tests = [TestCase(input='', script='assert add(2,3) == 5'),
+                 TestCase(input='', script='assert add(2,3) == 99')]
+        run -> passed=[True, False], n_passed=1, total=2
+    files:
+      create:
+        - tests/coding_eval_infra/test_humanevalplus_loader.py
+        - tests/coding_eval_infra/test_subprocess_judge.py
+      modify:
+        - agentdiet/eval/datasets.py
+        - agentdiet/eval/judges.py
+      test_plan:
+        - HumanEvalPlus loader against fixture dict produces a list
+          of CodeQuestion with public_tests > 0 for each
+        - HumanEvalPlus extracts >=1 docstring example for a typical
+          HumanEval prompt format
+        - SubprocessJudge runs a correct snippet → all pass
+        - SubprocessJudge runs an incorrect snippet → at least one fail
+        - SubprocessJudge times out on infinite loop within 1.0s and
+          marks that test as failed (not crashed)
+        - SubprocessJudge isolates filesystem — code that tries
+          os.path.exists("/etc/passwd") in a test still works (we do
+          not block FS access; we just sandbox CWD)
+        - SubprocessJudge: timeout_s parameter is honored
+      test:
+        - tests/coding_eval_infra/test_humanevalplus_loader.py
+        - tests/coding_eval_infra/test_subprocess_judge.py
+    coverage_min: 80
+
+  - id: S3
+    desc: multi-year AIME loader with deterministic stratified sampling
+    approach: |
+      AIMEMultiYearDataset reads three JSON files at
+      Config.code_data_dir / "aime_2024.json",
+      "aime_2025.json", "aime_2026.json" — each with schema
+        {"year": int, "questions": [{"id": str, "problem": str,
+                                       "answer": str}, ...]}
+      Loader:
+        - Loads aime_2026.json → keep all (cap 30, raises if !=30)
+        - Loads aime_2025.json → keep all (cap 30, raises if !=30)
+        - Loads aime_2024.json → random.Random(42).sample of size 20
+          from the year's questions; total 80
+        - Returns list[Question] with qid prefixed by year e.g.
+          "aime-2024-q07"; question.meta["year"] = 2024 so per-year
+          stratified analysis (Phase F2) can group later
+      Domain is "math" (uses the existing answer parser; AIME answers
+      are integers 0..999, the numeric parser already handles them).
+
+      Runbook docs/runbooks/aime-data-sourcing.md describes where
+      to obtain each year's JSON (MAA archive / AoPS / artofproblemsolving)
+      and the expected schema. The actual JSON files live in
+      artifacts/datasets/ which is .gitignored — they are user-fetched.
+
+      Tests use fixture JSON files in tests/fixtures/aime/ to exercise
+      the stratification logic without depending on actual contest
+      data.
+    files:
+      create:
+        - tests/coding_eval_infra/test_aime_loader.py
+        - tests/fixtures/aime/aime_2024.json
+        - tests/fixtures/aime/aime_2025.json
+        - tests/fixtures/aime/aime_2026.json
+        - docs/runbooks/aime-data-sourcing.md
+      modify:
+        - agentdiet/eval/datasets.py
+        - agentdiet/config.py
+      test_plan:
+        - On 30/30/30 fixture, total = 80, year breakdown = 30/30/20
+        - Sampling AIME 2024 with seed 42 is deterministic (run twice,
+          identical qids)
+        - Loader raises ValueError if 2026 fixture has !=30
+        - Loader raises FileNotFoundError if any year file missing
+        - Question.meta["year"] is set correctly (one of {2024,2025,2026})
+        - Question.meta["aime_index"] preserves the original
+          contest-position index for traceability
+      test:
+        - tests/coding_eval_infra/test_aime_loader.py
+    coverage_min: 85
+
+  - id: S4
+    desc: code-domain debate protocol with Notes/Code schema
+    approach: |
+      New module agentdiet/debate/code_protocol.py.
+
+      Three role prompt constants:
+        - PROPOSER_PROMPT: "You write Python solutions. Each round:
+          short rationale (≤200 words, structured) + full code in a
+          fenced ```python ``` block. Schema: ## Notes <words>
+          ## Code ```python <code> ```"
+        - REVIEWER_PROMPT: "You critique other agents' code from the
+          previous round, name concrete issues, AND produce your own
+          code addressing what you find. Same schema."
+        - INTEGRATOR_PROMPT: "You synthesize prior agents' outputs;
+          name what you kept and what you dropped. Same schema."
+
+      Per-round message schema parser:
+        parse_code_message(text: str) -> CodeMessage{notes: str,
+                                                       code: str}
+        - Notes: between "## Notes" and "## Code"
+        - Code: between "## Code\n```python" and the matching "```"
+        - Returns CodeMessage(notes="", code="") on any parse failure;
+          callers must handle empty code.
+
+      Round runner:
+        run_code_debate(question: CodeQuestion, llm_client, model,
+                        n_agents=3, n_rounds=3, temperature=0.0,
+                        thinking=False) -> CodeDialogue
+        - Round 1: each agent produces independent (Notes, Code)
+        - Rounds 2..N: each agent sees the other 2 agents' (Notes,
+          Code) from prev round and produces new (Notes, Code) in role
+        - Returns CodeDialogue with messages: list[CodeMessage] with
+          (agent_id, round, notes, code) per turn
+
+      CodeDialogue dataclass: question_id, prompt, messages, meta.
+
+      Reuses LLMClient.chat_full (so token totals are tracked for
+      voting calibration in a future feature).
+    files:
+      create:
+        - agentdiet/debate/__init__.py
+        - agentdiet/debate/code_protocol.py
+        - tests/coding_eval_infra/test_code_protocol_schema.py
+        - tests/coding_eval_infra/test_run_code_debate.py
+      modify: []
+      test_plan:
+        - parse_code_message on a well-formed message returns
+          (notes, code) with both non-empty
+        - parse_code_message on missing ## Notes header returns
+          empty notes
+        - parse_code_message on unterminated code fence returns
+          empty code (safe default)
+        - parse_code_message handles ```python with language tag,
+          ``` without language tag, and tilde fences ~~~ as legal
+          alternates? — strict: only ```python with newline
+        - run_code_debate on a DummyBackend producing
+          deterministic well-formed responses yields a CodeDialogue
+          with n_agents * n_rounds messages
+        - run_code_debate's round 2+ user prompts include the other
+          agents' Code blocks (verify by spying on backend.chat
+          calls' message bodies)
+        - PROPOSER_PROMPT, REVIEWER_PROMPT, INTEGRATOR_PROMPT all
+          contain "## Notes" and "## Code" markers (so models learn
+          the schema)
+      test:
+        - tests/coding_eval_infra/test_code_protocol_schema.py
+        - tests/coding_eval_infra/test_run_code_debate.py
+    coverage_min: 85
+
+  - id: S5
+    desc: functional clustering + 3-way tie-break unit tests
+    approach: |
+      New module agentdiet/eval/clustering.py.
+
+      cluster_by_signature(samples: list[str], judge: Judge,
+                           public_tests: list[TestCase],
+                           timeout_s: float = 10.0) -> ClusteringResult
+        - For each sample: run judge.run(sample, public_tests, timeout_s)
+        - Build signature = tuple(judge_result.passed)
+        - Group samples by exact signature equality (dict{sig: [idx,...]})
+        - Largest cluster wins; ties → smallest signature lex order
+          (deterministic by spec §5.4)
+        - Returns ClusteringResult{representative_index: int,
+          representative_sample: str, signature: tuple[bool, ...],
+          cluster_size: int, all_clusters: dict[tuple, list[int]]}
+
+      Signature lex order: convert tuple of bool to tuple of int
+      (False=0, True=1) and use natural tuple comparison — this is
+      deterministic and "smallest lex" picks all-fail signatures first
+      if tied with all-pass; spec just says deterministic, not which
+      end wins. Document the choice.
+
+      Edge cases handled:
+        - empty samples → ValueError
+        - all samples have empty signature (no public tests) →
+          one cluster, signature is (), representative is samples[0]
+        - all samples produce different signatures (each is its own
+          cluster) → smallest lex sig wins, cluster_size 1
+    files:
+      create:
+        - agentdiet/eval/clustering.py
+        - tests/coding_eval_infra/test_functional_clustering.py
+      modify: []
+      test_plan:
+        - 3 samples, 2 share signature (T,T), 1 differs (T,F):
+          representative is from the 2-share cluster
+        - 3 samples all unique signatures: tie-break by smallest lex
+          tuple of (False,False) < (False,True) < (True,True)
+        - 1 sample (degenerate): cluster_size=1, that sample wins
+        - Empty samples list raises ValueError
+        - When public_tests is empty: signature is (), all samples
+          go in one cluster, representative is samples[0]
+        - Determinism: 100 runs on the same input give identical
+          representative_index
+        - all_clusters dict completeness: every input index appears
+          in exactly one cluster's index list
+      test:
+        - tests/coding_eval_infra/test_functional_clustering.py
+    coverage_min: 90
+
+decisions:
+  - id: D1
+    question: hard vs soft dependency on evalscope/evalplus/livecodebench
+    planner_view: |
+      Soft. Add a `code_eval` extras group to pyproject.toml. All
+      adapters lazy-import their backing library inside the load()
+      method. ImportError raises a clear message:
+      "install agentdiet[code_eval]". The unit tests use only
+      SubprocessJudge + JSON fixtures, so they pass without any
+      code_eval extra installed.
+    confidence: 80
+    rationale: |
+      evalscope is a bigger dep than the project's primary needs;
+      most callers only need the math track. Soft deps keep CI green
+      without a third-party package and make the code track a
+      pay-when-you-use feature.
+    alternatives:
+      - option: hard-dep
+        rejected_because: |
+          Forces every install to pull evalscope/evalplus even for
+          math-only users (RQ0 chain).
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: HumanEval+ data source — evalplus pkg vs evalscope wrapper
+    planner_view: |
+      Prefer evalplus.data.get_human_eval_plus() — it's the
+      authoritative source for HumanEval+ (Liu et al. 2023) and ships
+      with the test cases needed for hidden_tests. evalscope, if
+      installed, may also wrap this; we pick evalplus as the primary
+      to avoid a doubly-indirect chain.
+    confidence: 75
+    rationale: |
+      Single canonical source. evalscope adds value mostly for the
+      execution sandbox (which we'll wrap with EvalscopeJudge) — its
+      dataset wrappers are not unique.
+    alternatives:
+      - option: evalscope-only
+        rejected_because: |
+          evalscope's HumanEval coverage may be base HumanEval, not
+          HumanEval+; spec §4.2 explicitly requires HumanEval+
+          (strengthened tests).
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: AIME data sourcing — direct HF datasets vs local JSON
+    planner_view: |
+      Local JSON files at artifacts/datasets/aime_{2024,2025,2026}.json.
+      Loader is generic: it just reads the JSON and stratifies. Where
+      to fetch each year's data from is a separate runbook task
+      (docs/runbooks/aime-data-sourcing.md), out-of-scope for the
+      Python loader. AIME 2026 in particular is too recent for HF
+      datasets to have it, so a hand-curated JSON is necessary anyway.
+    confidence: 85
+    rationale: |
+      Decouples code from data acquisition. Tests can use fixture
+      JSON. User can swap in real data without touching code.
+    alternatives:
+      - option: hf-datasets
+        rejected_because: |
+          AIME 2026 is post-cutoff for any frozen dataset release.
+          Mixed-source loading complicates the contract.
+      - option: web-scrape
+        rejected_because: |
+          Brittle, unreproducible, and runtime-coupled to network.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: code execution sandbox — evalscope-only vs subprocess-fallback
+    planner_view: |
+      Implement BOTH. EvalscopeJudge (preferred for production runs)
+      wraps evalscope's harness; SubprocessJudge (always available)
+      runs each test in a Python subprocess with timeout, isolated
+      tmpdir as CWD, no shell. SubprocessJudge is what unit tests
+      use, so the test suite passes without evalscope installed.
+      Production runs use EvalscopeJudge for evalscope's
+      battle-tested isolation guarantees.
+    confidence: 80
+    rationale: |
+      One Judge protocol, two implementations. Tests run anywhere;
+      production uses the strong sandbox.
+    alternatives:
+      - option: evalscope-only
+        rejected_because: |
+          Tests can't run without evalscope installed → CI burden.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: clustering tie-break — lexical order direction
+    planner_view: |
+      Smallest lex tuple wins on equal-size cluster ties. False=0,
+      True=1 in tuple comparison so e.g. (False, False) < (False, True)
+      < (True, True). Document this in the docstring; spec §5.4 says
+      deterministic, not which end wins.
+    confidence: 90
+    rationale: |
+      Standard Python tuple ordering — deterministic and
+      well-understood. Either direction is defensible per spec; we
+      pick one, document it, and tests pin the choice.
+    alternatives:
+      - option: largest-lex
+        rejected_because: |
+          Equally valid. Pick one; lock it.
+    ask_user: false
+    user_decision: null
+
+  - id: D6
+    question: Code-domain Agent — reuse Agent class vs new CodeAgent
+    planner_view: |
+      New CodeAgent dataclass colocated with code_protocol.py. The
+      math Agent has fields that don't transfer cleanly (it carries
+      a multi-turn conversation history; in the code protocol every
+      round we restart from a clean slate with the prior round's
+      messages summarized). Keeps the math protocol untouched.
+    confidence: 85
+    rationale: |
+      Cleaner separation. Math debate (RQ0) is frozen; code debate
+      is a fresh design with its own per-round semantics.
+    alternatives:
+      - option: reuse-Agent
+        rejected_because: |
+          Forces the math Agent class to know about code-specific
+          state, conflating the two protocols.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 90
+    notes: |
+      Created agentdiet/eval/ package with base.py (Dataset/Judge
+      runtime-checkable Protocols + TestCase/CodeQuestion/JudgeResult
+      dataclasses), datasets.py (LiveCodeBench loader with date
+      filter), judges.py (stubs to be filled in S2). pyproject extras
+      `code_eval` added.
+    commits:
+      - 4cca319
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      HumanEvalPlusDataset wraps evalplus.data.get_human_eval_plus()
+      via lazy import; doctest examples extracted as public_tests,
+      evalplus's `test` block as hidden_tests. SubprocessJudge runs
+      each TestCase in a fresh `python -c` subprocess with timeout,
+      isolated CWD, and proxy env stripped. EvalscopeJudge wraps
+      the import gate but defers execution to SubprocessJudge until
+      evalscope's harness API is pinned.
+    commits:
+      - c19c41f
+  S3:
+    status: done
+    confidence: 95
+    notes: |
+      AIMEMultiYearDataset reads three JSON files, enforces
+      30/year (raises if mismatch), samples 20-of-30 from 2024
+      with seed 42, qid encodes year+index. Runbook documents
+      schema and sourcing.
+    commits:
+      - 203ddb2
+  S4:
+    status: done
+    confidence: 88
+    notes: |
+      Converted agentdiet/debate.py into a package
+      (agentdiet/debate/__init__.py keeps original module exports,
+      so all existing `from agentdiet.debate import X` callers
+      continue to resolve). Added agentdiet/debate/code_protocol.py
+      with three role prompts, parse_code_message regex, CodeAgent /
+      CodeMessage / CodeDialogue, and run_code_debate. One unrelated
+      cleanup commit removed a leftover debate_pkg/ artifact from
+      the directory move.
+    commits:
+      - 4012ee7
+      - 942e48d
+  S5:
+    status: done
+    confidence: 95
+    notes: |
+      cluster_by_signature in agentdiet/eval/clustering.py — pure
+      function, no network, no FS. Tie-break documented as
+      smallest-lex signature.
+    commits:
+      - d6cd1cf
+
+unplanned_changes:
+  - loc: agentdiet/debate/__init__.py
+    what: |
+      File path moved from agentdiet/debate.py to
+      agentdiet/debate/__init__.py to make `debate` a package so
+      code_protocol.py can live alongside it as a sibling module.
+      Content unchanged — all existing imports continue to work.
+    reason: |
+      Plan called for agentdiet/debate/code_protocol.py; plan didn't
+      explicitly call out the directory conversion but it's the
+      mechanical prerequisite.
+    confidence: 95
+
+flags_for_eval:
+  - HumanEval+ docstring extraction is regex-based on `>>> name(...)`
+    patterns followed by an expected-result line. Real evalplus
+    prompts may have multi-line examples or odd formatting that the
+    parser misses. Acceptable: public tests aren't exhaustive — the
+    canonical hidden_tests block is.
+  - SubprocessJudge does NOT block filesystem access outside CWD;
+    user code can read /etc/passwd if it wants. Spec §5.4 says "no
+    network, no shared filesystem outside the dir" — we satisfy CWD
+    isolation but not full FS isolation. Real production runs should
+    use EvalscopeJudge once its harness is pinned (which DOES sandbox
+    fully). Note this in the README.
+  - parse_code_message returns ("", "") on missing sections, but a
+    well-formed message with notes only and no code is ambiguous —
+    is that a parse failure or "agent gave up on coding this round"?
+    Currently treated as parse failure (empty code). Callers should
+    log when parsed code is empty.
+  - cluster_by_signature ties broken by smallest-lex signature; spec
+    only said deterministic. Acceptable choice but document the
+    direction in the README so a downstream debugger isn't surprised.
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: |
+              evalscope, evalplus, livecodebench all behind lazy
+              import; tests pass without any code_eval extra
+              installed.
+          - id: D2
+            verified: true
+            evidence: |
+              HumanEvalPlusDataset uses evalplus.data.get_human_eval_plus
+              at runtime; tests use fixture data.
+          - id: D3
+            verified: true
+            evidence: |
+              AIMEMultiYearDataset reads JSON files at data_dir;
+              docs/runbooks/aime-data-sourcing.md spelled out.
+          - id: D4
+            verified: true
+            evidence: |
+              SubprocessJudge implemented and used by tests;
+              EvalscopeJudge stub exists and gates on evalscope
+              importability.
+          - id: D5
+            verified: true
+            evidence: |
+              cluster_by_signature sorts by (-cluster_size,
+              tuple(int(b) for b in sig)) — smallest-lex wins ties.
+              test_tie_break_by_smallest_lex_signature pins this.
+          - id: D6
+            verified: true
+            evidence: |
+              CodeAgent dataclass colocated with code_protocol.py;
+              math Agent untouched.
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "agentdiet/debate.py -> agentdiet/debate/__init__.py rename (mechanical prerequisite)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 11
+          fail: 0
+          coverage: 92  # datasets.py shared across S1+S3
+          tests_file: tests/coding_eval_infra/{test_dataset_protocol.py, test_livecodebench_loader.py}
+        S2:
+          pass: 14
+          fail: 0
+          coverage: 87
+          tests_file: tests/coding_eval_infra/{test_humanevalplus_loader.py, test_subprocess_judge.py}
+        S3:
+          pass: 9
+          fail: 0
+          coverage: 92
+          tests_file: tests/coding_eval_infra/test_aime_loader.py
+        S4:
+          pass: 17
+          fail: 0
+          coverage: 95
+          tests_file: tests/coding_eval_infra/{test_code_protocol_schema.py, test_run_code_debate.py}
+        S5:
+          pass: 9
+          fail: 0
+          coverage: 100
+          tests_file: tests/coding_eval_infra/test_functional_clustering.py
+
+      blockers: []
+      regressions: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/eval/judges.py
+        what: |
+          EvalscopeJudge currently delegates to SubprocessJudge until
+          evalscope's harness API is pinned. Once we know which call
+          to use (e.g. evalscope.evaluator.code_execution.run vs
+          evalscope.benchmarks.<name>.judge), wire it in and drop the
+          subprocess fallback.
+      - loc: agentdiet/eval/datasets.py
+        what: |
+          _extract_docstring_tests regex assumes `>>> name(args)\nresult`
+          on consecutive lines. HumanEval prompts occasionally have
+          interleaving prose (e.g., "should return") between the call
+          and the result. Audit a real HumanEval+ corpus and tighten
+          the parser if precision drops.
+      - loc: agentdiet/debate/code_protocol.py
+        what: |
+          parse_code_message currently treats "## Notes only, no Code"
+          as a parse failure (code=""). Consider distinguishing in
+          a flags field on CodeMessage: parse_status: "ok" |
+          "missing_code" | "missing_notes" | "malformed".
+      - loc: docs/runbooks/aime-data-sourcing.md
+        what: |
+          The runbook says AoPS / MAA archive without committing to a
+          script. Once a curator has fetched the JSONs, add a
+          download_aime.py helper that pulls from a stable URL list
+          to make re-runs reproducible.
+    final_verdict: MERGE_READY

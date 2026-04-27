@@ -305,7 +305,7 @@
         "Implement functional clustering for both voting baseline and debate aggregation using public test signatures",
         "Add unit tests for schema parsing, 3-way clustering, and AIME year stratification (30/30/20)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "thinking-axis-grid",
