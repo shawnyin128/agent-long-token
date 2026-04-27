@@ -57,22 +57,27 @@ Each concern has ONE home. Never duplicate across sources.
 
 Stack: Python + vLLM + HuggingFace + sentence-transformers + HDBSCAN. Master-level LLM course final project.
 
-**Research question:** On GSM8K, which claims exchanged during multi-agent debate causally contribute to the accuracy gain, and can a data-supported claim-level compression rule reduce token cost while preserving accuracy?
+**Research question:** RQ0 (done) showed the +6.7pp 3×3 debate gain on GSM8K + Qwen2.5-7B is not attributable to inter-agent information transfer (drop-all control preserved accuracy). The pivoted question is **where does the collapse to majority voting end** — across (model × difficulty × thinking) which cells, if any, show debate giving genuine benefit over a token-matched majority-voting baseline? The phase-mapping result also gates the original compression-rule question (RQ4, contingent): a positive cell becomes the setting in which to resume token pruning; a universally null phase diagram retires the compression question for this regime. See `docs/design-docs/2026-04-27-debate-phase-mapping-design.md`.
 
 ### Design Docs
 docs/
 ├── design-docs/
-│   └── 2026-04-21-multi-agent-debate-claim-analysis-design.md — approved spec (3-day plan)
+│   ├── 2026-04-21-multi-agent-debate-claim-analysis-design.md — original spec; superseded for RQ1+ by 2026-04-27 (RQ0 portion still authoritative)
+│   └── 2026-04-27-debate-phase-mapping-design.md — current spec (RQ1 phase mapping; RQ4 contingent)
 ├── plans/
 │   ├── active/      — plans currently being executed (empty)
 │   └── completed/   — finished plans (empty)
-└── reports/         — sp-feedback optimization reports + final report PDF (empty)
+└── reports/         — check-in 2026-04-22; final report PDF (empty)
 
 ### Features
-`.claude/features.json` tracks 10 features in dependency order:
+`.claude/features.json` — RQ0 chain (done) → RQ1 phase-mapping chain (in progress):
 core-infrastructure → debate-runner → pilot-gate1 → full-collection →
 claim-extraction → flip-and-signals → type-level-ablation →
-compression-policy → evaluation-sweep → report-generation
+{cross-model-grid, coding-eval-infra} → thinking-axis-grid →
+prompt-robustness → phase-mapping-analysis.
+Old `compression-policy` / `evaluation-sweep` / `report-generation` were
+RQ0-era deliverables; recast as RQ4-contingent (gated on phase-mapping
+finding a positive cell).
 
 ### Codebase
 Target layout (agentdiet/) defined in spec §3.1 — not yet implemented.

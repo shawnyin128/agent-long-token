@@ -269,6 +269,125 @@
         "README note on how to interpret control result vs gate2_report"
       ],
       "passes": true
+    },
+    {
+      "id": "control-ablation-without-claims",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "L1 cross-model replication: drop-all control on Llama-3.1-8B doesn't need claim extraction, only pilot single + debate dialogues. Add require_claims=False mode to select_subset and wire --control to use it. Saves ~30-40 min per replication model.",
+      "steps": [
+        "add require_claims kwarg to select_subset (default True for backwards compat)",
+        "wire --control branch in cli/ablate.py to call select_subset with require_claims=False",
+        "tests covering both modes",
+        "README note that --control no longer needs make extract first"
+      ],
+      "passes": false
+    },
+    {
+      "id": "cross-model-grid",
+      "category": "infrastructure",
+      "priority": "high",
+      "depends_on": [
+        "type-level-ablation"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Qwen3-30B-A3B and GPT-OSS-20B vLLM backends with thinking toggle, plus token-matched voting baseline implementation",
+      "display_name": "Cross-model backend grid",
+      "steps": [
+        "Stand up Qwen3-30B-A3B on vLLM (HPC); verify enable_thinking toggle via 5 GSM8K test calls",
+        "Stand up GPT-OSS-20B on vLLM (HPC); verify reasoning_effort low/high differs in output token count",
+        "Extend agentdiet/llm_client.py with thinking:bool parameter and per-(model, thinking) cache partition",
+        "Implement agentdiet/voting.py with total-token calibration (N>=3 floor) and over_budget_factor logging",
+        "Add tests covering thinking toggle behavior and calibration determinism on synthetic LLM client"
+      ],
+      "passes": false
+    },
+    {
+      "id": "coding-eval-infra",
+      "category": "infrastructure",
+      "priority": "high",
+      "depends_on": [
+        "type-level-ablation"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "evalscope integration for code datasets and sandbox; multi-year AIME loader; code-domain debate protocol with proposer/reviewer/integrator roles",
+      "display_name": "Coding evaluation infrastructure",
+      "steps": [
+        "Install evalscope; wrap dataset loaders for HumanEval+ and LiveCodeBench (filter contest_date>=2024-08) behind Dataset interface",
+        "Wrap evalscope code-execution sandbox behind Judge interface; verify pass@1 on a known-correct sample",
+        "Implement multi-year AIME loader (2026 full + 2025 full + 2024 random 20 with seed 42) producing 80-question pool",
+        "Implement code-domain debate protocol in agentdiet/debate/code_protocol.py with proposer/reviewer/integrator roles and Notes/Code message schema",
+        "Implement functional clustering for both voting baseline and debate aggregation using public test signatures",
+        "Add unit tests for schema parsing, 3-way clustering, and AIME year stratification (30/30/20)"
+      ],
+      "passes": false
+    },
+    {
+      "id": "thinking-axis-grid",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "cross-model-grid",
+        "coding-eval-infra"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "16-cell main grid: 2 models x 4 datasets x thinking on/off, with SA / voting / debate per cell; pilot first to catch protocol bugs",
+      "display_name": "Thinking-axis main grid execution",
+      "steps": [
+        "Run math pilot: Qwen3-30B-A3B + GSM8K + thinking off, all 3 conditions; verify pipeline produces well-defined N for voting calibration",
+        "Run code pilot: Qwen3-30B-A3B + HumanEval+ + thinking off, all 3 conditions; iterate code protocol on bugs before scaling",
+        "Execute main grid thinking-off cells (8 cells): both models x 4 datasets x SA/voting/debate; output per-cell summary.json",
+        "Execute main grid thinking-on cells (8 cells): same structure with thinking enabled",
+        "Save artifacts to artifacts/grid/{model}__{dataset}__t{0,1}/ with sa.json, voting.json, debate.json, summary.json"
+      ],
+      "passes": false
+    },
+    {
+      "id": "prompt-robustness",
+      "category": "functional",
+      "priority": "medium",
+      "depends_on": [
+        "thinking-axis-grid"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Test whether collapse-to-voting depends on prompt design via 3 role-prompt variants on Qwen3-30B-A3B + GSM8K x thinking on/off",
+      "display_name": "Prompt-variant robustness sub-grid",
+      "steps": [
+        "Implement adversarial-strict prompt variant in agentdiet/prompts.py (skeptic must produce >=1 concrete disagreement)",
+        "Implement symmetric prompt variant (3 identical agents, no role differentiation)",
+        "Run Qwen3-30B-A3B + GSM8K x 3 prompt variants x thinking on/off (6 cells x 3 conditions)",
+        "Compare Delta(debate-voting) across prompt variants; flag any variant where Delta becomes statistically distinguishable from 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "phase-mapping-analysis",
+      "category": "functional",
+      "priority": "high",
+      "depends_on": [
+        "thinking-axis-grid",
+        "prompt-robustness"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Per-cell Delta with bootstrap CIs; phase diagram and per-axis characterizations; final IMRAD report with phase diagram as main figure",
+      "display_name": "Phase diagram analysis and report",
+      "steps": [
+        "Compute Delta = acc(debate) - acc(voting) per cell with paired bootstrap (10000 resamples) for 95% CI",
+        "Generate phase diagram scatter (X: SA accuracy, Y: Delta, color: thinking, shape: domain, fill: over_budget) saved to docs/reports/figs/phase_diagram.pdf",
+        "Per-axis characterization: per-dataset stratification by reasoning steps; AIME per-year analysis (contamination check); cross-model agreement table; round-by-round trajectory; voting-wrong-debate-right reverse-attribution case study",
+        "Compute thinking-axis observations O1 (Delta on vs off per cell) and O2 (acc(debate, off) vs acc(SA, on) per cell)",
+        "Assemble IMRAD LaTeX report with phase diagram as main figure; cite Du 2023 and Wang 2023; methodological appendix repurposes claim-extraction findings as mechanism explanation",
+        "Generate PDF via pandoc/LaTeX"
+      ],
+      "passes": false
     }
   ]
 }
