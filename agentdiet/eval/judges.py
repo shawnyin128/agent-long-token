@@ -14,7 +14,6 @@ import os
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 
 from agentdiet.eval.base import JudgeResult, TestCase
 
@@ -87,7 +86,7 @@ class SubprocessJudge:
                     text=True,
                     timeout=timeout_s,
                 )
-            except subprocess.TimeoutExpired as exc:
+            except subprocess.TimeoutExpired:
                 return False, f"timeout after {timeout_s}s"
             if result.returncode == 0:
                 return True, None

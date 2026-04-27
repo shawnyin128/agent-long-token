@@ -10,7 +10,7 @@ import json
 import random
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
 from agentdiet.dataset import Question
 from agentdiet.eval.base import CodeQuestion, TestCase
