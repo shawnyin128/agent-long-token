@@ -130,6 +130,25 @@ def test_run_voting_majority(tmp_path):
     assert result.final_answer == "7"
 
 
+def test_run_voting_n_samples_zero_raises(tmp_path):
+    """n_samples must be >= 1; 0 is a programmer error, not a degenerate."""
+    client, _ = _make_client(tmp_path, lambda m, mo, t, **k: "#### 0")
+    with pytest.raises(ValueError):
+        run_voting(
+            question="Q", n_samples=0, llm_client=client, model="m",
+            system_prompt="sys",
+        )
+
+
+def test_run_voting_n_samples_negative_raises(tmp_path):
+    client, _ = _make_client(tmp_path, lambda m, mo, t, **k: "#### 0")
+    with pytest.raises(ValueError):
+        run_voting(
+            question="Q", n_samples=-3, llm_client=client, model="m",
+            system_prompt="sys",
+        )
+
+
 def test_run_voting_n_samples_one(tmp_path):
     """Degenerate case: 1 sample, final_answer is that sample's parse."""
     client, _ = _make_client(tmp_path, lambda m, mo, t, **k: "answer is\n#### 42")
