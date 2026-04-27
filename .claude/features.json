@@ -287,26 +287,6 @@
       "passes": true
     },
     {
-      "id": "cross-model-grid",
-      "category": "infrastructure",
-      "priority": "high",
-      "depends_on": [
-        "type-level-ablation"
-      ],
-      "supersedes": [],
-      "from_todo": null,
-      "description": "Qwen3-30B-A3B and GPT-OSS-20B vLLM backends with thinking toggle, plus token-matched voting baseline implementation",
-      "display_name": "Cross-model backend grid",
-      "steps": [
-        "Stand up Qwen3-30B-A3B on vLLM (HPC); verify enable_thinking toggle via 5 GSM8K test calls",
-        "Stand up GPT-OSS-20B on vLLM (HPC); verify reasoning_effort low/high differs in output token count",
-        "Extend agentdiet/llm_client.py with thinking:bool parameter and per-(model, thinking) cache partition",
-        "Implement agentdiet/voting.py with total-token calibration (N>=3 floor) and over_budget_factor logging",
-        "Add tests covering thinking toggle behavior and calibration determinism on synthetic LLM client"
-      ],
-      "passes": false
-    },
-    {
       "id": "coding-eval-infra",
       "category": "infrastructure",
       "priority": "high",
@@ -332,7 +312,8 @@
       "category": "functional",
       "priority": "high",
       "depends_on": [
-        "cross-model-grid",
+        "cross-model-grid-client",
+        "cross-model-grid-hpc-serving",
         "coding-eval-infra"
       ],
       "supersedes": [],
@@ -386,6 +367,42 @@
         "Compute thinking-axis observations O1 (Delta on vs off per cell) and O2 (acc(debate, off) vs acc(SA, on) per cell)",
         "Assemble IMRAD LaTeX report with phase diagram as main figure; cite Du 2023 and Wang 2023; methodological appendix repurposes claim-extraction findings as mechanism explanation",
         "Generate PDF via pandoc/LaTeX"
+      ],
+      "passes": false
+    },
+    {
+      "id": "cross-model-grid-client",
+      "category": "infrastructure",
+      "priority": "high",
+      "depends_on": [
+        "type-level-ablation"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "Local part of cross-model-grid: extend llm_client with thinking:bool param + per-(model, thinking, top_p) cache partition + ChatResult with usage; implement agentdiet/voting.py (calibrate_n + run_voting + over_budget logging) per spec \u00a75.3; integration tests. No GPU needed.",
+      "display_name": "Cross-model client + voting baseline",
+      "steps": [
+        "Extend agentdiet/llm_client.py with thinking:bool parameter, ChatResult dataclass, OpenAIBackend model_family literal, per-(model, thinking, top_p) cache key",
+        "Add agentdiet/voting.py: calibrate_n(debate_tokens, sa_tokens) -> CalibrationResult with N>=3 floor + over_budget_factor; run_voting(question, n_samples, llm_client, ...) -> VotingResult using nonce-prefix sample-id trick",
+        "Integration tests covering toggle round-trip, calibration determinism, voting + calibrate composition"
+      ],
+      "passes": false
+    },
+    {
+      "id": "cross-model-grid-hpc-serving",
+      "category": "infrastructure",
+      "priority": "high",
+      "depends_on": [
+        "cross-model-grid-client"
+      ],
+      "supersedes": [],
+      "from_todo": null,
+      "description": "HPC GPU stand-up of Qwen3-30B-A3B + GPT-OSS-20B vLLM endpoints with smoke-tests verifying enable_thinking and reasoning_effort toggles work end-to-end. Requires user-side GPU time.",
+      "display_name": "Cross-model vLLM HPC stand-up",
+      "steps": [
+        "Author scripts/serving/qwen3_a3b_serve.sh + smoke_qwen3.py + runbook; user runs on HPC, commits artifacts/serving/qwen3_smoke.json (5 calls each toggle, observed token deltas)",
+        "Author scripts/serving/gpt_oss_20b_serve.sh + smoke_gpt_oss.py + runbook; user runs on HPC, commits artifacts/serving/gpt_oss_smoke.json (reasoning_effort low vs high token deltas)",
+        "Verify both smoke artifacts pass schema check (test runner asserts presence + thinking-on > thinking-off output token mean)"
       ],
       "passes": false
     }
