@@ -10,3 +10,6 @@ __pycache__/
 build/
 dist/
 artifacts/
+# But DO commit smoke-test evidence artifacts:
+!artifacts/serving/
+!artifacts/serving/*.json
