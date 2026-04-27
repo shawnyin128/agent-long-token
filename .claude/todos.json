@@ -39,6 +39,39 @@
       "created_at": "2026-04-23T00:52:28Z",
       "linked_feature_ids": [],
       "archived_feature_paths": []
+    },
+    {
+      "id": "final-report-clarify-3-4-explanation-of-perfect-and-exactly",
+      "description": "Final report: clarify \u00a73-4 explanation of 'perfect and exactly unchanged' accuracy result \u2014 what specific number/comparison produced 0.000 delta, why it is exact rather than near-zero, and what that means causally",
+      "display_name": "Final report: clarify \u00a73-4 explanation",
+      "category": "feature-idea",
+      "status": "pending",
+      "notes": "Check-in feedback (2026-04-27). Reviewer found \u00a73-4 of check-in writeup unclear about how the analysis arrived at the exact-zero finding. Address in final report.",
+      "created_at": "2026-04-27T18:52:54Z",
+      "linked_feature_ids": [],
+      "archived_feature_paths": []
+    },
+    {
+      "id": "add-self-consistency-majority-voting-baseline-at-the-same-to",
+      "description": "Add self-consistency (majority voting) baseline at the SAME token budget as 3x3 debate \u2014 confirms whether the +6.7pp gain is from dialogue or just from sampling-then-voting",
+      "display_name": "Self-consistency (majority voting) baseline",
+      "category": "investigation",
+      "status": "pending",
+      "notes": "Check-in feedback (2026-04-27). Reviewer suggested this as the right control to confirm the 'voting not dialogue' finding. Run k independent single-agent samples where k*tokens_per_sample == debate token budget, then majority-vote. If self-consistency matches debate accuracy, the dialogue contributes nothing measurable.",
+      "created_at": "2026-04-27T18:52:59Z",
+      "linked_feature_ids": [],
+      "archived_feature_paths": []
+    },
+    {
+      "id": "final-report-characterize-the-negative-result-in-maximum-det",
+      "description": "Final report: characterize the negative result in maximum detail \u2014 type-distribution skew, control \u0394=0 magnitude, cross-model robustness (L1/L2), prompt-sensitivity (cooperative\u2192adversarial), token-budget-matched self-consistency. Build the strongest possible characterization rather than just reporting 'null'",
+      "display_name": "Final report: characterize the negative",
+      "category": "feature-idea",
+      "status": "pending",
+      "notes": "Check-in feedback (2026-04-27). Reviewer: 'negative result is fine, but the report will be stronger if you try to characterize it in as much detail as you can. What you propose sounds good.' Lean into characterization \u2014 multiple angles compound credibility.",
+      "created_at": "2026-04-27T18:53:03Z",
+      "linked_feature_ids": [],
+      "archived_feature_paths": []
     }
   ]
 }

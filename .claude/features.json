@@ -284,7 +284,7 @@
         "tests covering both modes",
         "README note that --control no longer needs make extract first"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "cross-model-grid",

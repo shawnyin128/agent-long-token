@@ -29,13 +29,7 @@ here. Memory holds only in-flight state. -->
   minimal-pipeline L1 (skip extract); thresholds per check-in §7
   (control Δ ≤ 0.03 confirm; ≥ 0.10 reject).
 
-- **Code in flight:** features.json has feature
-  `control-ablation-without-claims` (high prio, single-agent dev).
-  Plan: add `require_claims=False` to select_subset() in
-  agentdiet/analysis/ablate.py; wire --control to use it; tests;
-  push. User then pulls on HPC.
-
-- **HPC flow waiting on push:** make stop → export AGENTDIET_MODEL=
+- **HPC flow — pull and run L1:** make stop → export AGENTDIET_MODEL=
   meta-llama/Llama-3.1-8B-Instruct → make serve → make health →
   git pull → make pilot --n 100 → make gate → make collect (cache
   hits, ~5-10 min IO) → make ablate-control → paste numbers back.
