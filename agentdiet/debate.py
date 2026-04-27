@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Optional
 
-from agentdiet.agents import Agent, make_default_agents
+from agentdiet.agents import FORMAT_INSTR, Agent, make_default_agents
 from agentdiet.aggregate import majority_vote
 from agentdiet.dataset import Question
 from agentdiet.llm_client import LLMClient
@@ -16,7 +16,7 @@ LATER_ROUND_TEMPLATE = (
     "Here are the solutions from other agents in the previous round.\n"
     "{other_responses}\n\n"
     "Based on these and your own previous reasoning, provide an updated solution. "
-    "End with a line '#### N' giving the final numeric answer."
+    + FORMAT_INSTR + "."
 )
 
 

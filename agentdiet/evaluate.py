@@ -21,7 +21,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 from agentdiet import compress
-from agentdiet.agents import SYNTHESIZER_PROMPT
+from agentdiet.agents import FORMAT_INSTR, SYNTHESIZER_PROMPT
 from agentdiet.compress import Policy
 from agentdiet.config import Config
 from agentdiet.dataset import parse_answer
@@ -84,7 +84,7 @@ EVAL_USER_TEMPLATE = (
     "You are reviewing a transcript of other agents' reasoning on this "
     "math problem:\n\n{question}\n\n"
     "Transcript (compressed):\n\n{history}\n\n"
-    "Produce your own final answer. End with '#### N'."
+    "Produce your own final answer. " + FORMAT_INSTR + "."
 )
 
 

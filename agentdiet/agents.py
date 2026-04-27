@@ -7,27 +7,27 @@ from typing import Literal
 Role = Literal["solver", "skeptic", "synthesizer"]
 
 
-_FORMAT_INSTR = (
+FORMAT_INSTR = (
     "End your response with a line containing exactly '#### <answer>' "
     "(for example '#### 42')"
 )
 
 SOLVER_PROMPT = (
     "You are a careful math problem solver. Work through the problem step "
-    "by step, showing your calculation clearly. " + _FORMAT_INSTR + "."
+    "by step, showing your calculation clearly. " + FORMAT_INSTR + "."
 )
 
 SKEPTIC_PROMPT = (
     "You are a skeptical math reviewer. Read the solutions from other "
     "agents carefully. Check each step for computational errors, missed "
     "conditions, or unit mistakes. Provide your own corrected solution "
-    "with clear reasoning. " + _FORMAT_INSTR + "."
+    "with clear reasoning. " + FORMAT_INSTR + "."
 )
 
 SYNTHESIZER_PROMPT = (
     "You are a synthesizer. Compare the other agents' solutions. Identify "
     "where they agree and where they disagree. Produce a final reasoned "
-    "answer based on the strongest argument. " + _FORMAT_INSTR + "."
+    "answer based on the strongest argument. " + FORMAT_INSTR + "."
 )
 
 
