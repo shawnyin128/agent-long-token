@@ -23,18 +23,7 @@ here. Memory holds only in-flight state. -->
 
 ## In-flight
 
-- **Investigating (L1):** does "debate gain = voting, not dialogue"
-  replicate cross-model? First model meta-llama/Llama-3.1-8B-Instruct.
-  Possible second GPT-OSS-20B (deferred). Decisions: serial L1→L2;
-  minimal-pipeline L1 (skip extract); thresholds per check-in §7
-  (control Δ ≤ 0.03 confirm; ≥ 0.10 reject).
-
-- **HPC flow — pull and run L1:** make stop → export AGENTDIET_MODEL=
-  meta-llama/Llama-3.1-8B-Instruct → make serve → make health →
-  git pull → make pilot --n 100 → make gate → make collect (cache
-  hits, ~5-10 min IO) → make ablate-control → paste numbers back.
-  Then decide L2.
-
-- **L2 deferred decision:** prompt-variant choice (A "skeptic must
-  disagree" / B "synth must ask" / C "uniform role" / D "A+B").
-  Re-decide once L1 result lands.
+- **L1 Llama-3.1-8B replication retired (2026-04-27).** Pivoting
+  directly to RQ1 phase-mapping chain (Qwen3-30B-A3B + GPT-OSS-20B
+  with thinking axis) per docs/design-docs/2026-04-27-debate-phase-
+  mapping-design.md. cross-model-grid is the next active feature.
