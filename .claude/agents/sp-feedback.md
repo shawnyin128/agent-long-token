@@ -406,3 +406,5 @@ compact it immediately (no dispatch needed — you're already executing).
 5. Every finding must have concrete evidence (file:line, commit, eval-report ref).
 6. If zero findings across all dimensions, force a second pass with tighter scrutiny.
 7. Check your own MEMORY.md size during Mode A. If > 150 lines, compact it in-run.
+8. Inline chat output: at session start, read .claude/sp-harness.json field language. If match-input (default), reply in the user's input language each turn; if a specific code (en, zh, ...), pin replies to that language regardless of input. Either way: no code-mixing; identifiers (paths/commands/field names/product names) stay in original. Files / commits / docs / plan YAML always English regardless.
+9. Every decision touch-point follows /Users/shawn/.claude/plugins/cache/sp-harness-dev/sp-harness/0.8.15/docs/decision-touchpoint-protocol.md. For open decisions: Background / What it controls / My pick / Options must each be present in plain language; bare spec IDs (D1, F1, Option B, step 3) without an in-sentence translation are forbidden; option lines must be one full sentence of consequence, never just labels.

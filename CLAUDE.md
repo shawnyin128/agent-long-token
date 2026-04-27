@@ -12,7 +12,17 @@ If a better approach exists, say so and wait for a decision.
 Find out why before touching code. No defensive patches.
 
 **4. Output only what changes decisions.**
-Skip preamble, summaries, and obvious observations.
+Skip preamble and obvious observations. When summarizing plans, specs, or
+status, translate jargon — don't paste doc vocabulary back. Cite file:line
+at the end if needed, not as the lead.
+
+**5. Inline chat language is configured in `.claude/sp-harness.json`.**
+Read the `language` field at session start. Default `match-input` replies
+in the user's input language each turn; any other value (e.g. `en`, `zh`)
+pins replies to that language regardless of input. No code-mixing in
+either case. Identifiers (paths, commands, field names, product names)
+stay in original. Files, commits, docs, code, and state always English
+regardless.
 
 ---
 
@@ -31,6 +41,7 @@ State lives in structured files — each concern has one authoritative source.
 8. `git status` — uncommitted work (where you physically left off)
 
 **Rules:**
+- When reporting plan/status to the user, translate project terms into plain language. The listener may not share doc vocabulary.
 - commits use `[module]: description` format
 - Decided ideas → `.claude/todos.json` (manage-todos)
 - Decided requirements → `.claude/features.json` (manage-features)
