@@ -27,3 +27,13 @@ here. Memory holds only in-flight state. -->
   directly to RQ1 phase-mapping chain (Qwen3-30B-A3B + GPT-OSS-20B
   with thinking axis) per docs/design-docs/2026-04-27-debate-phase-
   mapping-design.md. cross-model-grid is the next active feature.
+
+- **4 pre-existing test failures in RQ0 subsystems** (surfaced by
+  hygiene scan 2026-04-27, not regressions): tolerate_latex_escapes
+  ::test_fixes_latex_command_{frac,times} (regex edge case);
+  type_level_ablation::test_reconstruct_emits_empty_string_for_
+  fully_masked_message (expects span-level, default switched to
+  message-level in f7e5315); type_level_ablation::test_different_
+  drop_types_produce_fresh_calls (cache-key invariant under
+  message-granularity). Undecided whether to fix — RQ0 pipeline
+  may be retired entirely under phase-mapping pivot.
