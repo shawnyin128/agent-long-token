@@ -1,0 +1,573 @@
+plan_id: prompt-robustness
+iteration: 1
+based_on: docs/design-docs/2026-04-27-debate-phase-mapping-design.md
+
+problem: |
+  Spec §4.5 asks whether the SC-collapse pattern depends on prompt
+  design. We need two new prompt variants beyond the existing
+  cooperative one — adversarial-strict (skeptic must disagree;
+  synthesizer must enumerate disagreement points) and symmetric
+  (3 identical agents, no role differentiation) — plumbed through
+  the grid runner so the user can run the 6-cell sub-grid
+  (Qwen3 + GSM8K, 3 variants x thinking on/off) without manual
+  prompt swapping. Without this, we can't tell whether the
+  RQ0 collapse is a prompt-induced artifact or a regime-level
+  property.
+
+steps:
+  - id: S1
+    desc: agentdiet/prompts.py registry with 3 named variants
+    approach: |
+      New module agentdiet/prompts.py exposes:
+        PROMPT_VARIANTS: dict[str, list[str]] mapping
+          {"cooperative", "adversarial-strict", "symmetric"} to
+          a list of three role-aligned system prompts (one per
+          agent slot 0/1/2).
+
+        cooperative: re-exports existing SOLVER_PROMPT,
+          SKEPTIC_PROMPT, SYNTHESIZER_PROMPT from agentdiet.agents
+          unchanged. This is the baseline for all RQ1 grids and
+          must continue to give byte-identical strings.
+
+        adversarial-strict: same role triplet, but with stricter
+          obligations — skeptic prompt requires "you MUST identify
+          at least one concrete disagreement with the proposer's
+          solution, and explain why it is wrong"; synthesizer
+          prompt requires "before resolving, enumerate every
+          disagreement point you saw between the prior agents and
+          state which side you favor on each".
+
+        symmetric: 3 IDENTICAL prompts, all using the existing
+          SOLVER_PROMPT. No role differentiation. This is the
+          "diversity comes only from sampling noise" baseline; under
+          temp=0 it is expected to converge to one answer.
+
+      Module exposes get_variant(name: str) -> list[str] with a
+      clear KeyError on unknown variant names.
+    files:
+      create:
+        - agentdiet/prompts.py
+        - tests/prompt_robustness/__init__.py
+        - tests/prompt_robustness/test_prompts_registry.py
+      modify: []
+      test: []
+    test_plan:
+      - "PROMPT_VARIANTS has exactly the three documented keys"
+      - "PROMPT_VARIANTS['cooperative'] equals
+        [SOLVER_PROMPT, SKEPTIC_PROMPT, SYNTHESIZER_PROMPT] from
+        agentdiet.agents (byte-identical, regression guard)"
+      - "PROMPT_VARIANTS['adversarial-strict'] keeps role labels but
+        contains the words 'disagreement' / 'enumerate' / 'wrong'
+        in the appropriate slots"
+      - "PROMPT_VARIANTS['symmetric'] is three IDENTICAL strings"
+      - "get_variant('unknown') raises KeyError with helpful message
+        listing valid names"
+      - "every variant's prompts contain the FORMAT_INSTR shared
+        constant so the parser keeps working"
+    coverage_min: 95
+
+  - id: S2
+    desc: thread prompts through agents + run_debate + grid.runner
+    approach: |
+      agentdiet/agents.py: make_default_agents gains an optional
+      prompts: list[str] | None kwarg. When None, behavior is
+      identical to today (uses SYSTEM_PROMPTS by role). When a list
+      is passed, agents are constructed with role labels still
+      assigned by DEFAULT_ROLE_ORDER but system_prompt is taken
+      from the passed list at index agent_id. This preserves Agent
+      shape (id, role, system_prompt) so downstream code keeps
+      working.
+
+      agentdiet/debate/__init__.py: run_debate gains
+      prompt_variant: str = "cooperative" kwarg. When passed, it
+      resolves the variant via prompts.get_variant(prompt_variant)
+      and forwards to make_default_agents. Existing callers don't
+      pass it; they get cooperative — byte-identical to the prior
+      behavior.
+
+      agentdiet/grid/runner.py: run_debate_q_math forwards a new
+      prompt_variant kwarg to run_debate. run_voting_q_math and
+      run_sa_math keep using SOLVER_PROMPT regardless of variant
+      (SA / voting are the comparison baselines, not "debate with
+      different prompts").
+
+      Why only math: spec §4.5 explicitly limits this sub-grid to
+      Qwen3 + GSM8K. Code-domain prompts are out of scope.
+    files:
+      create: []
+      modify:
+        - agentdiet/agents.py
+        - agentdiet/debate/__init__.py
+        - agentdiet/grid/runner.py
+      test:
+        - tests/prompt_robustness/test_threading.py
+    test_plan:
+      - "make_default_agents() with no prompts kwarg produces
+        identical Agent.system_prompt list to today (regression)"
+      - "make_default_agents(prompts=['A','B','C']) produces three
+        agents with system_prompt fields A/B/C"
+      - "make_default_agents(prompts=['only-one']) when n_agents=3
+        raises ValueError"
+      - "run_debate without prompt_variant produces identical
+        Dialogue.meta['roles'] as before"
+      - "run_debate(prompt_variant='symmetric') gives every agent
+        the same system_prompt; spy on backend.chat_full args to
+        confirm"
+      - "run_debate(prompt_variant='adversarial-strict') puts the
+        adversarial skeptic prompt in slot 1; backend spy confirms"
+      - "run_debate_q_math forwards prompt_variant kwarg to
+        run_debate"
+    coverage_min: 90
+
+  - id: S3
+    desc: CellSpec.prompt_variant + cell_dir + cli/grid.py flag
+    approach: |
+      agentdiet/grid/types.py: CellSpec gains
+      prompt_variant: str = "cooperative" field. cell_dir keeps the
+      old format when prompt_variant == "cooperative" (no breakage
+      to existing artifacts/grid/{...}/ trees) and appends
+      "__pv-{variant}" suffix otherwise. So
+      "Qwen__Qwen3-30B-A3B__gsm8k__t0" stays the same for the main
+      grid; sub-grid runs go to
+      "Qwen__Qwen3-30B-A3B__gsm8k__t0__pv-adversarial-strict" /
+      "...__pv-symmetric".
+
+      agentdiet/cli/grid.py: parse_cell_spec accepts an optional
+      4th colon-segment "model_family:dataset:thinking:variant"
+      where variant defaults to "cooperative" if absent. CLI also
+      adds --prompt-variant {cooperative,adversarial-strict,
+      symmetric} as a global flag that applies to every --cell on
+      that invocation when the spec itself doesn't include a 4th
+      segment. Per-cell explicit variant in the spec wins over the
+      global flag.
+
+      A new --prompt-sub-grid shortcut expands to the 6-cell
+      sub-grid: qwen3:gsm8k:0:cooperative, qwen3:gsm8k:1:cooperative,
+      qwen3:gsm8k:0:adversarial-strict, qwen3:gsm8k:1:adversarial-strict,
+      qwen3:gsm8k:0:symmetric, qwen3:gsm8k:1:symmetric. (Cooperative
+      cells in the sub-grid will collide with the main grid's
+      cooperative cells on disk, which is fine — the resume guard
+      reuses them.)
+
+      orchestrator.run_cell takes the cell.prompt_variant and
+      forwards it to runner.run_debate_q_math via a stored
+      attribute on CellSpec. SA + voting are not affected.
+    files:
+      create: []
+      modify:
+        - agentdiet/grid/types.py
+        - agentdiet/cli/grid.py
+        - agentdiet/grid/orchestrator.py
+        - agentdiet/grid/runner.py
+      test:
+        - tests/prompt_robustness/test_cli_extension.py
+    test_plan:
+      - "CellSpec defaults prompt_variant='cooperative' and
+        existing CellSpec callers see no change"
+      - "cell_dir for prompt_variant='cooperative' equals the
+        prior format — regression guard"
+      - "cell_dir for prompt_variant='adversarial-strict' appends
+        '__pv-adversarial-strict'"
+      - "parse_cell_spec('qwen3:gsm8k:0') still parses with
+        prompt_variant='cooperative'"
+      - "parse_cell_spec('qwen3:gsm8k:0:adversarial-strict') sets
+        the variant"
+      - "parse_cell_spec rejects unknown variant names"
+      - "CLI --prompt-sub-grid expands to exactly 6 cells, mixing
+        thinking on/off across the 3 variants"
+      - "main() with --cell qwen3:gsm8k:0:symmetric routes through
+        the orchestrator and writes a directory ending in
+        '__pv-symmetric'"
+    coverage_min: 85
+
+  - id: S4
+    desc: integration tests + cooperative byte-identity guards
+    approach: |
+      Cross-cutting tests beyond per-step coverage:
+
+        - End-to-end on a synthetic backend: the prompt-sub-grid
+          shortcut runs all 6 cells through the orchestrator and
+          writes 6 distinct artifact directories (cooperative cells
+          land in the existing main-grid path; pv-suffixed cells
+          land in dedicated subdirs). Synthetic backend produces
+          per-question answers regardless of prompt content; the
+          test asserts paths and count, not accuracy delta.
+
+        - Prompt content regression: when the sub-grid runs the
+          cooperative cell, the actual messages reaching the
+          backend are byte-for-byte the same as a baseline cell
+          with no --prompt-variant flag. Guarantees the "shared
+          cooperative cell" is real.
+
+        - Adversarial vs cooperative system-prompt spy: in a 1-question
+          run, the system_prompt strings reaching the backend differ
+          across variants exactly in the slots we expect (slot 1 for
+          adversarial-strict; all 3 for symmetric).
+
+      No new figure / analysis code in this feature — the
+      cross-variant comparison is part of phase-mapping-analysis
+      (next feature), which reads the per-cell summary.json files
+      uniformly and stratifies by the cell_dir suffix.
+    files:
+      create:
+        - tests/prompt_robustness/test_end_to_end.py
+      modify: []
+      test: []
+    test_plan:
+      - "prompt-sub-grid shortcut writes 6 cell directories on disk"
+      - "cooperative cell from sub-grid has the same artifact path
+        as a main-grid cooperative cell"
+      - "adversarial-strict run sends the adversarial skeptic prompt
+        to backend; cooperative run does not"
+      - "symmetric run sends 3 identical system prompts in one
+        round; cooperative does not"
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      How does prompt_variant flow through the existing CellSpec
+      schema without breaking the on-disk artifacts already
+      written by thinking-axis-grid?
+    planner_view: |
+      Add prompt_variant: str = "cooperative" to CellSpec.
+      cell_dir keeps the prior format when variant is cooperative
+      (preserves all existing artifacts/grid/{...}/ paths) and
+      appends "__pv-{variant}" otherwise. Existing CellSpec
+      constructions that don't pass the field get cooperative.
+    confidence: 90
+    rationale: |
+      Adds an optional field with a back-compat default. cell_dir
+      branch on cooperative-default keeps the main-grid path
+      unchanged for already-written cells and lets the sub-grid
+      cohabit the same parent directory.
+    alternatives:
+      - option: always-suffix-cell_dir
+        rejected_because: |
+          Would rename artifacts/grid/{...}/ for the main grid even
+          when nothing changed. Breaks the resume contract.
+      - option: separate-output-tree-for-sub-grid
+        rejected_because: |
+          Forces the analysis feature to read two parallel trees
+          and merge them. The flat parent + suffix approach lets
+          phase-mapping-analysis glob a single directory.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: |
+      What exact wording goes into the adversarial-strict skeptic
+      and synthesizer prompts?
+    planner_view: |
+      Skeptic: keep the existing role framing, prepend "You MUST
+      identify at least one concrete disagreement with the prior
+      agents' work and explain why their step was wrong before
+      proposing your own solution." Synthesizer: prepend "Before
+      resolving, list every disagreement point you observed
+      between prior agents and state which side you favor on each
+      with a one-line reason." Both retain the FORMAT_INSTR tail
+      so the parser keeps working.
+    confidence: 85
+    rationale: |
+      Spec §4.5 names the obligations directly. Wording stays
+      surgical so the only deltas vs. cooperative are the
+      adversarial / synthesis-enumeration sentences.
+    alternatives:
+      - option: rewrite-from-scratch
+        rejected_because: |
+          Bigger surface for unintended drift; harder to attribute
+          a measured Delta change to the role obligation alone vs.
+          incidental phrasing changes.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: |
+      What does symmetric mean operationally — do all 3 agents
+      get a brand-new "neutral solver" prompt, or do they all get
+      the existing SOLVER_PROMPT?
+    planner_view: |
+      All 3 agents get the existing SOLVER_PROMPT. Spec §4.5
+      defines symmetric as "3 identical agents, no role" — the
+      existing SOLVER_PROMPT IS the no-role neutral solver. Reusing
+      it keeps the comparison clean: the only delta vs. cooperative
+      is "3 solvers" instead of "solver + skeptic + synthesizer".
+    confidence: 85
+    rationale: |
+      Reusing SOLVER_PROMPT prevents an additional confound (new
+      neutral-prompt phrasing). It also matches how the SA baseline
+      is constructed in the main grid (also SOLVER_PROMPT).
+    alternatives:
+      - option: write-new-neutral-prompt
+        rejected_because: |
+          Adds an extra prompt that we'd then need to justify.
+          Reusing SOLVER_PROMPT keeps fewer moving parts.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: |
+      Where does the cross-variant comparison code live — in this
+      feature or in phase-mapping-analysis?
+    planner_view: |
+      In phase-mapping-analysis. That feature already needs to read
+      per-cell summary.json files; once cell_dir suffix encodes the
+      variant, stratifying by suffix is a one-line filter on top
+      of the same loader. Putting it here would duplicate the
+      bootstrap + figure code prematurely.
+    confidence: 85
+    rationale: |
+      Single source of truth for "read summary.json -> compute
+      Delta + CI". Otherwise we maintain two analyses and risk
+      drift.
+    alternatives:
+      - option: put-comparison-here
+        rejected_because: |
+          Forces this feature to depend on bootstrap / figure code
+          that doesn't exist yet, and the same code will be needed
+          in the next feature anyway.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: |
+      Does the symmetric variant also affect run_voting? Voting
+      uses SOLVER_PROMPT today and only one role concept, so
+      "symmetric" is redundant there — but should the runner
+      enforce that?
+    planner_view: |
+      No enforcement; voting always uses SOLVER_PROMPT regardless
+      of variant. Symmetric only changes the debate condition's 3
+      role prompts. Same for SA — uses SOLVER_PROMPT regardless.
+      The variant only changes what the 3 debate agents see.
+    confidence: 90
+    rationale: |
+      Spec §4.5 is about debate's role-prompt design. SA and voting
+      are the baselines; perturbing them defeats the comparison.
+    alternatives:
+      - option: also-vary-voting-prompt
+        rejected_because: |
+          Conflates the manipulation. We want to isolate "does
+          changing debate's role prompts change the SC-collapse
+          result?", not "does changing every prompt change the
+          result?".
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 95
+    notes: |
+      agentdiet/prompts.py registers cooperative (re-exports of
+      SOLVER/SKEPTIC/SYNTHESIZER), adversarial-strict (skeptic with
+      disagreement obligation, synthesizer enumerating disagreements),
+      and symmetric (3 SOLVER_PROMPT). get_variant raises KeyError
+      with valid-name list. 10 tests pass; cooperative is
+      byte-identical to the existing prompts.
+    commits:
+      - 6f73608
+  S2:
+    status: done
+    confidence: 88
+    notes: |
+      agents.make_default_agents accepts prompts: list[str] | None
+      kwarg with length-mismatch ValueError; debate.run_debate gains
+      prompt_variant: str = "cooperative" with cooperative branch
+      using the original make_default_agents path so existing tests
+      pass byte-identically; grid.runner.run_debate_q_math forwards
+      prompt_variant. Dialogue.meta now stamps prompt_variant. 106
+      tests across prompt_robustness + debate_runner +
+      thinking_axis_grid all green.
+    commits:
+      - e1be827
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      CellSpec gained prompt_variant: str = "cooperative" with
+      cell_dir() preserving the legacy format for cooperative cells
+      and appending "__pv-{variant}" otherwise. orchestrator
+      forwards cell.prompt_variant. cli/grid.py parse_cell_spec
+      accepts an optional 4th colon segment, --prompt-variant global
+      flag, and --prompt-sub-grid 6-cell shortcut.
+    commits:
+      - a62f9fb
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      End-to-end integration tests confirm the prompt-sub-grid CLI
+      produces 6 distinct cell directories, that cooperative cells
+      share path with main-grid cooperative cells (no duplicate
+      directory), and that adversarial-strict text reaches the
+      backend in debate slot 1 while cooperative does not. Full
+      repo: 621 passed.
+    commits:
+      - e536316
+
+unplanned_changes:
+  - loc: agentdiet/grid/runner.py
+    what: |
+      Dropped unused `dataclass` and `Callable` imports during S2.
+    reason: |
+      Pylint flagged them after S2's edit pass. Same hygiene class
+      as in coding-eval-infra.
+    confidence: 95
+  - loc: agentdiet/grid/orchestrator.py
+    what: |
+      Dropped unused `CodeQuestion` and `load_summary` imports during
+      S3.
+    reason: |
+      Pylint flagged after the prompt_variant forward edit.
+    confidence: 95
+  - loc: agentdiet/cli/grid.py
+    what: |
+      Dropped unused `os` import during S3.
+    reason: |
+      Pylint flagged.
+    confidence: 95
+
+flags_for_eval:
+  - "Symmetric variant collapses round-1 cache hits because all 3
+     agents have identical (system, user) message pairs at temp=0.
+     Test_run_debate_q_math_total_tokens_positive_under_each_variant
+     handles this — 135-token strict equality only on cooperative /
+     adversarial-strict; symmetric just asserts > 0. Real HPC runs
+     with usage from a live backend may show smaller token totals
+     for symmetric than the other two variants, which is expected."
+  - "Cell directory naming. cell_dir() branches on prompt_variant
+     == 'cooperative' to preserve legacy paths. If a future variant
+     name happens to be 'cooperative' (it shouldn't), or if the
+     default is renamed, the regression guard breaks. Locking
+     PROMPT_VARIANT_NAMES would catch this."
+  - "Voting baseline still uses SOLVER_PROMPT regardless of variant
+     per D5; this is the intended scope for the sub-grid (variant
+     only changes debate). Cross-variant Δ comparison is left to
+     phase-mapping-analysis."
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: |
+              CellSpec.prompt_variant defaults to "cooperative".
+              cell_dir() at agentdiet/grid/types.py:31-36 returns the
+              legacy format when prompt_variant=="cooperative" and
+              appends "__pv-{variant}" otherwise. Confirmed by
+              test_cell_dir_cooperative_unchanged_format (legacy
+              regression) and test_cell_dir_adversarial_strict_appends_suffix.
+          - id: D2
+            verified: true
+            evidence: |
+              agentdiet/prompts.py:_ADVERSARIAL_SKEPTIC contains
+              "MUST identify at least one concrete disagreement" +
+              "explain why their step was wrong";
+              _ADVERSARIAL_SYNTHESIZER contains "list every
+              disagreement point". Both keep the FORMAT_INSTR tail
+              (test_every_variant_carries_format_instr verifies).
+          - id: D3
+            verified: true
+            evidence: |
+              PROMPT_VARIANTS["symmetric"] is three identical
+              SOLVER_PROMPT references (test_symmetric_three_identical_strings
+              + test_symmetric_uses_solver_prompt).
+          - id: D4
+            verified: true
+            evidence: |
+              No bootstrap/figure code added in this feature; the
+              cross-variant Δ comparison is deferred to
+              phase-mapping-analysis. Confirmed by absence of any
+              new analysis module in agentdiet/grid/ or
+              agentdiet/analysis/.
+          - id: D5
+            verified: true
+            evidence: |
+              run_voting_q_math signature unchanged (still takes only
+              question, cell, llm_client, n_samples) and uses
+              SOLVER_PROMPT. run_sa_math also unchanged. Only
+              run_debate_q_math added prompt_variant kwarg.
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "Drop unused dataclass + Callable imports from runner.py (S2 hygiene)"
+          - "Drop unused CodeQuestion + load_summary imports from orchestrator.py (S3 hygiene)"
+          - "Drop unused os import from cli/grid.py (S3 hygiene)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 10
+          fail: 0
+          coverage: 100
+          tests_file: tests/prompt_robustness/test_prompts_registry.py
+        S2:
+          pass: 11
+          fail: 0
+          coverage: 96  # measured against agentdiet.agents + agentdiet.debate
+          tests_file: tests/prompt_robustness/test_threading.py
+        S3:
+          pass: 14
+          fail: 0
+          coverage: 100  # for new prompt_variant code (CellSpec, cell_dir, parser);
+                          # cli/grid.py overall at 83% combined-suite (unchanged
+                          # factory-path gap inherited from thinking-axis-grid)
+          tests_file: tests/prompt_robustness/test_cli_extension.py
+        S4:
+          pass: 5
+          fail: 0
+          coverage: 90  # cross-cutting; covers prompt routing through CLI to backend
+          tests_file: tests/prompt_robustness/test_end_to_end.py
+
+      blockers: []
+      regressions: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/cli/grid.py
+        what: |
+          parse_cell_spec accepts "qwen3:gsm8k:0" and treats it as
+          cooperative, and accepts "qwen3:gsm8k:0:cooperative" as the
+          same cell. CLI's dedup is string-based, so passing both
+          spec forms in the same invocation runs the cell twice
+          (the second is a no-op via resume). Either canonicalize
+          both forms to the 4-segment shape post-parse before dedup,
+          or document the dual entry. Not blocking — same on-disk
+          path either way.
+      - loc: agentdiet/grid/types.py
+        what: |
+          cell_dir's "cooperative" branch is a string-equality test.
+          If a future variant happens to be named "cooperative" or
+          if PROMPT_VARIANT_NAMES is renamed, the legacy-format
+          regression guard breaks silently. Lock the registry name
+          via a const re-import or lift the variant list into a
+          shared constant module that both prompts.py and types.py
+          reference.
+      - loc: tests/prompt_robustness/test_threading.py
+        what: |
+          test_run_debate_adversarial_strict_puts_skeptic_in_slot_1
+          uses n_rounds=1 to keep the spy clean. A multi-round case
+          (n_rounds=3) would also verify that the adversarial
+          obligation persists across rounds — currently we only
+          confirm round-1 dispatch.
+      - loc: agentdiet/cli/grid.py
+        what: |
+          --prompt-sub-grid combined with --all-thinking-off both
+          contain qwen3:gsm8k:0 (the all-off form is bare,
+          sub-grid form is qwen3:gsm8k:0:cooperative). Different
+          string keys but identical cell_dir. Resume saves the cost
+          but the duplicate entry confuses the per-cell status line
+          printed by main(). Canonical-string dedup would fix it.
+    final_verdict: MERGE_READY

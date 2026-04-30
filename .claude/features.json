@@ -346,7 +346,7 @@
         "Run Qwen3-30B-A3B + GSM8K x 3 prompt variants x thinking on/off (6 cells x 3 conditions)",
         "Compare Delta(debate-voting) across prompt variants; flag any variant where Delta becomes statistically distinguishable from 0"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "phase-mapping-analysis",
