@@ -39,9 +39,15 @@ def run_debate(
     agents: Optional[list[Agent]] = None,
     seed: Optional[int] = None,
     thinking: bool = False,
+    prompt_variant: str = "cooperative",
 ) -> Dialogue:
     if agents is None:
-        agents = make_default_agents(n_agents)
+        if prompt_variant == "cooperative":
+            agents = make_default_agents(n_agents)
+        else:
+            from agentdiet.prompts import get_variant
+            prompts = get_variant(prompt_variant)
+            agents = make_default_agents(n_agents, prompts=prompts)
     elif len(agents) != n_agents:
         raise ValueError(f"n_agents={n_agents} but got {len(agents)} agents")
 
@@ -104,6 +110,7 @@ def run_debate(
             "n_rounds": n_rounds,
             "seed": seed,
             "thinking": thinking,
+            "prompt_variant": prompt_variant,
             "roles": [a.role for a in agents],
             "per_agent_final_answers": {str(k): v for k, v in per_agent.items()},
             "total_prompt_tokens": total_prompt_tokens,

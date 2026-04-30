@@ -7,8 +7,7 @@ aggregates these into a ConditionRecord per cell.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Literal, Optional
 
 from agentdiet.agents import SOLVER_PROMPT
 from agentdiet.dataset import Question, parse_answer
@@ -118,6 +117,7 @@ def run_voting_q_math(
 
 def run_debate_q_math(
     question: Question, cell: CellSpec, llm_client: LLMClient,
+    prompt_variant: str = "cooperative",
 ) -> QuestionResult:
     dialogue = run_math_debate(
         question=question,
@@ -126,6 +126,7 @@ def run_debate_q_math(
         n_agents=3, n_rounds=3,
         temperature=0.0,
         thinking=cell.thinking,
+        prompt_variant=prompt_variant,
     )
     final = dialogue.final_answer
     correct = final is not None and str(final).strip() == str(question.gold_answer).strip()

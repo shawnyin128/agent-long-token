@@ -64,9 +64,25 @@ class Agent:
         self.history.append({"role": "assistant", "content": assistant_content})
 
 
-def make_default_agents(n_agents: int = 3) -> list[Agent]:
+def make_default_agents(
+    n_agents: int = 3,
+    prompts: list[str] | None = None,
+) -> list[Agent]:
     if n_agents > len(DEFAULT_ROLE_ORDER):
         raise ValueError(
             f"Only {len(DEFAULT_ROLE_ORDER)} default roles defined; requested {n_agents}"
         )
-    return [Agent.make(i, DEFAULT_ROLE_ORDER[i]) for i in range(n_agents)]
+    if prompts is None:
+        return [Agent.make(i, DEFAULT_ROLE_ORDER[i]) for i in range(n_agents)]
+    if len(prompts) != n_agents:
+        raise ValueError(
+            f"prompts list has {len(prompts)} entries; requested {n_agents} agents"
+        )
+    return [
+        Agent(
+            id=i,
+            role=DEFAULT_ROLE_ORDER[i],
+            system_prompt=prompts[i],
+        )
+        for i in range(n_agents)
+    ]
