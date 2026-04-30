@@ -1,0 +1,674 @@
+plan_id: thinking-axis-grid
+iteration: 1
+based_on: docs/design-docs/2026-04-27-debate-phase-mapping-design.md
+
+problem: |
+  We have the building blocks (clients, voting, code-domain debate,
+  judges, dataset adapters) but no per-cell experiment runner.
+  Without it, the user cannot translate "16 model x dataset x
+  thinking cells, each with SA/voting/debate" into a single HPC
+  command and a reproducible artifact tree, and the phase-mapping
+  analysis (next feature) has nothing to read. This feature builds
+  agentdiet/grid/ + agentdiet/cli/grid.py so each cell becomes one
+  invocation that yields artifacts/grid/{cell}/{sa,voting,debate,summary}.json.
+
+steps:
+  - id: S1
+    desc: grid types + per-condition record schema
+    approach: |
+      Create agentdiet/grid/__init__.py and agentdiet/grid/types.py
+      defining the on-disk schema:
+
+      CellSpec(model: str, model_family, dataset_name: str,
+               thinking: bool) — uniquely identifies a cell.
+      QuestionResult(qid, gold, final_answer, correct: bool,
+                     prompt_tokens, completion_tokens, total_tokens) —
+        per-question row for SA / voting / debate conditions.
+      ConditionRecord(condition: Literal["sa","voting","debate"],
+                      cell: CellSpec,
+                      questions: list[QuestionResult],
+                      n_evaluated: int,
+                      accuracy: float,
+                      total_tokens: int,
+                      meta: dict) — written as
+        artifacts/grid/{cell_dir}/{condition}.json.
+      CellSummary(cell, sa, voting, debate,
+                  calibration: CalibrationResult,
+                  delta_debate_voting: float,
+                  delta_debate_sa: float) — written as summary.json.
+
+      cell_dir(cell: CellSpec) -> str returns
+        "{model_slug}__{dataset_name}__t{0,1}".
+
+      All dataclasses frozen + asdict-serializable. JSON load/save
+      helpers (save_record / load_record) handle round-trip.
+    files:
+      create:
+        - agentdiet/grid/__init__.py
+        - agentdiet/grid/types.py
+        - tests/thinking_axis_grid/__init__.py
+        - tests/thinking_axis_grid/test_types.py
+      modify: []
+      test: []
+    test_plan:
+      - "CellSpec round-trips through dataclasses.asdict + json"
+      - "cell_dir produces 'qwen3__30b-a3b__gsm8k__t0' style strings"
+      - "ConditionRecord with N questions sums total_tokens correctly"
+      - "save_record / load_record round-trip on a tmp_path"
+      - "CellSummary.delta_debate_voting equals
+        debate.accuracy - voting.accuracy"
+    coverage_min: 90
+
+  - id: S2
+    desc: per-condition runners (SA + voting + debate) for math and code
+    approach: |
+      agentdiet/grid/runner.py exposes:
+
+      run_sa(question_or_code_question, cell, llm_client,
+             system_prompt, parser_or_judge) -> QuestionResult.
+        - Issues exactly 1 chat_full(temperature=0, thinking=cell.thinking)
+        - For math: parses answer with parse_answer; correct =
+          parsed == question.gold_answer
+        - For code: extracts code from response (Notes/Code schema if
+          present, else returns whole response as code), runs
+          judge.run on hidden_tests, correct = pass@1 == 1.0
+
+      run_voting_q(question, cell, llm_client, system_prompt, n_samples,
+                   parser_or_judge) -> QuestionResult.
+        - Wraps voting.run_voting (existing) at temperature=0.7, top_p=0.95
+        - For code: sample diversity needed → still uses Sample-id
+          nonce; for each of N samples run judge on PUBLIC tests for
+          functional clustering (existing eval.clustering); evaluate
+          the cluster representative on HIDDEN tests for correctness
+        - For math: existing run_voting + answer parser; correct =
+          final_answer == gold
+
+      run_debate_q(question, cell, llm_client) -> QuestionResult.
+        - For math: agentdiet.debate.run_debate with thinking= forwarded.
+          NOTE: existing run_debate uses chat() (no usage); this step
+          adds thinking + total token tracking by switching to
+          chat_full() internally and aggregating prompt+completion
+          tokens into Dialogue.meta. Tests in tests/debate_runner/
+          must continue to pass.
+        - For code: agentdiet.debate.code_protocol.run_code_debate
+          (already returns total_*_tokens in meta; thinking already
+          forwarded).
+        - For code only: cluster the round-3 code samples via
+          eval.clustering.cluster_by_signature on public_tests,
+          representative is the final_answer, judged on hidden_tests
+          for correctness.
+
+      Helpers:
+        - default_sa_system_prompt(domain: Literal["math","code"]) — SA
+          baseline prompt. Math uses the existing SOLVER_PROMPT (same
+          as RQ0 baseline). Code uses a new generic prompt that
+          requires the Notes/Code schema but explicitly carries no
+          role bias.
+        - aggregate_condition(results: list[QuestionResult], cell,
+          condition_name) -> ConditionRecord — computes accuracy +
+          total_tokens.
+    files:
+      create:
+        - agentdiet/grid/runner.py
+        - tests/thinking_axis_grid/test_runner_math.py
+        - tests/thinking_axis_grid/test_runner_code.py
+      modify:
+        - agentdiet/debate/__init__.py
+      test: []
+    test_plan:
+      - "run_sa on a math question with a synthetic LLMClient that
+         returns '#### 42' produces correct=True when gold='42'"
+      - "run_sa on a code question pipes the response into a
+         SubprocessJudge against hidden_tests; pass@1==1 -> correct=True"
+      - "run_voting_q on math: synthetic backend returning per-sample
+         '#### {sample_id_mod_3 + 7}'; with N=3 majority vote yields '7'"
+      - "run_voting_q on code: 3 samples cluster by public-test
+         signature, representative correct on hidden tests"
+      - "run_debate_q math: synthetic backend, 3x3 = 9 calls, returns
+         a QuestionResult with total_tokens summed across all calls"
+      - "run_debate_q math passes thinking=True through to
+         llm_client.chat_full call args"
+      - "run_debate_q code: 3 round-3 code samples clustered on public
+         tests; representative judged correct on hidden tests"
+      - "default_sa_system_prompt('math') == SOLVER_PROMPT"
+      - "default_sa_system_prompt('code') contains both '## Notes' and
+         '## Code' markers"
+      - "regression: existing tests/debate_runner/ all green after
+         run_debate switches to chat_full"
+    coverage_min: 85
+
+  - id: S3
+    desc: per-cell orchestrator + calibration + summary
+    approach: |
+      agentdiet/grid/orchestrator.py with run_cell(cell: CellSpec,
+        llm_client, dataset, judge_or_none, output_dir, *,
+        n_questions=80, calibration_n_questions=10,
+        force=False) -> CellSummary.
+
+      Sequence per cell:
+        1. Load Dataset.load(); cap to n_questions (or len(qs) if
+           smaller); deterministic order.
+        2. Resume check: if {cell_dir}/sa.json exists and not force,
+           load it; else run SA for each question via runner.run_sa.
+           Same for debate.json (run_debate_q on each question).
+        3. Calibrate N from FIRST calibration_n_questions of (sa,
+           debate). Use voting.calibrate_n on the per-question
+           total_tokens. Write {cell_dir}/sc_calibration.json.
+        4. Resume voting.json same way; if missing run voting with
+           the calibrated N for each question via runner.run_voting_q.
+        5. Aggregate all three into ConditionRecords; compute
+           CellSummary; write summary.json.
+
+      Math cells: judge=None (math parser). Code cells: judge required
+      (SubprocessJudge by default; user can swap EvalscopeJudge later).
+
+      Default n_questions per dataset:
+        - GSM8K: 80 (random sample seed 42 via load_gsm8k(n=80))
+        - AIME multi-year: 80 (already 80 from AIMEMultiYearDataset)
+        - HumanEval+: 80 (cap)
+        - LiveCodeBench: 80 (cap from contest_date filter)
+    files:
+      create:
+        - agentdiet/grid/orchestrator.py
+        - tests/thinking_axis_grid/test_orchestrator.py
+      modify: []
+      test: []
+    test_plan:
+      - "run_cell on a math cell against a synthetic LLM that always
+         returns '#### {gold_answer}' produces accuracy=1.0 across
+         all conditions and a passed CellSummary"
+      - "run_cell on a code cell with a backend that returns the
+         canonical solution + SubprocessJudge produces accuracy>=
+         0.9 (allowing 1 flaky)"
+      - "calibration is invoked on first-10 questions of SA + debate;
+         the resulting sc_calibration.json contains N, N_raw,
+         over_budget_factor, floor_active"
+      - "resume: rerun with the same cell + force=False reuses sa.json
+         and debate.json without re-calling backend"
+      - "force=True overrides resume and re-runs everything"
+      - "missing question artifacts on disk -> reraises clear error
+         (does not silently re-run since cache cuts most cost)"
+      - "CellSummary deltas computed correctly from condition.accuracy"
+    coverage_min: 85
+
+  - id: S4
+    desc: cli/grid.py with --cell, --pilot, --resume, --force
+    approach: |
+      agentdiet/cli/grid.py using argparse. Cells specified as
+      "model_family:dataset_name:thinking_int" e.g.
+      "qwen3:gsm8k:0" or "gpt-oss:livecodebench:1".
+
+      Subcommands / flags:
+        --cell CELL_SPEC      run one cell; can repeat
+        --pilot               shortcut for two specific cells:
+                              qwen3:gsm8k:0 + qwen3:humaneval_plus:0
+        --all-thinking-off    8-cell short-name expansion
+        --all-thinking-on     8-cell short-name expansion
+        --output-dir DIR      default artifacts/grid
+        --force               overwrite existing artifacts
+        --n NUM               override n_questions (default 80)
+
+      The CLI:
+        - Parses cell specs into CellSpec objects, resolving the
+          model HF id (qwen3 -> Qwen/Qwen3-30B-A3B; gpt-oss ->
+          openai/gpt-oss-20b) and the dataset class
+          (gsm8k -> GSM8K wrapper; aime -> AIMEMultiYearDataset;
+          humaneval_plus -> HumanEvalPlusDataset; livecodebench ->
+          LiveCodeBenchDataset).
+        - Constructs OpenAIBackend with the right model_family.
+        - Picks SubprocessJudge for code domains, None for math.
+        - Calls orchestrator.run_cell for each, prints a one-line
+          status per cell.
+    files:
+      create:
+        - agentdiet/cli/grid.py
+        - tests/thinking_axis_grid/test_cli.py
+      modify: []
+      test: []
+    test_plan:
+      - "CLI parses 'qwen3:gsm8k:0' into CellSpec(model='Qwen/Qwen3-30B-A3B',
+         model_family='qwen3', dataset_name='gsm8k', thinking=False)"
+      - "CLI rejects unknown model family / dataset names with a
+         clear error message"
+      - "--pilot expands to exactly 2 cells:
+         qwen3:gsm8k:0 + qwen3:humaneval_plus:0"
+      - "--all-thinking-off expands to 8 cells covering both models
+         x all 4 datasets at thinking=0"
+      - "--all-thinking-on mirrors --all-thinking-off at thinking=1"
+      - "main() with mocked backend/orchestrator produces summary
+         JSONs for each requested cell in tmp output dir"
+      - "--force flag is forwarded through to run_cell"
+    coverage_min: 80
+
+  - id: S5
+    desc: end-to-end grid + resumability + bookkeeping integration tests
+    approach: |
+      Cross-cutting integration coverage beyond per-step tests:
+        - Synthetic-end-to-end: math cell on a 5-question fake dataset
+          + DummyBackend producing per-condition canned responses;
+          run twice — second run is a no-op (cache hit / artifact reuse).
+        - Token totals propagated: ConditionRecord.total_tokens equals
+          sum of per-question total_tokens; CellSummary aggregates
+          match the on-disk artifacts.
+        - Cell_dir naming determinism: same CellSpec produces same
+          on-disk path across two run_cell invocations.
+        - Per-cell JSON schema validator (a small helper test verifying
+          summary.json keys are present + types are right) reusable by
+          phase-mapping-analysis later.
+    files:
+      create:
+        - tests/thinking_axis_grid/test_end_to_end.py
+        - tests/thinking_axis_grid/test_artifact_schema.py
+      modify: []
+      test: []
+    test_plan:
+      - "end-to-end synthetic: 5-question cell completes; produces
+         exactly 4 JSONs in cell_dir; second run with force=False
+         touches no extra backend calls"
+      - "force=True re-runs and overwrites"
+      - "summary.json schema matches what phase-mapping-analysis
+         will consume (delta keys, accuracy keys, calibration block)"
+      - "code cell end-to-end: 3 questions, SubprocessJudge,
+         summary.json reports realistic pass@1"
+    coverage_min: 80
+
+decisions:
+  - id: D1
+    question: |
+      What order do we run the three conditions in per cell, given
+      voting needs an N calibrated from per-question total tokens?
+    planner_view: |
+      Run SA, then debate, then calibrate from first-10 of both
+      using voting.calibrate_n, then run voting. Spec §5.3 says
+      "Run 3x3 debate on first 10 questions" then "Run SA on same 10"
+      then "Compute N" — but it does not constrain whether debate is
+      restricted to those 10 at calibration time. We need the full
+      debate run anyway for the debate condition, so running it once
+      across all 80 and pulling first-10 totals out at calibration
+      time is strictly cheaper than running it twice.
+    confidence: 80
+    rationale: |
+      Avoids running debate twice on the calibration prefix. Token
+      totals on the first 10 questions are identical regardless of
+      whether the rest of the run came before or after.
+    alternatives:
+      - option: run-debate-on-first-10-only-then-voting-then-rest
+        rejected_because: |
+          Doubles cost on the calibration prefix (run those 10
+          questions through debate twice, once for calibration and
+          once for the condition record).
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: |
+      Where is correctness judged for each condition - inline at
+      generation time, or batched at summary time?
+    planner_view: |
+      Inline. Each per-question runner (run_sa, run_voting_q,
+      run_debate_q) takes a parser (math) or judge (code) and stamps
+      `correct: bool` on the QuestionResult immediately. The
+      orchestrator never re-judges — its job is only to aggregate.
+    confidence: 90
+    rationale: |
+      Single-source correctness; no risk of mismatch between
+      generation-time and summary-time grading.
+    alternatives:
+      - option: judge-at-summary-time
+        rejected_because: |
+          Requires re-running judges on stored code samples, which
+          re-pays the subprocess cost. No upside.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: |
+      Default behavior when artifacts exist on disk - resume or
+      re-run?
+    planner_view: |
+      Resume by default. If sa.json / voting.json / debate.json /
+      summary.json exist, load them and skip; --force re-runs that
+      condition. The LLM cache already cuts most cost; this layer
+      cuts cost when the user wants to re-aggregate without redoing
+      sample collection.
+    confidence: 85
+    rationale: |
+      Mirrors how feature-tracker resumes. Lets the user fix the
+      summary aggregator without re-paying generation cost.
+    alternatives:
+      - option: re-run-by-default
+        rejected_because: |
+          Surprising on a multi-day grid; one wrong invocation
+          re-burns compute.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: |
+      How does math run_debate gain thinking + token totals while
+      keeping existing tests passing?
+    planner_view: |
+      Switch the LLM call inside run_debate from chat() to chat_full()
+      and accept thinking through. Aggregate prompt+completion tokens
+      into Dialogue.meta["total_prompt_tokens"] /
+      ["total_completion_tokens"]. The existing test fixtures use
+      DummyBackend which already supports chat_full via the
+      back-compat fallback added in cross-model-grid-client; existing
+      tests should be unaffected because they only assert on
+      .response and message structure.
+    confidence: 80
+    rationale: |
+      Mirrors the code-domain protocol's pattern. The fallback chain
+      (chat_full -> chat -> chat-without-kwargs) was added precisely
+      so this kind of upgrade is non-breaking.
+    alternatives:
+      - option: separate-run_debate_with_thinking
+        rejected_because: |
+          Forces every caller to choose between two near-identical
+          functions. Bad ergonomics; future drift.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: |
+      What does the SA condition use as system prompt for code
+      problems - the proposer prompt, the integrator prompt, or a
+      role-free generic prompt?
+    planner_view: |
+      Role-free generic SA prompt for code. SA represents the
+      "no-debate, no-voting, no-role" baseline; using a debate role
+      prompt would smuggle role bias into the comparison. Math SA
+      reuses SOLVER_PROMPT only because that prompt has no
+      adversarial / synthesis bias built in (it just asks for a
+      careful solution). For code, the analogous "no-bias" prompt
+      asks for the Notes/Code schema with neutral framing.
+    confidence: 70
+    rationale: |
+      Treats SA as the strongest possible non-debate baseline
+      consistent with how RQ0 ran SA on math. The within-cell
+      delta against debate / voting is what the phase diagram
+      reads, so absolute accuracy shifts from prompt choice cancel.
+    alternatives:
+      - option: reuse-PROPOSER_PROMPT
+        rejected_because: |
+          Proposer is one of three debate roles; SA is supposed to
+          be role-free. Using proposer would make SA effectively
+          "1-agent debate," conflating the comparison.
+      - option: no-system-prompt
+        rejected_because: |
+          The Notes/Code schema requirement still has to be
+          communicated to the model; without a system prompt the
+          response shape is unstable.
+    ask_user: false
+    user_decision: null
+
+  - id: D6
+    question: |
+      How is GSM8K wrapped as a Dataset, given core
+      agentdiet.dataset.load_gsm8k returns a list[Question] not
+      a Dataset object?
+    planner_view: |
+      Add a thin GSM8KDataset wrapper class in agentdiet/eval/datasets.py
+      with name="gsm8k", domain="math", and load() calling
+      load_gsm8k(n=80, seed=42, cache_dir=Config.hf_cache_dir). Keeps
+      the new Dataset Protocol uniform across all 4 datasets so the
+      CLI dispatch table is one map.
+    confidence: 90
+    rationale: |
+      Trivial wrapper; gives CLI a uniform interface; requires no
+      changes to load_gsm8k itself.
+    alternatives:
+      - option: special-case-gsm8k-in-CLI
+        rejected_because: |
+          Adds a branch in the CLI dispatch table for one dataset.
+          Will leak into orchestrator if other math datasets follow
+          the same shape.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 95
+    notes: |
+      types.py defines CellSpec / QuestionResult / ConditionRecord /
+      CellSummary as frozen dataclasses + cell_dir() naming +
+      save_record/load_record/save_summary/load_summary atomic JSON
+      I/O. 7 tests pass.
+    commits:
+      - c1b740e
+  S2:
+    status: done
+    confidence: 88
+    notes: |
+      runner.py exposes run_{sa,voting_q,debate_q}_{math,code} +
+      default_sa_system_prompt + aggregate_condition. Math debate
+      (agentdiet/debate/__init__.py) migrated from chat() to
+      chat_full() and now accepts thinking + accumulates token
+      totals into Dialogue.meta. 17 new tests pass; 84 prior
+      debate-runner / full-collection / pilot-gate1 tests still
+      green via the LLMClient back-compat fallback.
+    commits:
+      - 7d8332d
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      orchestrator.py implements run_cell with the SA -> debate ->
+      calibrate-from-first-prefix -> voting -> summary sequence.
+      Resume-by-default with force=True override. Code cells
+      require a judge; math cells use the answer parser. 8 tests
+      cover full math + code pipelines, resume vs force, judge
+      gating, summary round-trip, n_questions cap, empty-input
+      error.
+    commits:
+      - 1008987
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      cli/grid.py with parse_cell_spec, --cell, --pilot,
+      --all-thinking-off/on, --force, --n, --calibration-prefix.
+      Factory injection (client/dataset/judge) lets tests bypass
+      live HF + vLLM. eval/datasets.py adds GSM8KDataset thin
+      wrapper as decided in D6. 12 tests pass.
+    commits:
+      - 9a818a2
+  S5:
+    status: done
+    confidence: 90
+    notes: |
+      11 cross-cutting integration tests across test_end_to_end.py
+      (5 artifact files, resume no-op, token aggregation, cell_dir
+      determinism, code cell smoke) and test_artifact_schema.py
+      (every required key in summary + per-condition records,
+      delta math, calibration prefix recorded). Whole repo:
+      581 passed, 5 skipped (network-gated + matplotlib + 2
+      smoke-artifact skips by design).
+    commits:
+      - d55df7b
+
+unplanned_changes:
+  - loc: agentdiet/eval/datasets.py
+    what: |
+      Added GSM8KDataset thin wrapper that calls load_gsm8k(n=80,
+      seed=42, cache_dir) and exposes it under the Dataset Protocol.
+    reason: |
+      Required by D6 in plan to keep CLI dispatch table uniform
+      across all 4 datasets. Plan listed this in S4's approach but
+      not in its files.create list.
+    confidence: 95
+  - loc: agentdiet/debate/__init__.py
+    what: |
+      Switched run_debate's LLM call from chat() to chat_full() and
+      added thinking kwarg (default False, back-compat). Token totals
+      now accumulate into Dialogue.meta.total_prompt_tokens /
+      total_completion_tokens.
+    reason: |
+      D4 in the plan already authorized this. Listed as planned in
+      S2's modify list, calling out here for emphasis since it
+      changes a core API.
+    confidence: 90
+
+flags_for_eval:
+  - "Math debate now uses chat_full instead of chat. Existing
+     DummyBackend test fixtures relied on the chat() interface; the
+     LLMClient _invoke_backend fallback handles the migration but
+     should be re-verified by re-running the debate-runner suite as
+     part of regression."
+  - "Code voting condition uses an identity parser (lambda text: text)
+     so the raw response is preserved for downstream code extraction
+     + judging. This means voting.run_voting's internal majority_vote
+     sees raw responses as 'parsed answers' which would never agree —
+     so the VotingResult.final_answer is meaningless for code; we
+     don't use it. The cluster_by_signature step is the actual
+     aggregator. Worth confirming this layered design is robust."
+  - "Resume detection is purely path-presence: any sa.json on disk
+     wins, even if it was written by a different code version. No
+     schema-version stamp on records yet. If the orchestrator's
+     output schema ever changes mid-experiment, stale artifacts will
+     deserialize wrong. Acceptable for now (single experiment, fixed
+     schema) but worth a TODO if the grid runs span weeks."
+  - "calibration_prefix is configurable (default 10) but the spec
+     §5.3 hardcodes 10. Verify the default is honored when no flag
+     is passed."
+  - "Token totals from voting.run_voting come back as one bucket
+     (total_tokens) — the per-condition record stores them in
+     QuestionResult.total_tokens with prompt_tokens=0 and
+     completion_tokens=0. Test_e2e_token_totals_match_aggregation
+     confirms the row sum matches the record sum, but the
+     prompt/completion split is empty for voting rows."
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: |
+              orchestrator.run_cell sequence is SA -> debate -> calibrate
+              from first calibration_prefix of (sa, debate) -> voting.
+              Source: agentdiet/grid/orchestrator.py lines 79-130.
+              Confirmed by test_run_cell_math_full_pipeline producing
+              non-empty calibration block.
+          - id: D2
+            verified: true
+            evidence: |
+              run_sa_math / run_sa_code / run_voting_q_math /
+              run_voting_q_code / run_debate_q_math / run_debate_q_code
+              all stamp `correct: bool` on QuestionResult inline. The
+              orchestrator only aggregates via aggregate_condition; no
+              re-judging.
+          - id: D3
+            verified: true
+            evidence: |
+              orchestrator._load_or_run skips runner if path.exists() and
+              not force. test_run_cell_resume_skips_existing confirms a
+              second invocation makes zero new backend calls.
+          - id: D4
+            verified: true
+            evidence: |
+              agentdiet/debate/__init__.py:run_debate now uses
+              llm_client.chat_full(thinking=thinking) and accumulates
+              total_prompt_tokens / total_completion_tokens into
+              Dialogue.meta. 84 prior debate-runner / full-collection /
+              pilot-gate1 tests still green.
+          - id: D5
+            verified: true
+            evidence: |
+              runner.CODE_SA_SYSTEM_PROMPT is role-free (no "proposer" /
+              "reviewer" / "integrator" keywords); enforces Notes/Code
+              schema. test_default_sa_system_prompt_code_has_schema_markers
+              + test_default_sa_system_prompt_unknown_domain_raises pin it.
+          - id: D6
+            verified: true
+            evidence: |
+              agentdiet/eval/datasets.py adds GSM8KDataset wrapper that
+              calls load_gsm8k(n=80, seed=42). cli/grid.py:_build_dataset
+              dispatches uniformly across all 4 datasets through their
+              Dataset Protocol implementations.
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "GSM8KDataset wrapper added to eval/datasets.py (D6 mechanical)"
+          - "agentdiet/debate/__init__.py:run_debate chat -> chat_full + thinking (D4 plan)"
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 7
+          fail: 0
+          coverage: 100
+          tests_file: tests/thinking_axis_grid/test_types.py
+        S2:
+          pass: 17
+          fail: 0
+          coverage: 97
+          tests_file: tests/thinking_axis_grid/{test_runner_math.py, test_runner_code.py}
+        S3:
+          pass: 8
+          fail: 0
+          coverage: 97
+          tests_file: tests/thinking_axis_grid/test_orchestrator.py
+        S4:
+          pass: 12
+          fail: 0
+          coverage: 82
+          tests_file: tests/thinking_axis_grid/test_cli.py
+        S5:
+          pass: 11
+          fail: 0
+          coverage: 98  # cross-cutting; covers grid + cli together
+          tests_file: tests/thinking_axis_grid/{test_end_to_end.py, test_artifact_schema.py}
+
+      blockers: []
+      regressions: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/grid/runner.py
+        what: |
+          _judge_correct returns (False, ...) when hidden_tests is empty.
+          That silently grades an ungradeable question as wrong. Better:
+          raise or return a sentinel `correct=None` so the orchestrator
+          can flag it instead of aggregating into accuracy as if wrong.
+          All four current datasets carry hidden tests, so this is
+          non-blocking — but a future LiveCodeBench schema change with
+          missing hidden tests would inflate the wrong column without a
+          warning.
+      - loc: agentdiet/grid/orchestrator.py
+        what: |
+          Resume check is path-presence only. If a user re-runs a cell
+          with --n=10 after a first run with --n=5, the orchestrator
+          loads the 5-question sa.json/debate.json but voting runs on
+          all 10. Summary deltas are then computed across mixed N. Add
+          a guard: if loaded_record.n_evaluated != requested_n, raise
+          a clear error directing the user to --force.
+      - loc: agentdiet/grid/runner.py
+        what: |
+          run_voting_q_math/code use voting.run_voting which returns
+          one bucket total_tokens. The QuestionResult.prompt_tokens and
+          completion_tokens both end up 0 for voting rows. Per-question
+          row data shows "0 / 0 / N total" which is internally
+          consistent but uninformative if downstream analysis wants
+          input vs output breakdown. Either teach voting.run_voting to
+          return a per-call usage list, or document the zero-split as
+          an intentional shape.
+      - loc: agentdiet/grid/types.py
+        what: |
+          Records carry no schema_version stamp. If the on-disk schema
+          ever changes mid-experiment, load_record will silently drop
+          new fields or fail on missing ones depending on dataclass
+          construction order. Add `schema_version: int = 1` to
+          ConditionRecord and CellSummary; bump when shape changes.
+    final_verdict: MERGE_READY

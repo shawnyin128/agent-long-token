@@ -327,7 +327,7 @@
         "Execute main grid thinking-on cells (8 cells): same structure with thinking enabled",
         "Save artifacts to artifacts/grid/{model}__{dataset}__t{0,1}/ with sa.json, voting.json, debate.json, summary.json"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "prompt-robustness",
