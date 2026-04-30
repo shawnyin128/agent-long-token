@@ -1,0 +1,94 @@
+{
+  "model": "Qwen/Qwen3-30B-A3B",
+  "tested_at": "2026-04-30T15:31:59.729960+00:00",
+  "thinking_on": [
+    {
+      "qid": "q1",
+      "thinking": true,
+      "response_chars": 1114,
+      "response_preview": "<think>\nOkay, let's see. Janet has 16 eggs a day. She eats 3, bakes 4, and sells the rest. I need to figure out how much money she makes per day from selling the eggs. The selling price is $2 each. \n\n",
+      "prompt_tokens": 64,
+      "completion_tokens": 380
+    },
+    {
+      "qid": "q2",
+      "thinking": true,
+      "response_chars": 2321,
+      "response_preview": "<think>\nOkay, so I need to find the speed of a train that traveled 60 miles in 1.5 hours. Hmm, speed is usually calculated by dividing the distance by the time, right? Let me make sure I remember the ",
+      "prompt_tokens": 51,
+      "completion_tokens": 756
+    },
+    {
+      "qid": "q3",
+      "thinking": true,
+      "response_chars": 1681,
+      "response_preview": "<think>\nOkay, let's see. The problem is x + 7 = 19, and I need to find the value of x. Hmm, alright. So, I remember from algebra that to solve for a variable, I need to isolate it on one side of the e",
+      "prompt_tokens": 42,
+      "completion_tokens": 555
+    },
+    {
+      "qid": "q4",
+      "thinking": true,
+      "response_chars": 1933,
+      "response_preview": "<think>\nOkay, let's see. The problem is a shirt that costs $20 with a 25% discount. I need to find the sale price. Hmm, right. So, discounts are usually subtracted from the original price. But how exa",
+      "prompt_tokens": 48,
+      "completion_tokens": 632
+    },
+    {
+      "qid": "q5",
+      "thinking": true,
+      "response_chars": 1075,
+      "response_preview": "<think>\nOkay, let's see. The problem says there are 12 cookies divided equally among 4 friends. I need to find out how many cookies each friend gets. Hmm, division, right? So if you have 12 cookies an",
+      "prompt_tokens": 50,
+      "completion_tokens": 286
+    }
+  ],
+  "thinking_off": [
+    {
+      "qid": "q1",
+      "thinking": false,
+      "response_chars": 243,
+      "response_preview": "First, calculate how many eggs Janet sells:\n\nShe starts with 16 eggs per day.  \nShe eats 3 and bakes 4, so:\n\n$$\n16 - 3 - 4 = 9\n$$\n\nShe sells 9 eggs.  \nShe sells each egg for $2, so:\n\n$$\n9 \\times 2 = 1",
+      "prompt_tokens": 68,
+      "completion_tokens": 95
+    },
+    {
+      "qid": "q2",
+      "thinking": false,
+      "response_chars": 250,
+      "response_preview": "To find the speed of the train in miles per hour, we use the formula:\n\n$$\n\\text{Speed} = \\frac{\\text{Distance}}{\\text{Time}}\n$$\n\nGiven:\n- Distance = 60 miles\n- Time = 1.5 hours\n\n$$\n\\text{Speed} = \\fra",
+      "prompt_tokens": 55,
+      "completion_tokens": 94
+    },
+    {
+      "qid": "q3",
+      "thinking": false,
+      "response_chars": 134,
+      "response_preview": "We are given the equation:\n\n$$\nx + 7 = 19\n$$\n\nTo solve for $ x $, subtract 7 from both sides:\n\n$$\nx = 19 - 7\n$$\n\n$$\nx = 12\n$$\n\n#### 12",
+      "prompt_tokens": 46,
+      "completion_tokens": 61
+    },
+    {
+      "qid": "q4",
+      "thinking": false,
+      "response_chars": 179,
+      "response_preview": "First, calculate the discount amount:  \n25% of $20 = 0.25 \u00d7 20 = $5  \n\nNow subtract the discount from the original price:  \n$20 \u2212 $5 = $15  \n\nThe sale price is **$15**.  \n\n#### 15",
+      "prompt_tokens": 52,
+      "completion_tokens": 66
+    },
+    {
+      "qid": "q5",
+      "thinking": false,
+      "response_chars": 172,
+      "response_preview": "To find out how many cookies each friend gets, we divide the total number of cookies by the number of friends:\n\n$$\n12 \\div 4 = 3\n$$\n\nEach friend gets **3** cookies.\n\n#### 3",
+      "prompt_tokens": 54,
+      "completion_tokens": 49
+    }
+  ],
+  "summary": {
+    "mean_tokens_on": 521.8,
+    "mean_tokens_off": 73.0,
+    "delta": 448.79999999999995,
+    "passed": true
+  }
+}
