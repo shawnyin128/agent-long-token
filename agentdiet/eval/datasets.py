@@ -3,6 +3,7 @@
 LiveCodeBench: contest-date filtered (>= 2024-08), cap 80.
 HumanEval+: prefers evalplus for canonical test suite.
 AIMEMultiYear: custom JSON loader, year-stratified 30/30/20 with seed 42.
+GSM8K: thin wrapper around agentdiet.dataset.load_gsm8k.
 """
 from __future__ import annotations
 
@@ -267,3 +268,31 @@ def _aime_dict_to_question(d: dict, year: int, idx: int) -> Question:
         question=str(d["problem"]),
         gold_answer=str(d["answer"]),
     )
+
+
+# ---------------------------------------------------------------------------
+# GSM8K (thin Dataset wrapper around agentdiet.dataset.load_gsm8k)
+# ---------------------------------------------------------------------------
+
+
+class GSM8KDataset:
+    """Wraps agentdiet.dataset.load_gsm8k as a Dataset Protocol object.
+
+    Defaults: split=test, n=80, seed=42 (RQ1 phase-mapping defaults).
+    """
+    name = "gsm8k"
+    domain: Literal["math"] = "math"
+
+    def __init__(self, split: str = "test", n: int = 80, seed: int = 42,
+                 cache_dir: Optional[Path] = None):
+        self._split = split
+        self._n = n
+        self._seed = seed
+        self._cache_dir = Path(cache_dir) if cache_dir is not None else None
+
+    def load(self) -> list[Question]:
+        from agentdiet.dataset import load_gsm8k
+        return load_gsm8k(
+            split=self._split, n=self._n, seed=self._seed,
+            cache_dir=self._cache_dir,
+        )
