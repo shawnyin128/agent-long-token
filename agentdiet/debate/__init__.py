@@ -38,6 +38,7 @@ def run_debate(
     temperature: float = 0.0,
     agents: Optional[list[Agent]] = None,
     seed: Optional[int] = None,
+    thinking: bool = False,
 ) -> Dialogue:
     if agents is None:
         agents = make_default_agents(n_agents)
@@ -45,15 +46,23 @@ def run_debate(
         raise ValueError(f"n_agents={n_agents} but got {len(agents)} agents")
 
     messages: list[Message] = []
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+
     for r in range(1, n_rounds + 1):
         if r == 1:
             user_content_for_all = INITIAL_USER_TEMPLATE.format(question=question.question)
             round_messages: list[Message] = []
             for agent in agents:
                 api_msgs = agent.build_api_messages(user_content_for_all)
-                response = llm_client.chat(api_msgs, model=model, temperature=temperature)
-                agent.record_turn(user_content_for_all, response)
-                round_messages.append(Message(agent_id=agent.id, round=r, text=response))
+                result = llm_client.chat_full(
+                    api_msgs, model=model, temperature=temperature,
+                    thinking=thinking,
+                )
+                agent.record_turn(user_content_for_all, result.response)
+                round_messages.append(Message(agent_id=agent.id, round=r, text=result.response))
+                total_prompt_tokens += result.prompt_tokens or 0
+                total_completion_tokens += result.completion_tokens or 0
             messages.extend(round_messages)
         else:
             prior_round = [m for m in messages if m.round == r - 1]
@@ -63,9 +72,14 @@ def run_debate(
                     other_responses=format_other_responses(prior_round, agent.id)
                 )
                 api_msgs = agent.build_api_messages(user_content)
-                response = llm_client.chat(api_msgs, model=model, temperature=temperature)
-                agent.record_turn(user_content, response)
-                round_messages.append(Message(agent_id=agent.id, round=r, text=response))
+                result = llm_client.chat_full(
+                    api_msgs, model=model, temperature=temperature,
+                    thinking=thinking,
+                )
+                agent.record_turn(user_content, result.response)
+                round_messages.append(Message(agent_id=agent.id, round=r, text=result.response))
+                total_prompt_tokens += result.prompt_tokens or 0
+                total_completion_tokens += result.completion_tokens or 0
             messages.extend(round_messages)
 
     expected = n_agents * n_rounds
@@ -89,8 +103,11 @@ def run_debate(
             "n_agents": n_agents,
             "n_rounds": n_rounds,
             "seed": seed,
+            "thinking": thinking,
             "roles": [a.role for a in agents],
             "per_agent_final_answers": {str(k): v for k, v in per_agent.items()},
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
             "timestamp": time.time(),
         },
     )
