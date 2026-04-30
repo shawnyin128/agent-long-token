@@ -6,6 +6,7 @@
         policy-sample \
         evaluate evaluate-report evaluate-clean \
         report report-clean \
+        analyze-phase phase-report \
         reparse \
         test smoke
 
@@ -153,6 +154,21 @@ report:
 
 report-clean:
 	rm -rf docs/reports/figs docs/reports/tables
+
+# RQ1 phase-mapping analysis: reads artifacts/grid/, writes data + tables + figure
+analyze-phase:
+	$(PYTHON) -m agentdiet.cli.analyze_phase
+
+# RQ1 final report: run analyze-phase first, then compile LaTeX twice (cross-refs)
+phase-report: analyze-phase
+	@if command -v pdflatex >/dev/null 2>&1; then \
+	    cd docs/reports && \
+	    pdflatex -interaction=nonstopmode final-report.tex && \
+	    pdflatex -interaction=nonstopmode final-report.tex; \
+	else \
+	    echo "pdflatex not found; skipping PDF compilation."; \
+	    echo "Install MacTeX/TeX Live or use pandoc to compile manually."; \
+	fi
 
 reparse:
 	$(PYTHON) -m agentdiet.cli.reparse

@@ -1,0 +1,250 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\title{Where Does Multi-Agent Debate Help?\\
+\large A Phase-Mapping Study Across Models, Difficulty, and Thinking}
+\author{CSCI3033 Final Project}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Prior work on multi-agent debate (Du et al., 2023) reports accuracy
+improvements over single-agent baselines on math reasoning. Our RQ0
+work showed that on Qwen2.5-7B + GSM8K, the +6.7pp debate advantage is
+not attributable to information transfer between agents — under a
+drop-all control where every prior message is blanked, debate accuracy
+is preserved. The remaining hypothesis is token-matched majority
+voting (Wang et al., 2023). This paper maps where, across (model,
+difficulty, thinking) cells, debate produces a measurable benefit
+\emph{over} a token-matched voting baseline. Sixteen open-source
+cells (two models $\times$ four datasets $\times$ thinking on/off)
+plus a six-cell prompt-robustness sub-grid are run through a paired
+bootstrap; the phase diagram of $\Delta = \text{acc(debate)} -
+\text{acc(voting)}$ vs.\ single-agent accuracy is the main result.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+% (Pivot rationale: RQ0 -> RQ1 phase mapping. The proposal asked
+% whether debate's gain came from inter-agent information transfer.
+% RQ0 answered "no" via a drop-all control. The natural follow-up is
+% whether the gain survives a stronger baseline -- token-matched
+% self-consistency -- and whether the answer is task-specific.
+% Reference: docs/design-docs/2026-04-27-debate-phase-mapping-design.md)
+
+\section{Methods}
+\label{sec:methods}
+
+\subsection{Models and Datasets}
+Two open-source instruction-tuned models with native thinking
+toggles:
+\begin{itemize}
+  \item \textbf{Qwen3-30B-A3B} -- hybrid reasoning, exposes
+        \texttt{enable\_thinking} via chat-template kwargs.
+  \item \textbf{GPT-OSS-20B} -- supports
+        \texttt{reasoning\_effort=low|high} per request.
+\end{itemize}
+Four datasets (cap 80 questions each):
+GSM8K (easy math), AIME 2024+2025+2026 pool (hard math; per spec
+§4.2.1, 20 from 2024 with seed 42 + 30 each from 2025/2026 to bound
+contamination), HumanEval+ (easy code), and LiveCodeBench
+(\texttt{contest\_date} $\geq$ 2024-08, hard code). All artifacts are
+written under \texttt{artifacts/grid/\{cell\_dir\}/}.
+
+\subsection{Conditions}
+Per (model, dataset, thinking) cell we run three conditions:
+\begin{enumerate}
+  \item \textbf{SA} -- single-agent, $T = 0$, one inference per question.
+  \item \textbf{Voting baseline} -- token-matched self-consistency
+        (Wang et al., 2023): $N$ independent samples at $T = 0.7$,
+        $\text{top-}p = 0.95$. $N$ is calibrated to total-token parity
+        with debate from the first 10 questions, with a floor of
+        $N \geq 3$ to preserve majority semantics.
+  \item \textbf{$3 \times 3$ debate} -- three role-differentiated
+        agents (solver / skeptic / synthesizer for math; proposer /
+        reviewer / integrator for code) at $T = 0$. Each agent's
+        thinking trace is internal; only the per-turn message is
+        broadcast.
+\end{enumerate}
+Cells whose voting baseline received \emph{more} compute than debate
+($\text{over\_budget\_factor} > 1.2$) are flagged in the phase diagram
+with open markers; this strengthens any null result.
+
+\subsection{Statistics}
+Per cell, $\Delta = \text{acc(debate)} - \text{acc(voting)}$ is reported
+with a paired-bootstrap 95\% CI ($n = 10000$, seed 42). Pairs are
+matched by question index across conditions.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Phase Diagram}
+\label{sec:phase-diagram}
+
+\begin{figure}[h]
+  \centering
+  \IfFileExists{figs/phase_diagram.pdf}{%
+    \includegraphics[width=0.85\linewidth]{figs/phase_diagram.pdf}%
+  }{\fbox{\parbox{0.5\linewidth}{\centering\small phase diagram not yet
+    generated; run \texttt{make analyze-phase}}}}
+  \caption{Phase diagram. X axis: SA accuracy. Y axis:
+  $\Delta = \text{acc(debate)} - \text{acc(voting)}$ with paired
+  95\% CI. Color: thinking on (filled) vs.\ off. Shape: math
+  (circle) vs.\ code (square). Open markers: voting baseline received
+  $> 1.2 \times$ debate's compute (giving the baseline the advantage).
+  Reference line at $\Delta = 0$.}
+  \label{fig:phase-diagram}
+\end{figure}
+
+Per-cell summary, including SA / voting / debate accuracy, $\Delta$,
+and 95\% CI:
+\begin{center}
+\IfFileExists{tables/phase_summary.tex}{%
+  \input{tables/phase_summary.tex}%
+}{\small (table not yet generated; run \texttt{make analyze-phase})}
+\end{center}
+
+\subsection{AIME Per-Year Stratification (Contamination Check)}
+\label{sec:aime-per-year}
+
+AIME 2024 questions (20 of 80 in the AIME pool) are likely present in
+the open-source models' pretraining data; AIME 2026 (30) is
+contamination-clean (post training cutoff for both models). Per-year
+$\Delta$ are reported separately so contamination effects can be
+bounded.
+\begin{center}
+\IfFileExists{tables/aime_per_year.tex}{%
+  \input{tables/aime_per_year.tex}%
+}{\small (table not yet generated)}
+\end{center}
+
+\subsection{Cross-Model Agreement}
+\label{sec:cross-model}
+
+For each (dataset, thinking, prompt-variant) combination with both
+models present, we report whether the two $\Delta$ values agree on
+sign and whether their 95\% CIs overlap. Sign agreement under
+non-overlapping CIs is the strongest evidence the cell is not a
+single-model artifact.
+\begin{center}
+\IfFileExists{tables/cross_model.tex}{%
+  \input{tables/cross_model.tex}%
+}{\small (table not yet generated)}
+\end{center}
+
+\subsection{Thinking-Axis Observations}
+\label{sec:thinking-axis}
+
+\textbf{O1.} Per (model, dataset), how does $\Delta$ change when
+thinking is enabled?
+\begin{center}
+\IfFileExists{tables/thinking_o1.tex}{%
+  \input{tables/thinking_o1.tex}%
+}{\small (table not yet generated)}
+\end{center}
+
+\textbf{O2.} Per (model, dataset), is debate-without-thinking already
+matched by single-agent-with-thinking? If so, debate is acting as a
+test-time-compute substitute rather than as a reasoning amplifier.
+\begin{center}
+\IfFileExists{tables/thinking_o2.tex}{%
+  \input{tables/thinking_o2.tex}%
+}{\small (table not yet generated)}
+\end{center}
+
+\section{Discussion}
+\label{sec:discussion}
+
+% Three explanatory frames (H_A / H_B / H_C):
+%   H_A: debate is a CoT substitute (helps weak SA, useless for
+%        strong SA -> monotone-decreasing pattern)
+%   H_B: collapse-to-voting persists under thinking (universal
+%        Delta = 0 cluster)
+%   H_C: thinking dominates (acc(SA, on) >= acc(debate, off) across
+%        the board)
+% The pattern in section~\ref{sec:phase-diagram} selects which frame
+% the data prefers.
+
+\subsection{Voting-Wrong / Debate-Right Reverse Attribution}
+A representative case study where the voting baseline produces a
+wrong answer but debate recovers the gold can be inspected via the
+\texttt{--case-study-cell} flag of \texttt{cli/analyze\_phase.py};
+the per-question response previews are stored as
+\texttt{docs/reports/data/voting\_wrong\_debate\_right.json}. Such
+qids motivate fine-grained inspection of where dialogue contributes
+information voting alone cannot recover.
+
+\section{Methodological Appendix}
+\label{sec:methodological-appendix}
+
+% RQ0's claim-extraction + type-level ablation (Gate-2 null result)
+% explains the SC-collapse mechanism on GSM8K: claim distribution is
+% heavily skewed toward proposal/evidence types, with near-zero
+% correction or question claims, so there is no inter-agent
+% information for debate to transfer beyond what independent samples
+% already supply. The drop-all control (Delta = 0) corroborates.
+% We re-state this finding here as the mechanism explanation
+% supporting whichever pattern the phase diagram reveals.
+
+\section{Limitations}
+\label{sec:limitations}
+
+(Per spec §7.)
+\begin{itemize}
+  \item \textbf{Math middle-difficulty band uncovered.} GSM8K (easy)
+        $\to$ AIME (hard) skips MATH-500.
+  \item \textbf{AIME contamination layered.} AIME 2024 (20/80) is
+        likely in pretraining; 2025 (30) borderline; 2026 (30) clean.
+        Mitigated by per-year stratification.
+  \item \textbf{Two open models is a small basis.} Cross-model
+        agreement table flags single-model artifacts where present.
+  \item \textbf{Single seed per condition.} Bootstrap is over the
+        question set, not over multiple generation seeds.
+  \item \textbf{Diversity-source asymmetry.} Voting's diversity comes
+        from temperature 0.7 sampling (Wang et al., 2023); debate's
+        comes from differentiated role prompts at $T = 0$ (Du et al.,
+        2023). Both follow their literature default; the small
+        unidentified component is a known caveat.
+  \item \textbf{Thinking-trace sharing fixed.} Agents' internal
+        traces are not shared between debate rounds; this is a
+        future ablation.
+  \item \textbf{Cross-model token comparisons are nominal.} Different
+        tokenizers carry different content per token; matched-compute
+        comparisons across models are nominal alignments at the
+        token-count level.
+  \item \textbf{One debate protocol.} $3 \times 3$, role-differentiated.
+        Other configurations are out of scope.
+\end{itemize}
+
+\section*{References}
+
+% \cite{du2023improving} Du, Y. et al. (2023). Improving Factuality
+% and Reasoning in Language Models through Multiagent Debate.
+% arXiv:2305.14325.
+%
+% \cite{wang2023selfconsistency} Wang, X. et al. (2023).
+% Self-Consistency Improves Chain of Thought Reasoning in Language
+% Models. ICLR 2023.
+%
+% (BibTeX-friendly placeholder; final report will compile against a
+% real .bib file once citations are wired up.)
+
+\begin{thebibliography}{2}
+\bibitem{du2023improving} Du, Y., Li, S., Torralba, A., Tenenbaum, J. B.,
+  \& Mordatch, I. (2023). Improving Factuality and Reasoning in Language
+  Models through Multiagent Debate. \emph{arXiv:2305.14325}.
+
+\bibitem{wang2023selfconsistency} Wang, X., Wei, J., Schuurmans, D.,
+  Le, Q., Chi, E. H., Narang, S., Chowdhery, A., \& Zhou, D. (2023).
+  Self-Consistency Improves Chain of Thought Reasoning in Language
+  Models. \emph{ICLR 2023}.
+\end{thebibliography}
+
+\end{document}
