@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from typing import Optional
 
@@ -20,12 +21,32 @@ LATER_ROUND_TEMPLATE = (
 )
 
 
+_THINKING_TRACE_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+
+
+def strip_thinking_trace(text: str) -> str:
+    """Remove <think>...</think> blocks before broadcasting to peers.
+
+    Per spec §4.3 condition 3: thinking traces are internal to each
+    agent and MUST NOT be shared across rounds. Qwen3 with
+    enable_thinking=True wraps reasoning in <think>...</think>; we
+    strip those before showing the message to other agents.
+
+    No-op on responses that don't contain a thinking block, so the
+    same code path is safe for thinking-off and for non-Qwen3 models.
+    """
+    return _THINKING_TRACE_RE.sub("", text).strip()
+
+
 def format_other_responses(messages_this_round: list[Message], self_id: int) -> str:
     parts = []
     for m in messages_this_round:
         if m.agent_id == self_id:
             continue
-        parts.append(f"--- Agent {m.agent_id} (round {m.round}) ---\n{m.text}")
+        parts.append(
+            f"--- Agent {m.agent_id} (round {m.round}) ---\n"
+            f"{strip_thinking_trace(m.text)}"
+        )
     return "\n\n".join(parts)
 
 

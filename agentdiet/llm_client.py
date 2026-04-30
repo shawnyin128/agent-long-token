@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 import warnings
 from dataclasses import dataclass
@@ -249,6 +250,10 @@ class LLMClient:
         self._base_backoff_s = base_backoff_s
         self.call_count = 0
         self.cache_hits = 0
+        # Lock guards _cache mutations + cache file appends + counters when
+        # multiple threads issue chat_full concurrently. The OpenAI SDK
+        # client itself is thread-safe; only our cache layer needs guarding.
+        self._lock = threading.Lock()
 
     def chat(
         self,
@@ -275,21 +280,38 @@ class LLMClient:
         key = cache_key(
             model, temperature, messages, thinking=thinking, top_p=top_p
         )
-        if key in self._cache:
-            self.cache_hits += 1
-            text = self._cache[key]
-            return ChatResult(
-                response=text,
-                prompt_tokens=_approx_prompt_tokens(messages),
-                completion_tokens=_approx_tokens(text),
-            )
+        with self._lock:
+            if key in self._cache:
+                self.cache_hits += 1
+                text = self._cache[key]
+                return ChatResult(
+                    response=text,
+                    prompt_tokens=_approx_prompt_tokens(messages),
+                    completion_tokens=_approx_tokens(text),
+                )
 
+        # Backend call happens OUTSIDE the lock so multiple threads can
+        # issue concurrent requests to vLLM in parallel.
         result = self._call_full_with_retry(
             messages, model, temperature, thinking=thinking, top_p=top_p
         )
-        self._append_cache(key, model, temperature, messages, result.response)
-        self._cache[key] = result.response
-        self.call_count += 1
+        with self._lock:
+            # Re-check the cache: another thread may have populated this key
+            # while we were waiting on the backend.
+            if key in self._cache:
+                self.cache_hits += 1
+                text = self._cache[key]
+                # Discard our just-fetched result; return the cached one for
+                # determinism. (At temp>0 this picks the first arrival;
+                # at temp=0 they should be identical.)
+                return ChatResult(
+                    response=text,
+                    prompt_tokens=_approx_prompt_tokens(messages),
+                    completion_tokens=_approx_tokens(text),
+                )
+            self._append_cache(key, model, temperature, messages, result.response)
+            self._cache[key] = result.response
+            self.call_count += 1
 
         if result.prompt_tokens is None or result.completion_tokens is None:
             return ChatResult(

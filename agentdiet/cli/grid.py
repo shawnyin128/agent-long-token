@@ -161,10 +161,14 @@ def main(
                         help="Directory to write artifacts/grid/{cell}/ subtrees")
     parser.add_argument("--force", action="store_true",
                         help="Re-run even if existing JSON artifacts are present")
-    parser.add_argument("--n", type=int, default=None,
-                        help="Override n_questions per cell (default: 80)")
+    parser.add_argument("--n", type=int, default=40,
+                        help="n_questions per cell (default: 40; pass 80 for full size)")
     parser.add_argument("--calibration-prefix", type=int, default=10,
                         help="First-N questions used to calibrate voting N (default 10)")
+    parser.add_argument("--max-concurrency", type=int, default=8,
+                        help="Per-condition concurrent question requests "
+                             "(default 8; 1 = sequential). vLLM batches "
+                             "concurrent calls so 8-16 typically gives 4-8x speedup.")
     args = parser.parse_args(argv)
 
     specs: list[str] = list(args.cell)
@@ -221,6 +225,7 @@ def main(
             n_questions=args.n,
             calibration_prefix=args.calibration_prefix,
             force=args.force,
+            max_concurrency=args.max_concurrency,
         )
         print(
             f"  {cell_dir(cell)} | "

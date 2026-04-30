@@ -163,12 +163,19 @@ LATER_CODE_USER_TEMPLATE = (
 def _format_other_outputs(
     others: list[CodeMessage],
 ) -> str:
+    from agentdiet.debate import strip_thinking_trace
     parts: list[str] = []
     for m in others:
+        # Strip thinking traces in case the schema parser captured a
+        # <think> block inside the Notes section. Code blocks shouldn't
+        # ever carry thinking content (would be syntactically invalid
+        # Python), but cheap to defend.
+        clean_notes = strip_thinking_trace(m.notes)
+        clean_code = strip_thinking_trace(m.code)
         parts.append(
             f"--- Agent {m.agent_id} ({m.role}, round {m.round}) ---\n"
-            f"## Notes\n{m.notes}\n\n"
-            f"## Code\n```python\n{m.code}\n```"
+            f"## Notes\n{clean_notes}\n\n"
+            f"## Code\n```python\n{clean_code}\n```"
         )
     return "\n\n".join(parts) if parts else "(no prior outputs)"
 

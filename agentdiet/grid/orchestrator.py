@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
@@ -70,6 +71,7 @@ def run_cell(
     n_questions: Optional[int] = None,
     calibration_prefix: int = CALIBRATION_PREFIX_DEFAULT,
     force: bool = False,
+    max_concurrency: int = 1,
 ) -> CellSummary:
     """Execute all three conditions for one cell + write artifacts.
 
@@ -97,13 +99,15 @@ def run_cell(
     # 1. Resume or run SA
     sa_record = _load_or_run(
         sa_path, force,
-        lambda: _run_condition_sa(qs, cell, llm_client, judge, is_code),
+        lambda: _run_condition_sa(qs, cell, llm_client, judge, is_code,
+                                   max_concurrency),
     )
 
     # 2. Resume or run debate
     debate_record = _load_or_run(
         debate_path, force,
-        lambda: _run_condition_debate(qs, cell, llm_client, judge, is_code),
+        lambda: _run_condition_debate(qs, cell, llm_client, judge, is_code,
+                                       max_concurrency),
     )
 
     # 3. Calibrate N from first-prefix of sa + debate token totals
@@ -132,6 +136,7 @@ def run_cell(
         voting_path, force,
         lambda: _run_condition_voting(
             qs, cell, llm_client, judge, is_code, calibration.N,
+            max_concurrency,
         ),
     )
 
@@ -163,36 +168,47 @@ def _load_or_run(
     return record
 
 
-def _run_condition_sa(qs, cell, llm_client, judge, is_code) -> ConditionRecord:
-    results: list[QuestionResult] = []
-    for q in qs:
-        if is_code:
-            results.append(run_sa_code(q, cell, llm_client, judge))
-        else:
-            results.append(run_sa_math(q, cell, llm_client))
+def _parallel_map(fn, items, max_concurrency: int) -> list:
+    """Run fn(item) for each item; preserve input order in the result.
+
+    max_concurrency=1 stays sequential (no thread pool overhead).
+    """
+    if max_concurrency <= 1:
+        return [fn(it) for it in items]
+    with ThreadPoolExecutor(max_workers=max_concurrency) as ex:
+        futures = [ex.submit(fn, it) for it in items]
+        return [f.result() for f in futures]
+
+
+def _run_condition_sa(qs, cell, llm_client, judge, is_code,
+                       max_concurrency: int = 1) -> ConditionRecord:
+    if is_code:
+        fn = lambda q: run_sa_code(q, cell, llm_client, judge)
+    else:
+        fn = lambda q: run_sa_math(q, cell, llm_client)
+    results = _parallel_map(fn, qs, max_concurrency)
     return aggregate_condition(results, cell, condition="sa")
 
 
-def _run_condition_debate(qs, cell, llm_client, judge, is_code) -> ConditionRecord:
-    results: list[QuestionResult] = []
-    for q in qs:
-        if is_code:
-            results.append(run_debate_q_code(q, cell, llm_client, judge))
-        else:
-            results.append(run_debate_q_math(
-                q, cell, llm_client,
-                prompt_variant=cell.prompt_variant,
-            ))
+def _run_condition_debate(qs, cell, llm_client, judge, is_code,
+                           max_concurrency: int = 1) -> ConditionRecord:
+    if is_code:
+        fn = lambda q: run_debate_q_code(q, cell, llm_client, judge)
+    else:
+        fn = lambda q: run_debate_q_math(
+            q, cell, llm_client, prompt_variant=cell.prompt_variant,
+        )
+    results = _parallel_map(fn, qs, max_concurrency)
     return aggregate_condition(results, cell, condition="debate")
 
 
-def _run_condition_voting(qs, cell, llm_client, judge, is_code, n_samples) -> ConditionRecord:
-    results: list[QuestionResult] = []
-    for q in qs:
-        if is_code:
-            results.append(run_voting_q_code(q, cell, llm_client, n_samples, judge))
-        else:
-            results.append(run_voting_q_math(q, cell, llm_client, n_samples))
+def _run_condition_voting(qs, cell, llm_client, judge, is_code, n_samples,
+                           max_concurrency: int = 1) -> ConditionRecord:
+    if is_code:
+        fn = lambda q: run_voting_q_code(q, cell, llm_client, n_samples, judge)
+    else:
+        fn = lambda q: run_voting_q_math(q, cell, llm_client, n_samples)
+    results = _parallel_map(fn, qs, max_concurrency)
     return aggregate_condition(
         results, cell, condition="voting",
         extra_meta={"n_samples": n_samples},
