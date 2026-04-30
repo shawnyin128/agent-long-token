@@ -1,0 +1,762 @@
+plan_id: phase-mapping-analysis
+iteration: 1
+based_on: docs/design-docs/2026-04-27-debate-phase-mapping-design.md
+
+problem: |
+  All grid runners are in place but nothing reads the per-cell
+  artifacts. Without this feature there is no Delta CI, no phase
+  diagram, no per-axis characterization, no thinking-axis O1/O2
+  tables, and no IMRAD report — i.e. no deliverable. This feature
+  builds agentdiet/analysis_phase/ + agentdiet/cli/analyze.py + a
+  LaTeX report scaffold so once the user runs the grid on HPC, one
+  command produces every analysis figure / table the report needs,
+  and the .tex source compiles into the final PDF.
+
+steps:
+  - id: S1
+    desc: per-cell Delta with paired bootstrap CI + grid loader
+    approach: |
+      New module agentdiet/analysis_phase/__init__.py and
+      agentdiet/analysis_phase/bootstrap.py.
+
+      paired_bootstrap_delta(per_q_correct_a: list[bool],
+                             per_q_correct_b: list[bool],
+                             n_resamples: int = 10000,
+                             seed: int = 42,
+                             ci: float = 0.95)
+        -> BootstrapResult{delta, ci_low, ci_high, n_resamples}
+        - Pairs are matched by index (same question across the
+          two conditions). Resamples by sampling indices with
+          replacement, recomputing acc_a - acc_b each time.
+        - Returns the observed delta (acc_a - acc_b) plus the
+          (1-ci)/2 and (1+ci)/2 quantiles of the resample
+          distribution.
+        - Pure numpy; no scipy dep.
+
+      load_cell_summary(grid_dir: Path, cell_dirname: str)
+        -> CellAnalysis (frozen dataclass) holding the parsed
+        summary + per-question correctness vectors for sa /
+        voting / debate (read from sa.json, voting.json,
+        debate.json under grid_dir/cell_dirname).
+
+      compute_per_cell_analysis(grid_dir: Path)
+        -> list[CellAnalysis] — one entry per directory under
+        grid_dir, each with delta_debate_voting + CI + flags
+        like over_budget_factor and prompt_variant.
+
+      All inputs come from on-disk artifacts written by
+      thinking-axis-grid + prompt-robustness; this step only reads.
+    files:
+      create:
+        - agentdiet/analysis_phase/__init__.py
+        - agentdiet/analysis_phase/bootstrap.py
+        - tests/phase_mapping_analysis/__init__.py
+        - tests/phase_mapping_analysis/test_bootstrap.py
+        - tests/phase_mapping_analysis/test_cell_loader.py
+      modify: []
+      test: []
+    test_plan:
+      - "paired_bootstrap_delta on identical inputs produces delta=0
+        and CI containing 0"
+      - "paired_bootstrap_delta on debate-always-correct vs
+        voting-always-wrong produces delta=1.0 and a tight CI"
+      - "paired_bootstrap_delta is deterministic under fixed seed"
+      - "different seeds produce different (but well-defined) CI
+        endpoints"
+      - "load_cell_summary reads sa/voting/debate per-question
+        correctness vectors with the right length"
+      - "compute_per_cell_analysis on a fixture grid_dir with 3 cells
+        returns 3 CellAnalysis records, each with delta + CI"
+      - "compute_per_cell_analysis preserves per-cell metadata
+        (model, dataset, thinking, prompt_variant, over_budget_factor)
+        from summary.json"
+      - "loader rejects a cell directory missing any of the four
+        JSONs with a clear error mentioning the missing file"
+    coverage_min: 90
+
+  - id: S2
+    desc: phase diagram figure renderer
+    approach: |
+      New module agentdiet/analysis_phase/figure_phase_diagram.py.
+
+      render_phase_diagram(cells: list[CellAnalysis],
+                           output_path: Path) -> Path:
+        - X axis: cell.sa_accuracy
+        - Y axis: cell.delta_debate_voting (with vertical CI bars
+          from cell.delta_ci_low / delta_ci_high)
+        - Color: thinking on (filled marker color C0) vs off (C1)
+        - Marker shape: math = circle, code = square
+        - Marker fill: filled if over_budget_factor <= 1.2,
+          OPEN (only outline) if over_budget_factor > 1.2
+        - Annotation: short cell label near each marker
+          ("Q3-G" for Qwen3+GSM8K etc.)
+        - Horizontal line at y=0 reference
+        - Saves to output_path (default
+          docs/reports/figs/phase_diagram.pdf)
+        - Lazy import matplotlib; raise ImportError with
+          "install agentdiet[analysis]" if missing.
+        - Returns the resolved Path.
+
+      Provide a tiny short_label(cell) helper that compresses
+      model_family + dataset into 4-6 chars for annotation
+      (Q3-GS, Q3-AI, GO-HE, etc.).
+    files:
+      create:
+        - agentdiet/analysis_phase/figure_phase_diagram.py
+        - tests/phase_mapping_analysis/test_figure_phase_diagram.py
+      modify: []
+      test: []
+    test_plan:
+      - "render_phase_diagram on 3 fixture cells writes a PDF (or
+        PNG) at the given output_path"
+      - "matplotlib lazy import: when agentdiet[analysis] is not
+        installed, render_phase_diagram raises ImportError pointing
+        at the extras"
+      - "short_label produces deterministic 4-6 char strings for
+        each (family, dataset) combination"
+      - "render_phase_diagram preserves output_path's parent dir
+        (creates it if absent)"
+      - "rendered figure dimensions are reasonable (size > 1KB,
+        valid PDF/PNG header)"
+    coverage_min: 80
+
+  - id: S3
+    desc: per-axis characterization helpers
+    approach: |
+      New module agentdiet/analysis_phase/characterize.py.
+
+      Functions returning plain dicts/lists (no I/O) so the CLI can
+      compose them into output:
+
+      aime_per_year(cells: list[CellAnalysis]) -> list[dict]:
+        - For each AIME cell, partition per-question correctness
+          by qid prefix ("aime-2024-", "aime-2025-", "aime-2026-")
+          and recompute SA / voting / debate accuracy + delta per
+          year. Returns rows with cell_id, year, n, sa_acc,
+          voting_acc, debate_acc, delta. Used for the contamination
+          check.
+
+      cross_model_agreement(cells: list[CellAnalysis]) -> list[dict]:
+        - Group cells by (dataset, thinking, prompt_variant). For
+          each group with >=2 models, return a row reporting whether
+          their delta_debate_voting CIs overlap and the sign of
+          each delta.
+
+      voting_wrong_debate_right(grid_dir: Path,
+                                cell_dirname: str)
+        -> list[dict]:
+        - For one cell, find qids where voting.json has
+          questions[i].correct == False AND debate.json has
+          correct == True. Return up to 5 such qids with the
+          response_preview snippets. Used as case-study fodder.
+
+      thinking_axis_observations(cells: list[CellAnalysis])
+        -> {"o1": list[dict], "o2": list[dict]}:
+        - O1: for each (model, dataset), pair the thinking=on cell
+          with the thinking=off cell; report
+          delta_on - delta_off + CIs.
+        - O2: for each (model, dataset), pair acc(debate, off)
+          vs acc(SA, on); report whichever is larger and by
+          how much.
+        - Skip pairs where either side is missing.
+
+      Round-by-round trajectory is OUT OF SCOPE: it requires
+      per-question Dialogue files, which thinking-axis-grid stores
+      only as flattened response previews in QuestionResult.meta.
+      Scaffolding it properly is a follow-up; this feature ships
+      what summary + per-question records can support.
+    files:
+      create:
+        - agentdiet/analysis_phase/characterize.py
+        - tests/phase_mapping_analysis/test_characterize.py
+      modify: []
+      test: []
+    test_plan:
+      - "aime_per_year on a fixture AIME cell with 80 questions
+        across the 3 years returns 3 rows with non-trivial n
+        per year (20 / 30 / 30)"
+      - "cross_model_agreement detects sign concordance (both
+        positive deltas, or both negative) across two models"
+      - "cross_model_agreement returns empty list when only one
+        model is present in fixtures"
+      - "voting_wrong_debate_right surfaces qids where the per-q
+        record actually has the predicted correctness pattern;
+        empty list when no such qids exist"
+      - "thinking_axis_observations.o1 has one row per (model,
+        dataset) pair where both thinking states are present"
+      - "thinking_axis_observations.o2 reports the larger of
+        debate-thinking-off vs SA-thinking-on with sign + magnitude"
+      - "missing thinking pair (only one state present) is skipped
+        cleanly without raising"
+    coverage_min: 85
+
+  - id: S4
+    desc: cli/analyze.py orchestration + JSON output
+    approach: |
+      agentdiet/cli/analyze.py exposes a one-shot CLI that:
+        - reads grid_dir (default artifacts/grid/)
+        - calls compute_per_cell_analysis -> rows
+        - calls render_phase_diagram -> PDF path
+        - calls aime_per_year, cross_model_agreement,
+          thinking_axis_observations
+        - writes everything as machine-readable JSON to
+          docs/reports/data/analysis.json
+        - writes per-table .tex snippets to
+          docs/reports/tables/{phase_summary,aime_per_year,
+                                  cross_model,thinking_o1,thinking_o2}.tex
+          via small string-template renderers (no jinja)
+        - prints a one-line per-cell status to stderr
+        - exit 0 on success; exit 2 if grid_dir is empty or no
+          summary.json files were found
+
+      Flags:
+        --grid-dir PATH            (default artifacts/grid)
+        --output-dir PATH          (default docs/reports)
+        --n-resamples INT          (default 10000)
+        --seed INT                 (default 42)
+        --ci FLOAT                 (default 0.95)
+        --skip-figure              (skip matplotlib path; useful
+                                    in CI without matplotlib)
+        --case-study-cell CELL_DIR (write a separate
+                                    voting_wrong_debate_right.json
+                                    for the named cell)
+    files:
+      create:
+        - agentdiet/cli/analyze.py
+        - tests/phase_mapping_analysis/test_cli_analyze.py
+      modify: []
+      test: []
+    test_plan:
+      - "main() with --grid-dir pointing at a fixture tree of 3
+        cells writes data/analysis.json + tables/*.tex +
+        figs/phase_diagram.pdf"
+      - "--skip-figure suppresses the figure output; the JSON +
+        tables still write"
+      - "empty --grid-dir returns exit code 2 with a helpful
+        message"
+      - "data/analysis.json schema contains keys 'cells', 'aime',
+        'cross_model', 'thinking_o1', 'thinking_o2'"
+      - "the rendered per-table .tex files contain LaTeX tabular
+        markers (\\begin{tabular}, \\toprule)"
+      - "--case-study-cell writes a JSON listing voting-wrong /
+        debate-right qids for the named cell"
+    coverage_min: 80
+
+  - id: S5
+    desc: IMRAD LaTeX report scaffold + make target
+    approach: |
+      Author docs/reports/final-report.tex with sections:
+        - Title block with abstract placeholder
+        - Introduction: pivot rationale (RQ0 -> RQ1 phase mapping)
+        - Methods: 3-agent debate, voting, calibration, datasets,
+          thinking axis (cite Du et al. 2023, Wang et al. 2023)
+        - Results: phase diagram (\includegraphics), per-cell
+          delta table (\input{tables/phase_summary.tex}), AIME
+          per-year (\input{tables/aime_per_year.tex}), thinking
+          observations (\input{tables/thinking_o1.tex},
+          \input{tables/thinking_o2.tex}), cross-model agreement
+        - Discussion: H_A / H_B / H_C frames as explanatory
+          options; null-result framing if all CIs cross zero
+        - Methodological appendix: claim-extraction + type-level
+          ablation as mechanism explanation for the SC-collapse
+          observation (repurposing the RQ0 finding)
+        - Limitations (§7 of spec)
+        - References stub (BibTeX-friendly key list)
+      Use \documentclass{article} with standard packages
+      (graphicx, booktabs, hyperref). The .tex compiles even if
+      the figure or tables don't exist yet (table \input fails
+      gracefully via \IfFileExists guards or a placeholder
+      include).
+
+      Add a Makefile target "report":
+        report:
+          $(PYTHON) -m agentdiet.cli.analyze
+          cd docs/reports && pdflatex -interaction=nonstopmode \
+            final-report.tex && pdflatex -interaction=nonstopmode \
+            final-report.tex
+      Two pdflatex passes for cross-references. Skip silently if
+      pdflatex isn't installed; print a help message.
+    files:
+      create:
+        - docs/reports/final-report.tex
+        - tests/phase_mapping_analysis/test_report_scaffold.py
+      modify:
+        - Makefile
+      test: []
+    test_plan:
+      - "final-report.tex contains \\documentclass and the named
+        \\input lines for all expected per-table files"
+      - "final-report.tex \\includegraphics references the phase
+        diagram path"
+      - "final-report.tex cites Du and Wang (BibTeX keys present)"
+      - "final-report.tex has Limitations section per spec §7
+        bullets"
+      - "Makefile 'report' target exists and references
+        agentdiet.cli.analyze"
+      - "Makefile 'report' target chains pdflatex twice for
+        cross-refs"
+    coverage_min: 70
+
+  - id: S6
+    desc: end-to-end fixture run + schema regression
+    approach: |
+      A pytest fixture builds a synthetic grid tree with 4 cells:
+        Qwen3+GSM8K x thinking=0/1 + GPT-OSS+HumanEval+ x thinking=0/1.
+      Each cell has sa.json / voting.json / debate.json /
+      summary.json with realistic shapes (5 questions each, mixed
+      correctness, varied total_tokens to exercise calibration
+      paths and over-budget logic).
+
+      Tests:
+        - end-to-end: run cli.analyze.main against the fixture
+          tree -> writes all expected output paths
+        - schema regression: data/analysis.json contains every
+          documented key + the rows have the documented columns
+        - per-cell delta CI is finite (lo <= delta <= hi)
+        - phase diagram PDF is non-trivially sized (> 1KB)
+    files:
+      create:
+        - tests/phase_mapping_analysis/test_end_to_end.py
+      modify: []
+      test: []
+    test_plan:
+      - "end-to-end produces the full output tree on a 4-cell fixture"
+      - "data/analysis.json keys + per-cell row schema regression"
+      - "delta CI bounds are well-formed (lo <= observed <= hi)"
+      - "phase diagram PDF is created and non-empty"
+    coverage_min: 75
+
+decisions:
+  - id: D1
+    question: |
+      How does the bootstrap pair questions across conditions, and
+      what does it return?
+    planner_view: |
+      Pair by index (same qid order across the per-condition
+      JSONs). Resample indices with replacement; recompute
+      acc(condition_a) - acc(condition_b) each iteration. Return
+      observed delta + 2.5% / 97.5% quantiles of the resample
+      distribution. n_resamples defaults to 10000 per spec §4.7.
+    confidence: 90
+    rationale: |
+      Standard paired bootstrap. Index pairing is what spec calls
+      "paired bootstrap over the question set". Pure numpy keeps
+      it dep-light.
+    alternatives:
+      - option: independent-resample-each-condition
+        rejected_because: |
+          Throws away the pairing structure (same question, two
+          methods) and inflates CI width. Spec is explicit about
+          paired.
+      - option: scipy-bootstrap
+        rejected_because: |
+          Adds a runtime dep for one function we already have a
+          straightforward numpy implementation for.
+    ask_user: false
+    user_decision: null
+
+  - id: D2
+    question: |
+      Should the phase diagram open vs filled markers be tied to
+      over_budget_factor > 1.2, or some other threshold?
+    planner_view: |
+      Open marker iff over_budget_factor > 1.2 (matches spec §5.5
+      wording "open markers mean voting baseline was given the
+      advantage"). Filled marker for parity (factor <= 1.2).
+    confidence: 95
+    rationale: |
+      Direct quote from spec.
+    alternatives:
+      - option: any-over-budget-1.0
+        rejected_because: |
+          Spec §5.5 specifically says "> 1.2", not "> 1.0".
+          1.0 is the parity point but small over-budget rounding
+          isn't visually meaningful.
+    ask_user: false
+    user_decision: null
+
+  - id: D3
+    question: |
+      Is round-by-round trajectory in scope for this feature?
+    planner_view: |
+      No. The grid runner stores per-question Dialogue objects
+      only as flattened response previews in QuestionResult.meta
+      ("response_preview" first 200 chars). Reconstructing the
+      majority-vote evolution across rounds 1->2->3 needs the
+      full Dialogue artifacts that thinking-axis-grid did not
+      stamp. Plumbing them in retroactively is out of scope here;
+      we ship the analyses we can compute from summary + per-q
+      records and note the trajectory analysis as a follow-up.
+    confidence: 80
+    rationale: |
+      Spec §6 F2 lists round-by-round as one of several
+      characterizations; we deliver the others (AIME-year,
+      cross-model, voting-wrong/debate-right). Cutting trajectory
+      keeps this feature shippable without retrofitting the grid
+      runner.
+    alternatives:
+      - option: retro-fit-trajectory-into-grid-records
+        rejected_because: |
+          Round-by-round needs per-message Dialogue persistence,
+          which thinking-axis-grid skipped. Adding it now means
+          re-running the entire HPC grid to populate the new
+          fields. Not worth blocking the report on.
+    ask_user: false
+    user_decision: null
+
+  - id: D4
+    question: |
+      How does the report scaffold handle the case where the user
+      has not yet run the grid (so tables/figs are missing)?
+    planner_view: |
+      Use \IfFileExists guards in final-report.tex around each
+      \includegraphics and \input — render a stub placeholder
+      ("[figure / table not yet generated]") otherwise. The .tex
+      compiles cleanly with no figs / tables (useful for early
+      drafting) and fills in as analyze.py runs. Makefile "report"
+      runs analyze.py first before pdflatex so the normal flow
+      always populates everything.
+    confidence: 85
+    rationale: |
+      Lets the .tex be a working draft target even on a fresh
+      checkout. Avoids a chicken-and-egg between writing prose
+      and having results.
+    alternatives:
+      - option: fail-loudly-on-missing-tables
+        rejected_because: |
+          Forces the user to run a long HPC pipeline before they
+          can even compile the prose draft.
+      - option: hardcoded-placeholder-jpg-and-tex
+        rejected_because: |
+          Stub files would have to be deleted or overwritten
+          later; cleaner to use \IfFileExists.
+    ask_user: false
+    user_decision: null
+
+  - id: D5
+    question: |
+      Where does data/analysis.json live, and what does it carry?
+    planner_view: |
+      docs/reports/data/analysis.json. Top-level keys:
+        - cells: list of per-cell rows (id, family, dataset,
+          thinking, prompt_variant, sa_acc, voting_acc, debate_acc,
+          delta, ci_low, ci_high, over_budget_factor)
+        - aime: rows from aime_per_year
+        - cross_model: rows from cross_model_agreement
+        - thinking_o1, thinking_o2: rows from
+          thinking_axis_observations
+        - meta: {grid_dir, n_resamples, seed, ci, generated_at}
+      This single JSON is the analysis source-of-truth for the
+      report and any downstream paper/figure tweaks.
+    confidence: 90
+    rationale: |
+      Single artifact reduces drift between figure code and
+      report prose. Keys mirror the function return shapes from
+      bootstrap + characterize.
+    alternatives:
+      - option: separate-jsons-per-analysis
+        rejected_because: |
+          Coordinating filenames + freshness across half a dozen
+          files is more work than one consolidated JSON.
+    ask_user: false
+    user_decision: null
+
+  - id: D6
+    question: |
+      Should the analysis CLI also handle the prompt-robustness
+      sub-grid cells (cell_dir with __pv- suffix) the same way as
+      the main grid?
+    planner_view: |
+      Yes. compute_per_cell_analysis globs every cell directory
+      under grid_dir; the prompt_variant suffix is parsed back
+      out of cell_dir as a per-cell field on CellAnalysis.
+      Phase diagram includes them with a fourth visual
+      dimension. cross_model_agreement groups by (dataset,
+      thinking, prompt_variant) so cooperative comparisons are
+      not contaminated by adversarial-strict cells.
+    confidence: 85
+    rationale: |
+      One CLI is simpler than two; the suffix is enough metadata
+      to keep the slices clean. Cross-variant Δ comparison was
+      explicitly deferred to this feature in the prompt-robustness
+      plan (D4 there).
+    alternatives:
+      - option: separate-tool-for-sub-grid
+        rejected_because: |
+          Doubles the maintenance surface for a case that's just
+          an extra slice on the same data.
+    ask_user: false
+    user_decision: null
+
+# ============================================================
+# GENERATOR section
+# ============================================================
+
+execution:
+  S1:
+    status: done
+    confidence: 95
+    notes: |
+      paired_bootstrap_delta + load_cell_summary +
+      compute_per_cell_analysis in agentdiet/analysis_phase/
+      bootstrap.py. Pure numpy bootstrap; loader skips
+      in-progress cells silently (load_cell_summary still
+      raises for explicit named-cell lookups). 18 tests pass.
+    commits:
+      - c23c3c2
+  S2:
+    status: done
+    confidence: 90
+    notes: |
+      figure_phase_diagram.render_phase_diagram + short_label.
+      Open marker iff over_budget_factor > 1.2 per spec §5.5.
+      matplotlib lazy-imported; ImportError points at
+      agentdiet[analysis] extras. Installed matplotlib in the
+      test env to verify the actual render path.
+    commits:
+      - 39232a5
+  S3:
+    status: done
+    confidence: 90
+    notes: |
+      characterize.py provides aime_per_year (parses qid prefix
+      "aime-<year>-..."), cross_model_agreement (groups by
+      (dataset, thinking, prompt_variant); reports signs_agree +
+      cis_overlap), voting_wrong_debate_right (cell-scoped case
+      study), and thinking_axis_observations (O1 + O2 with
+      missing-pair skipping). Round-by-round trajectory remains
+      out of scope per D3.
+    commits:
+      - 1fb9122
+  S4:
+    status: done
+    confidence: 90
+    notes: |
+      cli/analyze_phase.py (NOT cli/analyze.py — that name was
+      already taken by the RQ0 flip-events / claim-signals CLI).
+      One-shot driver writes data/analysis.json + tables/*.tex +
+      figs/phase_diagram.pdf. Five LaTeX renderers handle the
+      empty-rows fallback ("table not yet generated") so the .tex
+      compiles even before the grid runs. Flags --skip-figure,
+      --case-study-cell, --n-resamples, --seed, --ci.
+    commits:
+      - 5f6d358
+  S5:
+    status: done
+    confidence: 85
+    notes: |
+      docs/reports/final-report.tex with all sections per spec §6
+      F4 (intro + methods + results + discussion + methodological
+      appendix + limitations + references). Every \\input and
+      \\includegraphics is wrapped in \\IfFileExists per D4 so
+      the .tex compiles cleanly before analyze-phase has run.
+      Makefile targets: analyze-phase, phase-report
+      (depends on analyze-phase, runs pdflatex twice for cross
+      refs, prints help if pdflatex absent).
+    commits:
+      - 7cd7d1a
+  S6:
+    status: done
+    confidence: 90
+    notes: |
+      4-cell synthetic grid fixture (Qwen3+GSM8K x t0/t1 +
+      GPT-OSS+HumanEval+ x t0/t1) drives 7 end-to-end tests
+      verifying the full output tree, top-level keys, per-cell
+      row schema, delta CI bounds, thinking O1/O2 pairing, empty
+      AIME branch, cross-model row emergence with 2-family
+      fixtures. Whole repo: 694 passed.
+    commits:
+      - 1c3eb6d
+
+unplanned_changes:
+  - loc: agentdiet/cli/analyze_phase.py
+    what: |
+      Module renamed from cli/analyze.py to cli/analyze_phase.py.
+      The plan called for cli/analyze.py but that file already
+      hosts the RQ0 flip-events / claim-signals CLI used by
+      tests/flip_and_signals/. Importing two CLIs as
+      agentdiet.cli.analyze would clobber tests; renaming new
+      one isolates them. Spec §6 doesn't mandate the exact module
+      name.
+    reason: |
+      Avoided overwriting the RQ0 CLI; preserved the 59 RQ0
+      flip-and-signals tests intact.
+    confidence: 90
+
+flags_for_eval:
+  - "Bootstrap quantile method: paired_bootstrap_delta uses
+     numpy.quantile on the resampled delta distribution to compute
+     CI endpoints. This is the percentile method (not BCa).
+     Spec §4.7 says only 'paired bootstrap' / 'derive a 95% CI';
+     we go percentile for simplicity. Worth confirming the
+     percentile vs BCa choice is in scope for the report
+     methodology section."
+  - "AIME per-year qid parsing assumes 'aime-<year>-q<idx>' format.
+     If a future loader emits a different shape (e.g. dataset
+     id-based qids), aime_per_year silently returns no rows.
+     Tests use the fixture format."
+  - "render_phase_diagram requires matplotlib. The CI / test env
+     here has matplotlib installed (we pulled it during S2). On
+     fresh installs without agentdiet[analysis], --skip-figure is
+     the workaround. The corresponding test in test_cli_analyze.py
+     uses pytest.importorskip('matplotlib') for the figure path."
+  - "voting_wrong_debate_right reads voting.json + debate.json
+     directly from disk by cell_dirname rather than going through
+     CellAnalysis. Tests cover the happy path + max_results +
+     no-match. If the per-question schema ever changes, this
+     reader must be updated alongside the loader."
+
+# ============================================================
+# EVALUATOR section
+# ============================================================
+
+eval:
+  rounds:
+    - round: 1
+      closure_check:
+        user_decisions_honored:
+          - id: D1
+            verified: true
+            evidence: |
+              paired_bootstrap_delta uses one rng.integers(0, n,
+              size=n) call per resample and applies the same idx to
+              both vectors — true paired bootstrap. n_resamples
+              defaults to 10000, seed 42, ci 0.95 per spec §4.7.
+              Verified by reading bootstrap.py:53-65.
+          - id: D2
+            verified: true
+            evidence: |
+              render_phase_diagram(over_budget_threshold=1.2)
+              default; marker fill is 'none' iff
+              cell.over_budget_factor > 1.2. Test
+              test_render_writes_pdf_and_returns_path constructs
+              a cell with over_budget=1.5 to exercise the open
+              branch.
+          - id: D3
+            verified: true
+            evidence: |
+              No round-by-round trajectory code in
+              analysis_phase/. The 6 source files contain no
+              dialogue-replay logic; characterize.py docstring
+              explicitly notes "Round-by-round trajectory is OUT
+              OF SCOPE".
+          - id: D4
+            verified: true
+            evidence: |
+              docs/reports/final-report.tex contains 6 \IfFileExists
+              blocks (one per included artifact). Verified by grep
+              + the test test_report_tex_uses_iffileexists_guards
+              asserting >= 5.
+          - id: D5
+            verified: true
+            evidence: |
+              cli/analyze_phase.py main() builds payload with
+              top-level keys {meta, cells, aime, cross_model,
+              thinking_o1, thinking_o2}; test
+              test_analysis_json_top_level_keys pins this.
+          - id: D6
+            verified: true
+            evidence: |
+              compute_per_cell_analysis globs every subdirectory;
+              load_cell_summary reads prompt_variant from
+              summary.cell.prompt_variant; cross_model_agreement
+              groups by (dataset, thinking, prompt_variant).
+              Test test_cross_model_agreement_groups_by_dataset_and_thinking
+              + the schema regression confirm the variant column
+              flows through.
+        missing_plan_items: []
+        confidence_mismatches: []
+        unplanned_accepted:
+          - "cli module renamed analyze.py -> analyze_phase.py to avoid clash with RQ0 flip-events CLI; spec didn't pin the module name."
+        unplanned_rejected: []
+
+      tests:
+        S1:
+          pass: 18
+          fail: 0
+          coverage: 99
+          tests_file: tests/phase_mapping_analysis/{test_bootstrap.py, test_cell_loader.py}
+        S2:
+          pass: 10
+          fail: 0
+          coverage: 95
+          tests_file: tests/phase_mapping_analysis/test_figure_phase_diagram.py
+        S3:
+          pass: 14
+          fail: 0
+          coverage: 92
+          tests_file: tests/phase_mapping_analysis/test_characterize.py
+        S4:
+          pass: 6
+          fail: 0
+          coverage: 97
+          tests_file: tests/phase_mapping_analysis/test_cli_analyze.py
+        S5:
+          pass: 13
+          fail: 0
+          coverage: 100  # structural .tex / Makefile checks
+          tests_file: tests/phase_mapping_analysis/test_report_scaffold.py
+        S6:
+          pass: 7
+          fail: 0
+          coverage: 96  # cross-cutting; covers the full pipeline
+          tests_file: tests/phase_mapping_analysis/test_end_to_end.py
+
+      blockers: []
+      regressions: []
+      verdict: PASS
+
+  optimization:
+    suggestions:
+      - loc: agentdiet/analysis_phase/bootstrap.py
+        what: |
+          load_cell_summary checks per-condition vector LENGTH but
+          not qid IDENTITY across sa/voting/debate. The grid runner
+          produces them in identical order today; if the runner
+          ever reorders one set, the bootstrap would silently
+          mispair without raising. Add a qid-equality assertion in
+          load_cell_summary so any future order drift fails loudly.
+      - loc: agentdiet/analysis_phase/characterize.py
+        what: |
+          cross_model_agreement compares only the first two
+          families when a group has 3+ families
+          (family_list[0], family_list[1]). Today the grid has 2
+          families so no rows hit this branch. If a third model
+          (gpt-5-mini API probe) lands, the third family's delta
+          is silently dropped. Either iterate all pairs or document
+          the 2-family contract explicitly.
+      - loc: agentdiet/analysis_phase/characterize.py
+        what: |
+          voting_wrong_debate_right reads voting.json + debate.json
+          via direct json.loads with no existence guard. A
+          --case-study-cell pointing at a nonexistent directory
+          surfaces a bare FileNotFoundError from json.loads
+          rather than a CLI-level "cell not found" message. Wrap
+          the I/O in a clear error.
+      - loc: agentdiet/analysis_phase/bootstrap.py
+        what: |
+          CI is computed via the percentile method
+          (numpy.quantile on the resample distribution). Spec §4.7
+          only says "paired bootstrap"; percentile is the simplest
+          but BCa would correct for skew. Consider documenting the
+          choice explicitly in the methods section, or add a
+          method= kwarg if reviewers ask.
+      - loc: docs/reports/final-report.tex
+        what: |
+          The thebibliography environment lists the two
+          references but no \cite{} call appears in the body
+          text. pdflatex tolerates this (warns about uncited
+          entries) but a careful reader will notice. Replace
+          inline mentions of "(Du et al., 2023)" with
+          \cite{du2023improving} so the bibliography is hooked
+          to the body.
+      - loc: agentdiet/cli/analyze_phase.py
+        what: |
+          The "matplotlib not installed" path is a try/except
+          around the import. Tests rely on matplotlib being
+          installed in this env. CI without
+          agentdiet[analysis] should work via --skip-figure,
+          but the import error is silently logged rather than
+          surfacing as a return code. Acceptable for a soft
+          dependency; document in the CLI --help.
+    final_verdict: MERGE_READY

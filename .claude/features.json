@@ -368,7 +368,7 @@
         "Assemble IMRAD LaTeX report with phase diagram as main figure; cite Du 2023 and Wang 2023; methodological appendix repurposes claim-extraction findings as mechanism explanation",
         "Generate PDF via pandoc/LaTeX"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "cross-model-grid-client",
