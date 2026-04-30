@@ -21,7 +21,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from agentdiet.eval.base import CodeQuestion, Judge
+from agentdiet.eval.base import Judge
 from agentdiet.grid.runner import (
     aggregate_condition,
     run_debate_q_code,
@@ -38,7 +38,6 @@ from agentdiet.grid.types import (
     QuestionResult,
     cell_dir,
     load_record,
-    load_summary,
     save_record,
     save_summary,
 )
@@ -180,7 +179,10 @@ def _run_condition_debate(qs, cell, llm_client, judge, is_code) -> ConditionReco
         if is_code:
             results.append(run_debate_q_code(q, cell, llm_client, judge))
         else:
-            results.append(run_debate_q_math(q, cell, llm_client))
+            results.append(run_debate_q_math(
+                q, cell, llm_client,
+                prompt_variant=cell.prompt_variant,
+            ))
     return aggregate_condition(results, cell, condition="debate")
 
 

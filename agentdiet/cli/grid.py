@@ -12,7 +12,6 @@ Usage on HPC (after vLLM serve is up at $AGENTDIET_BASE_URL):
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -39,18 +38,27 @@ MODEL_FAMILY_TO_ID = {
 
 DATASET_NAMES = ("gsm8k", "aime", "humaneval_plus", "livecodebench")
 CODE_DATASETS = {"humaneval_plus", "livecodebench"}
+PROMPT_VARIANT_NAMES = ("cooperative", "adversarial-strict", "symmetric")
 
 DEFAULT_OUTPUT_DIR = Path("artifacts/grid")
 
 
-def parse_cell_spec(spec: str) -> CellSpec:
-    """Parse 'family:dataset:thinking_int' into a CellSpec."""
+def parse_cell_spec(spec: str, default_variant: str = "cooperative") -> CellSpec:
+    """Parse 'family:dataset:thinking_int[:variant]' into a CellSpec.
+
+    The variant segment is optional; when absent we use default_variant
+    (which the CLI sources from --prompt-variant or 'cooperative').
+    """
     parts = spec.split(":")
-    if len(parts) != 3:
+    if len(parts) not in (3, 4):
         raise ValueError(
-            f"cell spec must be 'family:dataset:thinking_int', got {spec!r}"
+            f"cell spec must be 'family:dataset:thinking_int[:variant]', "
+            f"got {spec!r}"
         )
-    family, dataset_name, thinking_str = parts
+    family = parts[0]
+    dataset_name = parts[1]
+    thinking_str = parts[2]
+    variant = parts[3] if len(parts) == 4 else default_variant
     if family not in MODEL_FAMILY_TO_ID:
         raise ValueError(
             f"unknown model family {family!r}; "
@@ -63,15 +71,26 @@ def parse_cell_spec(spec: str) -> CellSpec:
         )
     if thinking_str not in ("0", "1"):
         raise ValueError(f"thinking must be 0 or 1, got {thinking_str!r}")
+    if variant not in PROMPT_VARIANT_NAMES:
+        raise ValueError(
+            f"unknown prompt variant {variant!r}; "
+            f"choose one of {list(PROMPT_VARIANT_NAMES)}"
+        )
     return CellSpec(
         model=MODEL_FAMILY_TO_ID[family],
         model_family=family,
         dataset_name=dataset_name,
         thinking=(thinking_str == "1"),
+        prompt_variant=variant,
     )
 
 
 PILOT_CELLS = ("qwen3:gsm8k:0", "qwen3:humaneval_plus:0")
+PROMPT_SUB_GRID_CELLS = tuple(
+    f"qwen3:gsm8k:{t}:{v}"
+    for v in PROMPT_VARIANT_NAMES
+    for t in (0, 1)
+)
 
 
 def _expand_all(thinking: bool) -> list[str]:
@@ -126,13 +145,18 @@ def main(
         description="Run one or more (model, dataset, thinking) grid cells.",
     )
     parser.add_argument("--cell", action="append", default=[],
-                        help="Cell spec 'family:dataset:thinking'. May repeat.")
+                        help="Cell spec 'family:dataset:thinking[:variant]'. May repeat.")
     parser.add_argument("--pilot", action="store_true",
                         help="Run pilot cells: qwen3:gsm8k:0 + qwen3:humaneval_plus:0")
     parser.add_argument("--all-thinking-off", action="store_true",
                         help="Run all 8 thinking-off cells across both models and 4 datasets")
     parser.add_argument("--all-thinking-on", action="store_true",
                         help="Run all 8 thinking-on cells across both models and 4 datasets")
+    parser.add_argument("--prompt-sub-grid", action="store_true",
+                        help="Run the 6-cell prompt-robustness sub-grid (Qwen3 + GSM8K x 3 prompt variants x thinking on/off)")
+    parser.add_argument("--prompt-variant",
+                        choices=PROMPT_VARIANT_NAMES, default="cooperative",
+                        help="Default prompt variant for cells whose spec omits the 4th segment")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR,
                         help="Directory to write artifacts/grid/{cell}/ subtrees")
     parser.add_argument("--force", action="store_true",
@@ -150,9 +174,14 @@ def main(
         specs.extend(_expand_all(thinking=False))
     if args.all_thinking_on:
         specs.extend(_expand_all(thinking=True))
+    if args.prompt_sub_grid:
+        specs.extend(PROMPT_SUB_GRID_CELLS)
     if not specs:
-        print("ERROR: no cells specified; use --cell, --pilot, or --all-thinking-{off,on}",
-              file=sys.stderr)
+        print(
+            "ERROR: no cells specified; use --cell, --pilot, "
+            "--all-thinking-{off,on}, or --prompt-sub-grid",
+            file=sys.stderr,
+        )
         return 2
     # Dedup while preserving order
     seen: set[str] = set()
@@ -168,7 +197,7 @@ def main(
 
     cells: list[CellSpec] = []
     for s in deduped:
-        cells.append(parse_cell_spec(s))
+        cells.append(parse_cell_spec(s, default_variant=args.prompt_variant))
 
     print(f"running {len(cells)} cell(s):", file=sys.stderr)
     for cell in cells:

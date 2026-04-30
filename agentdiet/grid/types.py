@@ -17,11 +17,18 @@ ConditionName = Literal["sa", "voting", "debate"]
 
 @dataclass(frozen=True)
 class CellSpec:
-    """Identifies one (model, dataset, thinking) cell uniquely."""
+    """Identifies one (model, dataset, thinking, prompt_variant) cell.
+
+    prompt_variant defaults to "cooperative" so existing CellSpec callers
+    are unaffected; the cell_dir naming function preserves the legacy
+    format when prompt_variant=="cooperative" so main-grid artifacts
+    keep their on-disk paths.
+    """
     model: str           # full HF id, e.g. "Qwen/Qwen3-30B-A3B"
     model_family: str    # "qwen3" | "gpt-oss" | "generic"
     dataset_name: str    # "gsm8k" | "aime" | "humaneval_plus" | "livecodebench"
     thinking: bool
+    prompt_variant: str = "cooperative"
 
     @property
     def model_slug(self) -> str:
@@ -29,7 +36,10 @@ class CellSpec:
 
 
 def cell_dir(cell: CellSpec) -> str:
-    return f"{cell.model_slug}__{cell.dataset_name}__t{int(cell.thinking)}"
+    base = f"{cell.model_slug}__{cell.dataset_name}__t{int(cell.thinking)}"
+    if cell.prompt_variant == "cooperative":
+        return base
+    return f"{base}__pv-{cell.prompt_variant}"
 
 
 @dataclass(frozen=True)
