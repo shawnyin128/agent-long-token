@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -137,8 +137,8 @@ def load_cell_summary(
     summary = _load_json(cell_path / "summary.json")
 
     sa_correct, sa_qids = _per_q_correctness(sa)
-    voting_correct, voting_qids = _per_q_correctness(voting)
-    debate_correct, debate_qids = _per_q_correctness(debate)
+    voting_correct, _ = _per_q_correctness(voting)
+    debate_correct, _ = _per_q_correctness(debate)
 
     if not (len(sa_correct) == len(voting_correct) == len(debate_correct)):
         raise ValueError(
