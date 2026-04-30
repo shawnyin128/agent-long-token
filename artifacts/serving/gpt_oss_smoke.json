@@ -1,0 +1,104 @@
+{
+  "model": "openai/gpt-oss-20b",
+  "tested_at": "2026-04-30T16:04:10.668468+00:00",
+  "thinking_on": [
+    {
+      "qid": "q1",
+      "thinking": true,
+      "reasoning_effort": "high",
+      "response_chars": 7,
+      "response_preview": "#### 18",
+      "prompt_tokens": 121,
+      "completion_tokens": 366
+    },
+    {
+      "qid": "q2",
+      "thinking": true,
+      "reasoning_effort": "high",
+      "response_chars": 7,
+      "response_preview": "#### 40",
+      "prompt_tokens": 108,
+      "completion_tokens": 143
+    },
+    {
+      "qid": "q3",
+      "thinking": true,
+      "reasoning_effort": "high",
+      "response_chars": 0,
+      "response_preview": "",
+      "prompt_tokens": 99,
+      "completion_tokens": 32669
+    },
+    {
+      "qid": "q4",
+      "thinking": true,
+      "reasoning_effort": "high",
+      "response_chars": 7,
+      "response_preview": "#### 15",
+      "prompt_tokens": 104,
+      "completion_tokens": 106
+    },
+    {
+      "qid": "q5",
+      "thinking": true,
+      "reasoning_effort": "high",
+      "response_chars": 109,
+      "response_preview": "12 cookies divided equally among 4 friends means each friend gets  \n\\( \\frac{12}{4} = 3 \\) cookies.  \n\n#### 3",
+      "prompt_tokens": 107,
+      "completion_tokens": 417
+    }
+  ],
+  "thinking_off": [
+    {
+      "qid": "q1",
+      "thinking": false,
+      "reasoning_effort": "low",
+      "response_chars": 6,
+      "response_preview": "18####",
+      "prompt_tokens": 121,
+      "completion_tokens": 56
+    },
+    {
+      "qid": "q2",
+      "thinking": false,
+      "reasoning_effort": "low",
+      "response_chars": 98,
+      "response_preview": "The speed is \\( \\frac{60\\text{ miles}}{1.5\\text{ hours}} = 40 \\text{ miles per hour}. \\)  \n#### 40",
+      "prompt_tokens": 108,
+      "completion_tokens": 66
+    },
+    {
+      "qid": "q3",
+      "thinking": false,
+      "reasoning_effort": "low",
+      "response_chars": 7,
+      "response_preview": "12 ####",
+      "prompt_tokens": 99,
+      "completion_tokens": 24
+    },
+    {
+      "qid": "q4",
+      "thinking": false,
+      "reasoning_effort": "low",
+      "response_chars": 30,
+      "response_preview": "The sale price is $15. #### 15",
+      "prompt_tokens": 104,
+      "completion_tokens": 41
+    },
+    {
+      "qid": "q5",
+      "thinking": false,
+      "reasoning_effort": "low",
+      "response_chars": 34,
+      "response_preview": "Each friend gets 3 cookies. #### 3",
+      "prompt_tokens": 107,
+      "completion_tokens": 30
+    }
+  ],
+  "summary": {
+    "mean_tokens_on": 6740.2,
+    "mean_tokens_off": 43.4,
+    "delta": 6696.8,
+    "passed": true
+  }
+}
