@@ -43,6 +43,7 @@ def cache_key(
     *,
     thinking: bool = False,
     top_p: float = 1.0,
+    max_tokens: Optional[int] = None,
 ) -> str:
     """Deterministic cache key.
 
@@ -60,6 +61,8 @@ def cache_key(
         parts.append("thinking=True")
     if top_p != 1.0:
         parts.append(f"top_p={top_p}")
+    if max_tokens is not None:
+        parts.append(f"max_tokens={max_tokens}")
     payload = "\n".join(parts)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -73,6 +76,7 @@ class Backend(Protocol):
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> str: ...
 
     def chat_full(
@@ -83,6 +87,7 @@ class Backend(Protocol):
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> ChatResult: ...
 
 
@@ -100,15 +105,24 @@ class DummyBackend:
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> str:
         self.call_count += 1
-        self.last_kwargs = {"thinking": thinking, "top_p": top_p}
+        self.last_kwargs = {"thinking": thinking, "top_p": top_p,
+                            "max_tokens": max_tokens}
         try:
             return self._responder(
-                messages, model, temperature, thinking=thinking, top_p=top_p
+                messages, model, temperature,
+                thinking=thinking, top_p=top_p, max_tokens=max_tokens,
             )
         except TypeError:
-            return self._responder(messages, model, temperature)
+            try:
+                return self._responder(
+                    messages, model, temperature,
+                    thinking=thinking, top_p=top_p,
+                )
+            except TypeError:
+                return self._responder(messages, model, temperature)
 
     def chat_full(
         self,
@@ -118,9 +132,11 @@ class DummyBackend:
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> ChatResult:
         text = self.chat(
-            messages, model, temperature, thinking=thinking, top_p=top_p
+            messages, model, temperature,
+            thinking=thinking, top_p=top_p, max_tokens=max_tokens,
         )
         return ChatResult(response=text, prompt_tokens=None, completion_tokens=None)
 
@@ -146,9 +162,11 @@ class OpenAIBackend:
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> str:
         return self.chat_full(
-            messages, model, temperature, thinking=thinking, top_p=top_p
+            messages, model, temperature,
+            thinking=thinking, top_p=top_p, max_tokens=max_tokens,
         ).response
 
     def chat_full(
@@ -159,6 +177,7 @@ class OpenAIBackend:
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> ChatResult:
         kwargs: dict[str, Any] = {
             "model": model,
@@ -167,6 +186,8 @@ class OpenAIBackend:
         }
         if temperature > 0 and top_p != 1.0:
             kwargs["top_p"] = top_p
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
 
         if self._model_family == "qwen3":
             kwargs["extra_body"] = {
@@ -263,9 +284,11 @@ class LLMClient:
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> str:
         return self.chat_full(
-            messages, model, temperature, thinking=thinking, top_p=top_p
+            messages, model, temperature,
+            thinking=thinking, top_p=top_p, max_tokens=max_tokens,
         ).response
 
     def chat_full(
@@ -276,9 +299,11 @@ class LLMClient:
         *,
         thinking: bool = False,
         top_p: float = 1.0,
+        max_tokens: Optional[int] = None,
     ) -> ChatResult:
         key = cache_key(
-            model, temperature, messages, thinking=thinking, top_p=top_p
+            model, temperature, messages,
+            thinking=thinking, top_p=top_p, max_tokens=max_tokens,
         )
         with self._lock:
             if key in self._cache:
@@ -293,7 +318,8 @@ class LLMClient:
         # Backend call happens OUTSIDE the lock so multiple threads can
         # issue concurrent requests to vLLM in parallel.
         result = self._call_full_with_retry(
-            messages, model, temperature, thinking=thinking, top_p=top_p
+            messages, model, temperature,
+            thinking=thinking, top_p=top_p, max_tokens=max_tokens,
         )
         with self._lock:
             # Re-check the cache: another thread may have populated this key
@@ -333,13 +359,14 @@ class LLMClient:
         *,
         thinking: bool,
         top_p: float,
+        max_tokens: Optional[int] = None,
     ) -> ChatResult:
         last_exc: Exception | None = None
         for attempt in range(self._max_retries):
             try:
                 return self._invoke_backend(
                     messages, model, temperature,
-                    thinking=thinking, top_p=top_p,
+                    thinking=thinking, top_p=top_p, max_tokens=max_tokens,
                 )
             except Exception as exc:
                 last_exc = exc
@@ -362,28 +389,42 @@ class LLMClient:
         *,
         thinking: bool,
         top_p: float,
+        max_tokens: Optional[int] = None,
     ) -> ChatResult:
         """Call backend.chat_full when present, else fall back to chat().
         Falls back further to chat(messages, model, temperature) for
-        legacy backends that don't accept thinking/top_p kwargs."""
+        legacy backends that don't accept thinking/top_p/max_tokens kwargs."""
         chat_full = getattr(self._backend, "chat_full", None)
         if chat_full is not None:
             try:
                 return chat_full(
                     messages, model, temperature,
-                    thinking=thinking, top_p=top_p,
+                    thinking=thinking, top_p=top_p, max_tokens=max_tokens,
                 )
             except TypeError:
-                # backend.chat_full has a stricter signature
-                return chat_full(messages, model, temperature)
+                # backend.chat_full has a stricter signature; try without
+                # max_tokens, then without top_p/thinking, finally bare 3-arg.
+                try:
+                    return chat_full(
+                        messages, model, temperature,
+                        thinking=thinking, top_p=top_p,
+                    )
+                except TypeError:
+                    return chat_full(messages, model, temperature)
 
         try:
             text = self._backend.chat(
                 messages, model, temperature,
-                thinking=thinking, top_p=top_p,
+                thinking=thinking, top_p=top_p, max_tokens=max_tokens,
             )
         except TypeError:
-            text = self._backend.chat(messages, model, temperature)
+            try:
+                text = self._backend.chat(
+                    messages, model, temperature,
+                    thinking=thinking, top_p=top_p,
+                )
+            except TypeError:
+                text = self._backend.chat(messages, model, temperature)
         return ChatResult(response=text, prompt_tokens=None, completion_tokens=None)
 
     def _append_cache(

@@ -61,6 +61,7 @@ def run_debate(
     seed: Optional[int] = None,
     thinking: bool = False,
     prompt_variant: str = "cooperative",
+    max_tokens: Optional[int] = None,
 ) -> Dialogue:
     if agents is None:
         if prompt_variant == "cooperative":
@@ -84,7 +85,7 @@ def run_debate(
                 api_msgs = agent.build_api_messages(user_content_for_all)
                 result = llm_client.chat_full(
                     api_msgs, model=model, temperature=temperature,
-                    thinking=thinking,
+                    thinking=thinking, max_tokens=max_tokens,
                 )
                 agent.record_turn(
                     user_content_for_all,
@@ -104,7 +105,7 @@ def run_debate(
                 api_msgs = agent.build_api_messages(user_content)
                 result = llm_client.chat_full(
                     api_msgs, model=model, temperature=temperature,
-                    thinking=thinking,
+                    thinking=thinking, max_tokens=max_tokens,
                 )
                 agent.record_turn(
                     user_content,

@@ -53,6 +53,19 @@ def default_sa_system_prompt(domain: Literal["math", "code"]) -> str:
     raise ValueError(f"unknown domain: {domain}")
 
 
+# Per-call output cap (input + output must fit in vLLM's max_model_len).
+# thinking=True traces can be 5-10k tokens on hard math; thinking=False
+# usually wraps in 1-2k. Caps below are upper bounds, not targets — the
+# model is free to finish earlier.
+DEFAULT_MAX_TOKENS_THINKING_OFF = 2048
+DEFAULT_MAX_TOKENS_THINKING_ON = 8192
+
+
+def _max_tokens_for(cell: CellSpec) -> int:
+    return (DEFAULT_MAX_TOKENS_THINKING_ON if cell.thinking
+            else DEFAULT_MAX_TOKENS_THINKING_OFF)
+
+
 # ---------------------------------------------------------------------------
 # Math conditions
 # ---------------------------------------------------------------------------
@@ -67,6 +80,7 @@ def run_sa_math(
     ]
     result = llm_client.chat_full(
         messages, cell.model, temperature=0.0, thinking=cell.thinking,
+        max_tokens=_max_tokens_for(cell),
     )
     parsed = parse_answer(result.response)
     correct = parsed is not None and str(parsed).strip() == str(question.gold_answer).strip()
@@ -95,6 +109,7 @@ def run_voting_q_math(
         model=cell.model,
         system_prompt=SOLVER_PROMPT,
         thinking=cell.thinking,
+        max_tokens=_max_tokens_for(cell),
     )
     correct = (
         voting.final_answer is not None
@@ -127,6 +142,7 @@ def run_debate_q_math(
         temperature=0.0,
         thinking=cell.thinking,
         prompt_variant=prompt_variant,
+        max_tokens=_max_tokens_for(cell),
     )
     final = dialogue.final_answer
     correct = final is not None and str(final).strip() == str(question.gold_answer).strip()
@@ -191,6 +207,7 @@ def run_sa_code(
     ]
     result = llm_client.chat_full(
         messages, cell.model, temperature=0.0, thinking=cell.thinking,
+        max_tokens=_max_tokens_for(cell),
     )
     code = _extract_code(result.response)
     correct, judge_res = _judge_correct(judge, code, question.hidden_tests)
@@ -226,6 +243,7 @@ def run_voting_q_code(
         # Use identity parser so the raw response (which may be
         # multi-line code) is preserved; we'll cluster via Judge.
         parser=lambda text: text,
+        max_tokens=_max_tokens_for(cell),
     )
     code_samples = [_extract_code(s) for s in voting.samples]
     if question.public_tests:
@@ -263,6 +281,7 @@ def run_debate_q_code(
         n_agents=3, n_rounds=3,
         temperature=0.0,
         thinking=cell.thinking,
+        max_tokens=_max_tokens_for(cell),
     )
     final_round = max(m.round for m in dialogue.messages)
     round_n_codes = [m.code for m in dialogue.messages

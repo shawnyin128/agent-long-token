@@ -195,6 +195,7 @@ def run_code_debate(
     temperature: float = 0.0,
     thinking: bool = False,
     agents: Optional[list[CodeAgent]] = None,
+    max_tokens: Optional[int] = None,
 ) -> CodeDialogue:
     """Run an N-agent x R-round code debate.
 
@@ -230,7 +231,8 @@ def run_code_debate(
                 {"role": "user", "content": user_content},
             ]
             result = llm_client.chat_full(
-                api_msgs, model, temperature, thinking=thinking,
+                api_msgs, model, temperature,
+                thinking=thinking, max_tokens=max_tokens,
             )
             notes, code = parse_code_message(result.response)
             round_outputs.append(CodeMessage(

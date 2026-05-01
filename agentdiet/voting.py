@@ -88,6 +88,7 @@ def run_voting(
     top_p: float = 0.95,
     thinking: bool = False,
     parser: Callable[[str], Optional[str]] = parse_answer,
+    max_tokens: Optional[int] = None,
 ) -> VotingResult:
     """Execute n_samples independent SA calls and majority-vote.
 
@@ -108,7 +109,7 @@ def run_voting(
         ]
         result = llm_client.chat_full(
             messages, model, temperature,
-            thinking=thinking, top_p=top_p,
+            thinking=thinking, top_p=top_p, max_tokens=max_tokens,
         )
         samples.append(result.response)
         prompt_tokens = result.prompt_tokens or 0
