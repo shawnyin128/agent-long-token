@@ -53,21 +53,31 @@ def default_sa_system_prompt(domain: Literal["math", "code"]) -> str:
     raise ValueError(f"unknown domain: {domain}")
 
 
-# No per-call max_tokens cap by default. vLLM auto-allocates output
-# budget = max_model_len - input_size, so an explicit cap is at best
-# redundant and at worst causes BadRequestError when input + cap
-# exceeds max_model_len (e.g. round-3 debate input + cap > 40960).
+# Per-call output cap policy.
 #
-# Truncation handling: when the natural output happens to hit
-# max_model_len mid-<think>, strip_thinking_trace drops the unclosed
-# trace cleanly so the next round's prompt is not polluted.
-DEFAULT_MAX_TOKENS_THINKING_OFF = None
-DEFAULT_MAX_TOKENS_THINKING_ON = None
+# Most variants (cooperative, symmetric) get NO cap — the model's
+# natural responses are short enough (100-500 tokens for thinking-off
+# GSM8K) that vLLM's auto-allocation handles them fine.
+#
+# adversarial-strict is the exception: its skeptic prompt requires
+# "explain why their step was wrong" and synthesizer must "enumerate
+# every disagreement point", which provoke 3-6k token responses per
+# turn. Across 3 agents x 3 rounds the accumulated history blows past
+# max_model_len (40961 > 40960 on Qwen3 GSM8K thinking-off, observed
+# 2026-05-01). Cap responses for that variant only:
+#   - thinking-off: 2048 tokens (covers normal disagreement-listing)
+#   - thinking-on:  8192 tokens (room for <think> + answer; strip
+#                                 handles cases that overflow)
+ADVERSARIAL_MAX_TOKENS_THINKING_OFF = 2048
+ADVERSARIAL_MAX_TOKENS_THINKING_ON = 8192
 
 
 def _max_tokens_for(cell: CellSpec) -> Optional[int]:
-    return (DEFAULT_MAX_TOKENS_THINKING_ON if cell.thinking
-            else DEFAULT_MAX_TOKENS_THINKING_OFF)
+    if cell.prompt_variant == "adversarial-strict":
+        return (ADVERSARIAL_MAX_TOKENS_THINKING_ON if cell.thinking
+                else ADVERSARIAL_MAX_TOKENS_THINKING_OFF)
+    # cooperative + symmetric: no cap; vLLM auto-allocates output.
+    return None
 
 
 # ---------------------------------------------------------------------------
