@@ -54,11 +54,20 @@ def default_sa_system_prompt(domain: Literal["math", "code"]) -> str:
 
 
 # Per-call output cap (input + output must fit in vLLM's max_model_len).
-# thinking=True traces can be 5-10k tokens on hard math; thinking=False
-# usually wraps in 1-2k. Caps below are upper bounds, not targets — the
-# model is free to finish earlier.
-DEFAULT_MAX_TOKENS_THINKING_OFF = 2048
-DEFAULT_MAX_TOKENS_THINKING_ON = 8192
+# Caps below are GENEROUS upper bounds; they exist to prevent runaway
+# generation, not to limit normal completions:
+#   - thinking-off: 4096 covers AIME's longest legitimate solutions
+#     (~2-3k tokens) with margin. GSM8K needs 200-500.
+#   - thinking-on: 24576 covers Qwen3 / GPT-OSS-high <think> traces
+#     (typically 3-15k) plus the actual answer. Cutoff risk on the
+#     hardest cases is small but non-zero.
+#
+# We rely on strip_thinking_trace to keep accumulated DEBATE history
+# small even with these caps: <think> is stripped before being
+# recorded into self-history or broadcast to peers, so round-3 input
+# stays under ~10k regardless of how long thinking-on responses get.
+DEFAULT_MAX_TOKENS_THINKING_OFF = 4096
+DEFAULT_MAX_TOKENS_THINKING_ON = 24576
 
 
 def _max_tokens_for(cell: CellSpec) -> int:
