@@ -19,7 +19,7 @@ class Config(BaseSettings):
     temperature: float = 0.0
     base_url: str = "http://localhost:8000/v1"
     api_key: str = "EMPTY"
-    request_timeout_s: float = 120.0
+    request_timeout_s: float = 600.0  # AIME / thinking-on can take minutes
     max_retries: int = 3
 
     seed: int = 42
