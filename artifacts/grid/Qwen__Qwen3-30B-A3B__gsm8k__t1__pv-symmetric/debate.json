@@ -1,0 +1,736 @@
+{
+  "condition": "debate",
+  "cell": {
+    "model": "Qwen/Qwen3-30B-A3B",
+    "model_family": "qwen3",
+    "dataset_name": "gsm8k",
+    "thinking": true,
+    "prompt_variant": "symmetric"
+  },
+  "questions": [
+    {
+      "qid": "gsm8k-test-13",
+      "gold": "18",
+      "final_answer": "18",
+      "correct": true,
+      "prompt_tokens": 9666,
+      "completion_tokens": 5730,
+      "total_tokens": 15396,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "18",
+          "1": "18",
+          "2": "18"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-51",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 4782,
+      "completion_tokens": 2705,
+      "total_tokens": 7487,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "5",
+          "1": "5",
+          "2": "5"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-54",
+      "gold": "40",
+      "final_answer": "40",
+      "correct": true,
+      "prompt_tokens": 4266,
+      "completion_tokens": 3669,
+      "total_tokens": 7935,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "40",
+          "1": "40",
+          "2": "40"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-61",
+      "gold": "1430",
+      "final_answer": "1430",
+      "correct": true,
+      "prompt_tokens": 5358,
+      "completion_tokens": 4263,
+      "total_tokens": 9621,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "1430",
+          "1": "1430",
+          "2": "1430"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-65",
+      "gold": "36",
+      "final_answer": "36",
+      "correct": true,
+      "prompt_tokens": 3957,
+      "completion_tokens": 4502,
+      "total_tokens": 8459,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "36",
+          "1": "36",
+          "2": "36"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-88",
+      "gold": "8000",
+      "final_answer": "8000",
+      "correct": true,
+      "prompt_tokens": 6411,
+      "completion_tokens": 4428,
+      "total_tokens": 10839,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "8000",
+          "1": "8000",
+          "2": "8000"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-93",
+      "gold": "36",
+      "final_answer": "400",
+      "correct": false,
+      "prompt_tokens": 8910,
+      "completion_tokens": 15581,
+      "total_tokens": 24491,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "400",
+          "1": "400",
+          "2": "400"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-142",
+      "gold": "140",
+      "final_answer": "140",
+      "correct": true,
+      "prompt_tokens": 3978,
+      "completion_tokens": 3392,
+      "total_tokens": 7370,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "140",
+          "1": "140",
+          "2": "140"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-146",
+      "gold": "2125",
+      "final_answer": "2125",
+      "correct": true,
+      "prompt_tokens": 5502,
+      "completion_tokens": 7508,
+      "total_tokens": 13010,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "2125",
+          "1": "2125",
+          "2": "2125"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-161",
+      "gold": "32",
+      "final_answer": "32",
+      "correct": true,
+      "prompt_tokens": 5481,
+      "completion_tokens": 5167,
+      "total_tokens": 10648,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "32",
+          "1": "32",
+          "2": "32"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-163",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 6870,
+      "completion_tokens": 4805,
+      "total_tokens": 11675,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "50",
+          "1": "50",
+          "2": "50"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-178",
+      "gold": "122",
+      "final_answer": "122",
+      "correct": true,
+      "prompt_tokens": 4461,
+      "completion_tokens": 3045,
+      "total_tokens": 7506,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "122",
+          "1": "122",
+          "2": "122"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-189",
+      "gold": "34",
+      "final_answer": "34",
+      "correct": true,
+      "prompt_tokens": 6090,
+      "completion_tokens": 6149,
+      "total_tokens": 12239,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "34",
+          "1": "34",
+          "2": "34"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-191",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 6996,
+      "completion_tokens": 4479,
+      "total_tokens": 11475,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "5",
+          "1": "5",
+          "2": "5"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-198",
+      "gold": "320",
+      "final_answer": "320",
+      "correct": true,
+      "prompt_tokens": 8310,
+      "completion_tokens": 5653,
+      "total_tokens": 13963,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "320",
+          "1": "320",
+          "2": "320"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-206",
+      "gold": "860",
+      "final_answer": "860",
+      "correct": true,
+      "prompt_tokens": 5949,
+      "completion_tokens": 4750,
+      "total_tokens": 10699,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "860",
+          "1": "860",
+          "2": "860"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-209",
+      "gold": "145",
+      "final_answer": "145",
+      "correct": true,
+      "prompt_tokens": 9297,
+      "completion_tokens": 9838,
+      "total_tokens": 19135,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "145",
+          "1": "145",
+          "2": "145"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-228",
+      "gold": "1",
+      "final_answer": "1",
+      "correct": true,
+      "prompt_tokens": 5475,
+      "completion_tokens": 4287,
+      "total_tokens": 9762,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "1",
+          "1": "1",
+          "2": "1"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-255",
+      "gold": "192",
+      "final_answer": "176",
+      "correct": false,
+      "prompt_tokens": 7182,
+      "completion_tokens": 18216,
+      "total_tokens": 25398,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "176",
+          "1": "176",
+          "2": "176"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-285",
+      "gold": "21",
+      "final_answer": "21",
+      "correct": true,
+      "prompt_tokens": 3102,
+      "completion_tokens": 2368,
+      "total_tokens": 5470,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "21",
+          "1": "21",
+          "2": "21"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-318",
+      "gold": "123",
+      "final_answer": "123",
+      "correct": true,
+      "prompt_tokens": 4758,
+      "completion_tokens": 3862,
+      "total_tokens": 8620,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "123",
+          "1": "123",
+          "2": "123"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-326",
+      "gold": "14",
+      "final_answer": "14",
+      "correct": true,
+      "prompt_tokens": 6057,
+      "completion_tokens": 5871,
+      "total_tokens": 11928,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "14",
+          "1": "14",
+          "2": "14"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-333",
+      "gold": "100",
+      "final_answer": "100",
+      "correct": true,
+      "prompt_tokens": 6396,
+      "completion_tokens": 6298,
+      "total_tokens": 12694,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "100",
+          "1": "100",
+          "2": "100"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-334",
+      "gold": "6",
+      "final_answer": "6",
+      "correct": true,
+      "prompt_tokens": 4875,
+      "completion_tokens": 5646,
+      "total_tokens": 10521,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "6",
+          "1": "6",
+          "2": "6"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-350",
+      "gold": "8",
+      "final_answer": "8",
+      "correct": true,
+      "prompt_tokens": 5805,
+      "completion_tokens": 4725,
+      "total_tokens": 10530,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "8",
+          "1": "8",
+          "2": "8"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-393",
+      "gold": "20",
+      "final_answer": "20",
+      "correct": true,
+      "prompt_tokens": 6489,
+      "completion_tokens": 5644,
+      "total_tokens": 12133,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "20",
+          "1": "20",
+          "2": "20"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-407",
+      "gold": "2000",
+      "final_answer": "2000",
+      "correct": true,
+      "prompt_tokens": 6399,
+      "completion_tokens": 7091,
+      "total_tokens": 13490,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "2000",
+          "1": "2000",
+          "2": "2000"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-429",
+      "gold": "13",
+      "final_answer": "13",
+      "correct": true,
+      "prompt_tokens": 4521,
+      "completion_tokens": 3508,
+      "total_tokens": 8029,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "13",
+          "1": "13",
+          "2": "13"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-440",
+      "gold": "98",
+      "final_answer": "98",
+      "correct": true,
+      "prompt_tokens": 6906,
+      "completion_tokens": 5227,
+      "total_tokens": 12133,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "98",
+          "1": "98",
+          "2": "98"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-447",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 4203,
+      "completion_tokens": 3908,
+      "total_tokens": 8111,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "5",
+          "1": "5",
+          "2": "5"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-449",
+      "gold": "112",
+      "final_answer": "112",
+      "correct": true,
+      "prompt_tokens": 4590,
+      "completion_tokens": 3583,
+      "total_tokens": 8173,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "112",
+          "1": "112",
+          "2": "112"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-451",
+      "gold": "11050",
+      "final_answer": "11050",
+      "correct": true,
+      "prompt_tokens": 6231,
+      "completion_tokens": 4815,
+      "total_tokens": 11046,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "11050",
+          "1": "11050",
+          "2": "11050"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-457",
+      "gold": "45",
+      "final_answer": "45",
+      "correct": true,
+      "prompt_tokens": 4140,
+      "completion_tokens": 2778,
+      "total_tokens": 6918,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "45",
+          "1": "45",
+          "2": "45"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-466",
+      "gold": "1",
+      "final_answer": "1",
+      "correct": true,
+      "prompt_tokens": 5538,
+      "completion_tokens": 5327,
+      "total_tokens": 10865,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "1",
+          "1": "1",
+          "2": "1"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-476",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 4218,
+      "completion_tokens": 3028,
+      "total_tokens": 7246,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "5",
+          "1": "5",
+          "2": "5"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-501",
+      "gold": "273",
+      "final_answer": "273",
+      "correct": true,
+      "prompt_tokens": 4407,
+      "completion_tokens": 4114,
+      "total_tokens": 8521,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "273",
+          "1": "273",
+          "2": "273"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-541",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 6369,
+      "completion_tokens": 6322,
+      "total_tokens": 12691,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "50",
+          "1": "50",
+          "2": "50"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-546",
+      "gold": "130",
+      "final_answer": "130",
+      "correct": true,
+      "prompt_tokens": 4998,
+      "completion_tokens": 6967,
+      "total_tokens": 11965,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "130",
+          "1": "130",
+          "2": "130"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-552",
+      "gold": "450",
+      "final_answer": "450",
+      "correct": true,
+      "prompt_tokens": 5739,
+      "completion_tokens": 7797,
+      "total_tokens": 13536,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "450",
+          "1": "450",
+          "2": "450"
+        }
+      }
+    },
+    {
+      "qid": "gsm8k-test-563",
+      "gold": "12",
+      "final_answer": "12",
+      "correct": true,
+      "prompt_tokens": 4608,
+      "completion_tokens": 4081,
+      "total_tokens": 8689,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "12",
+          "1": "12",
+          "2": "12"
+        }
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.95,
+  "total_tokens": 450417,
+  "meta": {}
+}
