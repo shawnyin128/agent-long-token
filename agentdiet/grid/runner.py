@@ -53,24 +53,19 @@ def default_sa_system_prompt(domain: Literal["math", "code"]) -> str:
     raise ValueError(f"unknown domain: {domain}")
 
 
-# Per-call output cap (input + output must fit in vLLM's max_model_len,
-# which is 40960 by default). Caps below are tuned so that even when
-# input has accumulated to its worst case (~16k tokens at round 3),
-# the request still fits in the model's context window.
+# No per-call max_tokens cap by default. vLLM auto-allocates output
+# budget = max_model_len - input_size, so an explicit cap is at best
+# redundant and at worst causes BadRequestError when input + cap
+# exceeds max_model_len (e.g. round-3 debate input + cap > 40960).
 #
-#   - thinking-off: 4096 covers AIME's longest legitimate solutions
-#     (~2-3k tokens) with margin. GSM8K needs 200-500.
-#   - thinking-on: 16384 covers Qwen3 / GPT-OSS-high <think> traces
-#     (typically 3-12k) plus the actual answer. The very hardest AIME
-#     thinking-on responses may still hit this cap; truncation is
-#     handled robustly by strip_thinking_trace (the truncated trace
-#     is dropped before recording into self-history, so it does NOT
-#     poison the next round's prompt).
-DEFAULT_MAX_TOKENS_THINKING_OFF = 4096
-DEFAULT_MAX_TOKENS_THINKING_ON = 16384
+# Truncation handling: when the natural output happens to hit
+# max_model_len mid-<think>, strip_thinking_trace drops the unclosed
+# trace cleanly so the next round's prompt is not polluted.
+DEFAULT_MAX_TOKENS_THINKING_OFF = None
+DEFAULT_MAX_TOKENS_THINKING_ON = None
 
 
-def _max_tokens_for(cell: CellSpec) -> int:
+def _max_tokens_for(cell: CellSpec) -> Optional[int]:
     return (DEFAULT_MAX_TOKENS_THINKING_ON if cell.thinking
             else DEFAULT_MAX_TOKENS_THINKING_OFF)
 
