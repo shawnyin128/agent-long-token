@@ -1,0 +1,27 @@
+{
+  "cell": {
+    "model": "Qwen/Qwen3-30B-A3B",
+    "model_family": "qwen3",
+    "dataset_name": "gsm8k",
+    "thinking": true,
+    "prompt_variant": "cooperative"
+  },
+  "sa_accuracy": 0.95,
+  "voting_accuracy": 0.975,
+  "debate_accuracy": 0.95,
+  "sa_total_tokens": 47714,
+  "voting_total_tokens": 618294,
+  "debate_total_tokens": 473519,
+  "delta_debate_voting": -0.025000000000000022,
+  "delta_debate_sa": 0.0,
+  "calibration": {
+    "N_raw": 14,
+    "N": 14,
+    "mean_debate_tokens": 10475.6,
+    "mean_sa_tokens": 750.8,
+    "over_budget_factor": 1.0033983733628622,
+    "floor_active": false,
+    "calibration_prefix_n": 5
+  },
+  "n_questions": 40
+}

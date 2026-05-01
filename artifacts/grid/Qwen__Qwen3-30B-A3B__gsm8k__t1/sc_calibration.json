@@ -1,0 +1,9 @@
+{
+  "N_raw": 14,
+  "N": 14,
+  "mean_debate_tokens": 10475.6,
+  "mean_sa_tokens": 750.8,
+  "over_budget_factor": 1.0033983733628622,
+  "floor_active": false,
+  "calibration_prefix_n": 5
+}
