@@ -22,6 +22,7 @@ LATER_ROUND_TEMPLATE = (
 
 
 _THINKING_TRACE_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+_THINKING_OPEN_RE = re.compile(r"<think>", re.IGNORECASE)
 
 
 def strip_thinking_trace(text: str) -> str:
@@ -32,10 +33,26 @@ def strip_thinking_trace(text: str) -> str:
     enable_thinking=True wraps reasoning in <think>...</think>; we
     strip those before showing the message to other agents.
 
-    No-op on responses that don't contain a thinking block, so the
-    same code path is safe for thinking-off and for non-Qwen3 models.
+    Handles three cases robustly:
+      - Zero <think> tags: returns text unchanged (thinking-off path).
+      - Well-formed <think>...</think>...answer: strips just the
+        thinking block(s), keeps the answer.
+      - Truncated <think>...still-thinking-no-close (max_tokens cut
+        the response mid-trace): drops everything from the unclosed
+        <think> onward, preventing the half-trace from accumulating
+        into the next round's prompt and blowing past max_model_len.
+        The agent loses its answer for this turn (parse_answer will
+        return None -> correct=False), which is the correct behavior
+        for a truncation: don't poison downstream rounds.
     """
-    return _THINKING_TRACE_RE.sub("", text).strip()
+    # Pass 1: strip every well-formed <think>...</think> block.
+    cleaned = _THINKING_TRACE_RE.sub("", text).strip()
+    # Pass 2: any remaining unclosed <think> means the response was
+    # truncated mid-trace; drop everything from the opening tag onward.
+    m = _THINKING_OPEN_RE.search(cleaned)
+    if m:
+        cleaned = cleaned[: m.start()].strip()
+    return cleaned
 
 
 def format_other_responses(messages_this_round: list[Message], self_id: int) -> str:

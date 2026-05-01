@@ -33,6 +33,37 @@ def test_no_block_is_no_op():
     assert strip_thinking_trace(text) == text
 
 
+def test_truncated_unclosed_think_drops_everything_from_open_tag():
+    """When max_tokens cuts the response mid-trace, there is no </think>;
+    we drop everything from the unclosed <think> onward so the truncated
+    trace can't poison the next round's prompt."""
+    text = "Some preamble.\n<think>still thinking but cut off"
+    cleaned = strip_thinking_trace(text)
+    assert cleaned == "Some preamble."
+    assert "<think>" not in cleaned
+    assert "still thinking" not in cleaned
+
+
+def test_well_formed_then_truncated_strips_both():
+    """A complete <think>...</think> block followed by another truncated
+    <think> should leave everything before the unclosed tag."""
+    text = (
+        "<think>first reasoning</think>\n"
+        "Step 1 result.\n"
+        "<think>second reasoning truncated\n"
+    )
+    cleaned = strip_thinking_trace(text)
+    assert cleaned == "Step 1 result."
+
+
+def test_only_unclosed_think_returns_empty():
+    """If the entire response is an unclosed <think>, we drop everything
+    -> the agent gets a blank turn (parse_answer returns None ->
+    correct=False). This is the right behavior for total truncation."""
+    text = "<think>way too long to finish before max_tokens"
+    assert strip_thinking_trace(text) == ""
+
+
 def test_empty_input():
     assert strip_thinking_trace("") == ""
 
