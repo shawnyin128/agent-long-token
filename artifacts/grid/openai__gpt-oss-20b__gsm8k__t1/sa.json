@@ -1,0 +1,496 @@
+{
+  "condition": "sa",
+  "cell": {
+    "model": "openai/gpt-oss-20b",
+    "model_family": "gpt-oss",
+    "dataset_name": "gsm8k",
+    "thinking": true,
+    "prompt_variant": "cooperative"
+  },
+  "questions": [
+    {
+      "qid": "gsm8k-test-13",
+      "gold": "18",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 171,
+      "completion_tokens": 65365,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-51",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 161,
+      "completion_tokens": 7663,
+      "total_tokens": 7824,
+      "meta": {
+        "raw_response": "Tom sails out for 3 hours at 10 mph, covering  \n\\(3 \\text{ h} \\times 10 \\text{ mph} = 30\\) miles.  \nReturning at 6 mph, the time needed is  \n\\(\\displaystyle \\frac{30 \\text{ miles}}{6 \\text{ mph}} = 5\\) hours.  \n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-54",
+      "gold": "40",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 194,
+      "completion_tokens": 65342,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-61",
+      "gold": "1430",
+      "final_answer": "1430",
+      "correct": true,
+      "prompt_tokens": 170,
+      "completion_tokens": 383,
+      "total_tokens": 553,
+      "meta": {
+        "raw_response": "Janet’s total cost is the sum of the material, the construction, and the insurance fee.\n\n1. **Material cost**: \\( \\$500 \\)  \n2. **Construction cost**: \\( \\$800 \\)\n\n   \\[\n   \\text{Subtotal} = 500 + 800 = \\$1300\n   \\]\n\n3. **Insurance fee**: 10 % of the subtotal\n\n   \\[\n   0.10 \\times 1300 = \\$130\n   \\]\n\n4. **Total amount paid**\n\n   \\[\n   1300 + 130 = \\$1430\n   \\]\n\nThus, Janet paid **\\$1430** in total.\n\n#### 1430"
+      }
+    },
+    {
+      "qid": "gsm8k-test-65",
+      "gold": "36",
+      "final_answer": "36",
+      "correct": true,
+      "prompt_tokens": 160,
+      "completion_tokens": 604,
+      "total_tokens": 764,
+      "meta": {
+        "raw_response": "Jim watches TV for 2 hours.  \nHe then reads for half as long as the TV time:\n\n\\[\n\\text{Reading time} = \\frac{1}{2}\\times 2\\text{ h} = 1\\text{ h}\n\\]\n\nSo each time he does this, he spends\n\n\\[\n2\\text{ h (TV)} + 1\\text{ h (reading)} = 3\\text{ h}\n\\]\n\nHe repeats this routine 3 times a week, so weekly hours are\n\n\\[\n3 \\times 3\\text{ h} = 9\\text{ h}\n\\]\n\nOver 4 weeks the total time is\n\n\\[\n4 \\times 9\\text{ h} = 36\\text{ h}\n\\]\n\n#### 36"
+      }
+    },
+    {
+      "qid": "gsm8k-test-88",
+      "gold": "8000",
+      "final_answer": "8000",
+      "correct": true,
+      "prompt_tokens": 146,
+      "completion_tokens": 217,
+      "total_tokens": 363,
+      "meta": {
+        "raw_response": "Let  \n\n- \\(x\\) = number of copies Harald sold.  \n- Marilyn sold 10 times as many, so she sold \\(10x\\) copies.\n\nThe total number of copies sold is\n\n\\[\nx + 10x = 11x.\n\\]\n\nWe know this total equals 88,000 copies:\n\n\\[\n11x = 88{,}000.\n\\]\n\nSolve for \\(x\\):\n\n\\[\nx = \\frac{88{,}000}{11} = 8{,}000.\n\\]\n\nSo Harald sold **8,000 copies**.\n\n#### 8000"
+      }
+    },
+    {
+      "qid": "gsm8k-test-93",
+      "gold": "36",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 187,
+      "completion_tokens": 65349,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-142",
+      "gold": "140",
+      "final_answer": "140",
+      "correct": true,
+      "prompt_tokens": 158,
+      "completion_tokens": 390,
+      "total_tokens": 548,
+      "meta": {
+        "raw_response": "Jordan would work 2 hours each day for 7 days:\n\n\\[\n2 \\text{ hours/day} \\times 7 \\text{ days} = 14 \\text{ hours/week}\n\\]\n\nAt $10 per hour, his earnings would be:\n\n\\[\n14 \\text{ hours} \\times \\$10/\\text{hour} = \\$140\n\\]\n\n#### 140"
+      }
+    },
+    {
+      "qid": "gsm8k-test-146",
+      "gold": "2125",
+      "final_answer": "2125",
+      "correct": true,
+      "prompt_tokens": 190,
+      "completion_tokens": 9954,
+      "total_tokens": 10144,
+      "meta": {
+        "raw_response": "Johnny has three boxed sets:\n\n1. The first set has \\(500\\) pieces.  \n2. The second set has “3 times more pieces than the 500‑piece set.”  \n   - “3 times more” is usually interpreted as 3 times as many, so  \n     \\(3 \\times 500 = 1500\\) pieces.  \n3. The third set has “1/4 the number of pieces” of the first set, so  \n   \\(\\frac{1}{4}\\times 500 = 125\\) pieces.\n\nAdding them together:\n\n\\[\n500 + 1500 + 125 = 2125\n\\]\n\nThus Johnny picks up **2125 blocks** in total.  \n\n#### 2125"
+      }
+    },
+    {
+      "qid": "gsm8k-test-161",
+      "gold": "32",
+      "final_answer": "32",
+      "correct": true,
+      "prompt_tokens": 184,
+      "completion_tokens": 385,
+      "total_tokens": 569,
+      "meta": {
+        "raw_response": "Anakin’s catch  \n- Starfish: \\(10\\)  \n- Sea horses: \\(6\\)  \n- Clownfish: \\(3\\)\n\nTotal for Anakin  \n\\[\n10+6+3 = 19 \\text{ fish}\n\\]\n\nLocsin’s catch is described relative to Anakin’s numbers:\n\n- Starfish: \\(10-5 = 5\\)  \n- Sea horses: \\(6-3 = 3\\)  \n- Clownfish: \\(3+2 = 5\\)\n\nTotal for Locsin  \n\\[\n5+3+5 = 13 \\text{ fish}\n\\]\n\nCombined total fish caught by both  \n\\[\n19 + 13 = 32\n\\]\n\n#### 32"
+      }
+    },
+    {
+      "qid": "gsm8k-test-163",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 169,
+      "completion_tokens": 1187,
+      "total_tokens": 1356,
+      "meta": {
+        "raw_response": "First, identify the cost of each type of toy.\n\n1. **Action figure**  \n   The problem states that an action figure costs \\$5.\n\n2. **Doll**  \n   The doll costs as much as 3 action figures.  \n   \\[\n   \\text{Cost of doll} = 3 \\times \\$5 = \\$15\n   \\]\n\n3. **Red car**  \n   One red car costs \\$4.  \n   \\[\n   \\text{Cost of one red car} = \\$4\n   \\]\n\nNow compute the total value of all the toys in the room.\n\n- **Red cars**: 5 cars × \\$4 each = \\$20  \n- **Action figures**: 3 figures × \\$5 each = \\$15  \n- **Doll**: 1 doll × \\$15 = \\$15  \n\nAdd them together:\n\\[\n\\$20 + \\$15 + \\$15 = \\$50\n\\]\n\nSo, all the toys together are worth **\\$50**.\n\n#### 50"
+      }
+    },
+    {
+      "qid": "gsm8k-test-178",
+      "gold": "122",
+      "final_answer": "122",
+      "correct": true,
+      "prompt_tokens": 154,
+      "completion_tokens": 367,
+      "total_tokens": 521,
+      "meta": {
+        "raw_response": "First, determine how many crabs each person has.\n\n1. **Bo’s crabs**  \n   Bo has \\(40\\) crabs.\n\n2. **Monic’s crabs**  \n   Monic has \\(4\\) fewer crabs than Bo.  \n   \\[\n   \\text{Monic} = 40 - 4 = 36 \\text{ crabs}\n   \\]\n\n3. **Rani’s crabs**  \n   Rani has \\(10\\) more crabs than Monic.  \n   \\[\n   \\text{Rani} = 36 + 10 = 46 \\text{ crabs}\n   \\]\n\nNow add the numbers together to find the total number of crabs the three have:\n\n\\[\n\\text{Total} = \\text{Bo} + \\text{Monic} + \\text{Rani}\n            = 40 + 36 + 46\n            = 122\n\\]\n\nThus, the three together have **122 crabs**.\n\n#### 122"
+      }
+    },
+    {
+      "qid": "gsm8k-test-189",
+      "gold": "34",
+      "final_answer": "34",
+      "correct": true,
+      "prompt_tokens": 177,
+      "completion_tokens": 1284,
+      "total_tokens": 1461,
+      "meta": {
+        "raw_response": "First, find the cost of each type of expense.\n\n**Tickets**  \nThe three friends spent a total of \\$20.25 on tickets.\n\n**Food**  \nThey spent \\$4.50 less on food than on the tickets.  \n\\[\n\\text{Food cost} = \\$20.25 - \\$4.50 = \\$15.75\n\\]\n\n**Rides**  \nThey rode on two different rides, each costing \\$33.  \n\\[\n\\text{Ride cost} = 2 \\times \\$33 = \\$66\n\\]\n\n**Total cost**  \nAdd all the expenses:\n\\[\n\\text{Total} = \\$20.25 + \\$15.75 + \\$66 = \\$102.00\n\\]\n\n**Split evenly among three friends**  \n\\[\n\\text{Cost per friend} = \\frac{\\$102.00}{3} = \\$34.00\n\\]\n\nSo each friend paid **\\$34**.\n\n#### 34"
+      }
+    },
+    {
+      "qid": "gsm8k-test-191",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 150,
+      "completion_tokens": 361,
+      "total_tokens": 511,
+      "meta": {
+        "raw_response": "First find the total amount of insects the flock consumes in one week.\n\n- Each duck eats \\(3.5\\) pounds per week.  \n- For \\(10\\) ducks:  \n  \\[\n  10 \\times 3.5 = 35 \\text{ pounds per week.}\n  \\]\n\nNow convert the weekly amount to a daily amount by dividing by the number of days in a week (7).\n\n\\[\n\\frac{35 \\text{ pounds}}{7 \\text{ days}} = 5 \\text{ pounds per day.}\n\\]\n\nSo the flock of ten ducks needs **5 pounds of insects per day**.\n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-198",
+      "gold": "320",
+      "final_answer": "320",
+      "correct": true,
+      "prompt_tokens": 187,
+      "completion_tokens": 1111,
+      "total_tokens": 1298,
+      "meta": {
+        "raw_response": "The total number of cards is:\n\n- Initial: 20  \n- First month: \\(3 \\times 20 = 60\\)  \n- Second month: \\(60 - 20 = 40\\)  \n- Third month: \\(2 \\times (60 + 40) = 200\\)\n\nAdding them together: \\(20 + 60 + 40 + 200 = 320\\).\n\n#### 320"
+      }
+    },
+    {
+      "qid": "gsm8k-test-206",
+      "gold": "860",
+      "final_answer": "860",
+      "correct": true,
+      "prompt_tokens": 189,
+      "completion_tokens": 1142,
+      "total_tokens": 1331,
+      "meta": {
+        "raw_response": "First, calculate the distance he rode during the first period.\n\n- He rode **5 times per week** (the problem says “at least 5 times a week”; for a concrete answer we take the minimum, 5 times).\n- Each ride covered **25 km**.\n\nDistance per week in the first period  \n\\[\n5 \\text{ rides/week} \\times 25 \\text{ km/ride} = 125 \\text{ km/week}.\n\\]\n\nHe did this for **4 weeks**:\n\\[\n125 \\text{ km/week} \\times 4 \\text{ weeks} = 500 \\text{ km}.\n\\]\n\nNext, calculate the distance for the second period.\n\n- He rode **2 times per week**.\n- Each ride covered **60 km**.\n\nDistance per week in the second period  \n\\[\n2 \\text{ rides/week} \\times 60 \\text{ km/ride} = 120 \\text{ km/week}.\n\\]\n\nHe did this for **3 weeks**:\n\\[\n120 \\text{ km/week} \\times 3 \\text{ weeks} = 360 \\text{ km}.\n\\]\n\nFinally, add the two totals to get the overall distance:\n\n\\[\n500 \\text{ km} + 360 \\text{ km} = 860 \\text{ km}.\n\\]\n\nSo Micheal rode a total of **860 kilometers**.\n\n#### 860"
+      }
+    },
+    {
+      "qid": "gsm8k-test-209",
+      "gold": "145",
+      "final_answer": "145",
+      "correct": true,
+      "prompt_tokens": 146,
+      "completion_tokens": 1339,
+      "total_tokens": 1485,
+      "meta": {
+        "raw_response": "First, interpret the quantities:\n\n- **Twenty dozen cups**  \n  \\(20 \\text{ dozen} = 20 \\times 12 = 240\\) cups.\n\n- **Half a dozen plates sold at \\$6000 each**  \n  \\(0.5 \\times 12 = 6\\) plates.  \n  Each plate costs \\$6000, so the total cost for the plates is  \n  \\(6 \\times 6000 = \\$36{,}000\\).\n\nThe problem states that the cost of the 240 cups is **\\$1200 less** than the cost of the plates:\n\n\\[\n\\text{Cost of cups} = \\$36{,}000 - \\$1{,}200 = \\$34{,}800.\n\\]\n\nNow find the cost per cup by dividing the total cost of the cups by the number of cups:\n\n\\[\n\\text{Cost per cup} = \\frac{\\$34{,}800}{240} = \\$145.\n\\]\n\nSo each cup costs **\\$145**.\n\n#### 145"
+      }
+    },
+    {
+      "qid": "gsm8k-test-228",
+      "gold": "1",
+      "final_answer": "1",
+      "correct": true,
+      "prompt_tokens": 166,
+      "completion_tokens": 507,
+      "total_tokens": 673,
+      "meta": {
+        "raw_response": "Kalinda’s rate:  \n\\[\n4 \\text{ pieces/minute}\n\\]\n\nHer mom’s rate is half of Kalinda’s:  \n\\[\n\\frac{1}{2}\\times 4 = 2 \\text{ pieces/minute}\n\\]\n\nCombined rate:  \n\\[\n4 + 2 = 6 \\text{ pieces/minute}\n\\]\n\nTotal pieces in the puzzle: 360.  \nTime needed (in minutes) is total pieces divided by combined rate:  \n\\[\n\\frac{360}{6} = 60 \\text{ minutes}\n\\]\n\nConvert minutes to hours:  \n\\[\n60 \\text{ minutes} = 1 \\text{ hour}\n\\]\n\n\\[\n\\boxed{1}\n\\]\n\n#### 1"
+      }
+    },
+    {
+      "qid": "gsm8k-test-255",
+      "gold": "192",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 160,
+      "completion_tokens": 65376,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-285",
+      "gold": "21",
+      "final_answer": "21",
+      "correct": true,
+      "prompt_tokens": 139,
+      "completion_tokens": 236,
+      "total_tokens": 375,
+      "meta": {
+        "raw_response": "First, determine the brother’s current age.\n\n- Ann’s age = 9 years  \n- The brother’s age = twice Ann’s age  \n  \\[\n  \\text{Brother’s age} = 2 \\times 9 = 18 \\text{ years}\n  \\]\n\nNext, find his age after 3 years.\n\n- Age in 3 years = current age + 3  \n  \\[\n  18 + 3 = 21 \\text{ years}\n  \\]\n\nSo, in 3 years, Ann’s brother will be **21 years old**.\n\n#### 21"
+      }
+    },
+    {
+      "qid": "gsm8k-test-318",
+      "gold": "123",
+      "final_answer": "123",
+      "correct": true,
+      "prompt_tokens": 161,
+      "completion_tokens": 359,
+      "total_tokens": 520,
+      "meta": {
+        "raw_response": "Let  \n\n- \\(B\\) = number of boys  \n- \\(G\\) = number of girls  \n- \\(N\\) = number of nongendered children  \n\nWe are given:  \n\n1. \\(B = 30\\)  \n2. \\(G = 3B\\) (three times as many girls as boys)  \n3. \\(N = \\dfrac{1}{10}B\\) (one‑tenth as many nongendered children as boys)\n\nNow compute each quantity:\n\n\\[\nG = 3 \\times 30 = 90\n\\]\n\n\\[\nN = \\frac{1}{10} \\times 30 = 3\n\\]\n\nThe total number of children in the classroom is\n\n\\[\n\\text{Total} = B + G + N = 30 + 90 + 3 = 123\n\\]\n\n\\[\n\\boxed{123}\n\\]\n\n#### 123"
+      }
+    },
+    {
+      "qid": "gsm8k-test-326",
+      "gold": "14",
+      "final_answer": "14",
+      "correct": true,
+      "prompt_tokens": 181,
+      "completion_tokens": 637,
+      "total_tokens": 818,
+      "meta": {
+        "raw_response": "Let  \n\n- \\(x\\) = number of people who got on the bus at the terminal.\n\n**Step 1 – First stop**\n\nAt the first stop, 5 more people get on.  \nNumber of people on the bus after the first stop:  \n\\[\nx + 5\n\\]\n\n**Step 2 – Second stop**\n\nAt the second stop, 7 people get off and 8 more get on.\n\n1. People who get off: \\(x + 5 - 7 = x - 2\\)\n2. People who get on: \\((x - 2) + 8 = x + 6\\)\n\nSo after the second stop, the bus has \\(x + 6\\) people on it.\n\n**Step 3 – Condition at the third stop**\n\nThe problem states that there are a total of 20 people heading to the third stop.  \nThus the number of people on the bus after the second stop must equal 20:\n\n\\[\nx + 6 = 20\n\\]\n\n**Step 4 – Solve for \\(x\\)**\n\n\\[\nx = 20 - 6 = 14\n\\]\n\nSo, **14 people got on the bus at the terminal.**\n\n#### 14"
+      }
+    },
+    {
+      "qid": "gsm8k-test-333",
+      "gold": "100",
+      "final_answer": "100",
+      "correct": true,
+      "prompt_tokens": 182,
+      "completion_tokens": 422,
+      "total_tokens": 604,
+      "meta": {
+        "raw_response": "First calculate the total cost of each offer.\n\n**Furniture United**\n\n- Advance payment: \\( \\$1{,}350 \\)\n- 6 monthly installments of \\( \\$350 \\) each:  \n  \\( 6 \\times 350 = \\$2{,}100 \\)\n\nTotal cost:  \n\\( 1{,}350 + 2{,}100 = \\$3{,}450 \\)\n\n**Cozy Homes**\n\n- Advance payment: \\( \\$1{,}100 \\)\n- 9 monthly installments of \\( \\$250 \\) each:  \n  \\( 9 \\times 250 = \\$2{,}250 \\)\n\nTotal cost:  \n\\( 1{,}100 + 2{,}250 = \\$3{,}350 \\)\n\n**Cost difference**\n\n\\( 3{,}450 - 3{,}350 = \\$100 \\)\n\nSo, Furniture United’s offer is \\$100 more expensive than Cozy Homes’ offer.\n\n#### 100"
+      }
+    },
+    {
+      "qid": "gsm8k-test-334",
+      "gold": "6",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 168,
+      "completion_tokens": 65368,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-350",
+      "gold": "8",
+      "final_answer": "8",
+      "correct": true,
+      "prompt_tokens": 190,
+      "completion_tokens": 380,
+      "total_tokens": 570,
+      "meta": {
+        "raw_response": "Peyton’s schedule:\n\n- **Monday:** 1‑hour yoga class  \n- **Tuesday:** cooking class = \\(3 \\times\\) Monday’s yoga = \\(3 \\times 1 = 3\\) hours  \n- **Wednesday:** half‑hour cheese‑tasting = \\(0.5\\) hour  \n- **Thursday:** museum tour = \\(\\frac{1}{2}\\) of the cooking class = \\(\\frac{1}{2} \\times 3 = 1.5\\) hours  \n- **Friday:** 2 hours of errands  \n\nAdd them together:\n\n\\[\n1 + 3 + 0.5 + 1.5 + 2 = 8 \\text{ hours}\n\\]\n\nSo all of Peyton’s after‑work activities take **8 hours** in total.\n\n#### 8"
+      }
+    },
+    {
+      "qid": "gsm8k-test-393",
+      "gold": "20",
+      "final_answer": "20",
+      "correct": true,
+      "prompt_tokens": 148,
+      "completion_tokens": 575,
+      "total_tokens": 723,
+      "meta": {
+        "raw_response": "Carol’s time allocation:\n\n- Writing: \\(4\\) hours  \n- Recording: half of writing time \\(=\\frac{1}{2}\\times4=2\\) hours  \n- Editing: \\(90\\) minutes \\(=\\frac{90}{60}=1.5\\) hours  \n\nTotal work time  \n\\[\n4\\ \\text{h} + 2\\ \\text{h} + 1.5\\ \\text{h}=7.5\\ \\text{hours}\n\\]\n\nEditing time as a fraction of total time  \n\\[\n\\frac{1.5}{7.5}=0.20\n\\]\n\nConvert to a percentage  \n\\[\n0.20 \\times 100\\% = 20\\%\n\\]\n\nThus, Carol spent **20 %** of her total work time editing.\n\n#### 20"
+      }
+    },
+    {
+      "qid": "gsm8k-test-407",
+      "gold": "2000",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 200,
+      "completion_tokens": 65336,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-429",
+      "gold": "13",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 156,
+      "completion_tokens": 65380,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-440",
+      "gold": "98",
+      "final_answer": "98",
+      "correct": true,
+      "prompt_tokens": 147,
+      "completion_tokens": 461,
+      "total_tokens": 608,
+      "meta": {
+        "raw_response": "First, convert the given length from yards to feet.\n\n\\[\n1\\text{ yard}=3\\text{ feet}\\quad\\Longrightarrow\\quad 3\\text{ yards}=3\\times3=9\\text{ feet}\n\\]\n\nSo the length \\(L\\) of the room is \\(9\\) feet.\n\nThe area \\(A\\) of a rectangle is\n\n\\[\nA = L \\times W\n\\]\n\nwhere \\(W\\) is the width.  \nWe know \\(A = 360\\) square feet, so\n\n\\[\n360 = 9 \\times W \\quad\\Longrightarrow\\quad W = \\frac{360}{9}=40\\text{ feet}\n\\]\n\nNow compute the perimeter \\(P\\):\n\n\\[\nP = 2(L+W) = 2(9+40) = 2(49) = 98\\text{ feet}\n\\]\n\n\\[\n\\boxed{98}\n\\]\n\n#### 98"
+      }
+    },
+    {
+      "qid": "gsm8k-test-447",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 156,
+      "completion_tokens": 241,
+      "total_tokens": 397,
+      "meta": {
+        "raw_response": "Joey’s score before his turn: \\(214\\)  \nHe scores \\(26\\) points, so his new score is  \n\n\\[\n214 + 26 = 240.\n\\]\n\nMarcy’s score before her turn: \\(225\\)  \nShe scores \\(10\\) points, so her new score is  \n\n\\[\n225 + 10 = 235.\n\\]\n\nNow compare the two scores:\n\n\\[\n240 - 235 = 5.\n\\]\n\nThus Joey is winning by **5 points**.\n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-449",
+      "gold": "112",
+      "final_answer": "112",
+      "correct": true,
+      "prompt_tokens": 160,
+      "completion_tokens": 275,
+      "total_tokens": 435,
+      "meta": {
+        "raw_response": "Beatrice bought two types of crayon packets:\n\n- **Six** packets, each containing **8** crayons  \n- **Four** packets, each containing **16** crayons  \n\nCalculate the number of crayons in each group:\n\n1. **Six packets × 8 crayons per packet**  \n   \\[\n   6 \\times 8 = 48 \\text{ crayons}\n   \\]\n\n2. **Four packets × 16 crayons per packet**  \n   \\[\n   4 \\times 16 = 64 \\text{ crayons}\n   \\]\n\nAdd the two totals to find the overall number of crayons:\n\n\\[\n48 + 64 = 112\n\\]\n\nThus, Beatrice bought **112 crayons** in all.\n\n#### 112"
+      }
+    },
+    {
+      "qid": "gsm8k-test-451",
+      "gold": "11050",
+      "final_answer": "11050",
+      "correct": true,
+      "prompt_tokens": 169,
+      "completion_tokens": 9053,
+      "total_tokens": 9222,
+      "meta": {
+        "raw_response": "First find the cost per balloon before the price increase.\n\n\\[\n\\text{Cost per balloon} = \\frac{\\$900}{20} = \\$45\n\\]\n\nTwo days later the price per balloon increased by \\$20:\n\n\\[\n\\text{New cost per balloon} = 45 + 20 = \\$65\n\\]\n\nBentley filled 170 balloons after the increase, so his total cost is\n\n\\[\n170 \\times 65 = 170 \\times (60 + 5) = 10{,}200 + 850 = 11{,}050\n\\]\n\n\\[\n\\boxed{11050}\n\\]\n\n#### 11050"
+      }
+    },
+    {
+      "qid": "gsm8k-test-457",
+      "gold": "45",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 188,
+      "completion_tokens": 65348,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-466",
+      "gold": "1",
+      "final_answer": "1",
+      "correct": true,
+      "prompt_tokens": 158,
+      "completion_tokens": 804,
+      "total_tokens": 962,
+      "meta": {
+        "raw_response": "Becky's purchase  \n- 20 apples × $0.45/apple = $9.00  \n- $1 discount → $9.00 – $1.00 = **$8.00**\n\nKelly's purchase  \n- 20 apples × $0.50/apple = $10.00  \n- 10 % discount → 10 % of $10.00 = $1.00  \n- $10.00 – $1.00 = **$9.00**\n\nDifference  \n- Kelly paid $9.00, Becky paid $8.00  \n- $9.00 – $8.00 = **$1.00**\n\n#### 1"
+      }
+    },
+    {
+      "qid": "gsm8k-test-476",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 157,
+      "completion_tokens": 214,
+      "total_tokens": 371,
+      "meta": {
+        "raw_response": "First, determine how many books Sarah bought.\n\n\\[\n\\text{Number of books} = \\frac{\\text{Total money spent}}{\\text{Price per book}}\n= \\frac{300}{15}\n= 20\n\\]\n\nSo Sarah bought 20 books.\n\nNext, she divided these books equally among her 4 children.\n\n\\[\n\\text{Books per child} = \\frac{\\text{Total books}}{\\text{Number of children}}\n= \\frac{20}{4}\n= 5\n\\]\n\nEach child received **5 books**.\n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-501",
+      "gold": "273",
+      "final_answer": "273",
+      "correct": true,
+      "prompt_tokens": 173,
+      "completion_tokens": 388,
+      "total_tokens": 561,
+      "meta": {
+        "raw_response": "First find how much yarn each person used in yards.\n\n- Mariah used \\( \\frac14 \\) of a skein.  \n  \\[\n  \\frac14 \\times 364 = \\frac{364}{4} = 91 \\text{ yards}\n  \\]\n\n- Grandma used \\( \\frac12 \\) of a skein.  \n  \\[\n  \\frac12 \\times 364 = \\frac{364}{2} = 182 \\text{ yards}\n  \\]\n\nNow add the two amounts together:\n\n\\[\n91 \\text{ yards} + 182 \\text{ yards} = 273 \\text{ yards}\n\\]\n\nSo Mariah and her grandma used a total of **273 yards** of yarn.\n\n#### 273"
+      }
+    },
+    {
+      "qid": "gsm8k-test-541",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 172,
+      "completion_tokens": 720,
+      "total_tokens": 892,
+      "meta": {
+        "raw_response": "Let  \n\n- \\(x\\) = amount saved each day in the first half of April.  \n- The second half of April has the same number of days (15 days), and he wants to save **twice as much daily** there, so the daily amount in the second half is \\(2x\\).\n\n**Total savings for the month**\n\n\\[\n\\text{First half} = 15x \\quad\\text{(15 days)}\\\\[4pt]\n\\text{Second half} = 15(2x) = 30x \\quad\\text{(15 days)}\\\\[4pt]\n\\text{Total} = 15x + 30x = 45x\n\\]\n\nHe wants to reach his monthly target of \\$1125, so\n\n\\[\n45x = 1125 \\quad\\Longrightarrow\\quad x = \\frac{1125}{45} = 25.\n\\]\n\nThus the daily saving in the first half is \\$25, and in the second half it is\n\n\\[\n2x = 2 \\times 25 = 50.\n\\]\n\n\\[\n\\boxed{50}\n\\]\n\nSo Elvis must save **\\$50 per day** during the second half of April.  \n\n#### 50"
+      }
+    },
+    {
+      "qid": "gsm8k-test-546",
+      "gold": "130",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 164,
+      "completion_tokens": 65372,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "gsm8k-test-552",
+      "gold": "450",
+      "final_answer": "450",
+      "correct": true,
+      "prompt_tokens": 174,
+      "completion_tokens": 2049,
+      "total_tokens": 2223,
+      "meta": {
+        "raw_response": "To find Antonella’s commission, break the sales into two parts:\n\n1. **First $1000**  \n   Commission = 30 % of $1000  \n   \\[\n   0.30 \\times 1000 = \\$300\n   \\]\n\n2. **Amount above $1000**  \n   Sales above $1000 = $2500 – $1000 = $1500  \n   Commission on this portion = 10 % of $1500  \n   \\[\n   0.10 \\times 1500 = \\$150\n   \\]\n\nAdd the two commissions:\n\\[\n\\$300 + \\$150 = \\$450\n\\]\n\nAntonella earned **$450**.\n\n#### 450"
+      }
+    },
+    {
+      "qid": "gsm8k-test-563",
+      "gold": "12",
+      "final_answer": "12",
+      "correct": true,
+      "prompt_tokens": 161,
+      "completion_tokens": 775,
+      "total_tokens": 936,
+      "meta": {
+        "raw_response": "James’s older son is 12 years old.  \nThe other son is 4 years younger, so his age is  \n\n\\[\n12-4 = 8 \\text{ years}.\n\\]\n\nFor a birthday candle, one candle is needed per year of age.  \nThus the total number of candles required is\n\n\\[\n12 + 8 = 20 \\text{ candles}.\n\\]\n\nCandles are sold in packs of 5 for \\$3 each.  \nThe number of packs needed is\n\n\\[\n\\frac{20}{5} = 4 \\text{ packs}.\n\\]\n\nThe total cost is\n\n\\[\n4 \\text{ packs} \\times \\$3 \\text{ per pack} = \\$12.\n\\]\n\nSo James spends **\\$12** on candles.\n\n#### 12"
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.775,
+  "total_tokens": 639442,
+  "meta": {}
+}

@@ -1,0 +1,27 @@
+{
+  "cell": {
+    "model": "openai/gpt-oss-20b",
+    "model_family": "gpt-oss",
+    "dataset_name": "gsm8k",
+    "thinking": true,
+    "prompt_variant": "cooperative"
+  },
+  "sa_accuracy": 0.775,
+  "voting_accuracy": 0.95,
+  "debate_accuracy": 0.95,
+  "sa_total_tokens": 639442,
+  "voting_total_tokens": 247321,
+  "debate_total_tokens": 5794531,
+  "delta_debate_voting": 0.0,
+  "delta_debate_sa": 0.17499999999999993,
+  "calibration": {
+    "N_raw": 5,
+    "N": 5,
+    "mean_debate_tokens": 119370.2,
+    "mean_sa_tokens": 28042.6,
+    "over_budget_factor": 1.1746063925502346,
+    "floor_active": false,
+    "calibration_prefix_n": 5
+  },
+  "n_questions": 40
+}
