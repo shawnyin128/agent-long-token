@@ -1,0 +1,496 @@
+{
+  "condition": "sa",
+  "cell": {
+    "model": "Qwen/Qwen3-30B-A3B",
+    "model_family": "qwen3",
+    "dataset_name": "gsm8k",
+    "thinking": false,
+    "prompt_variant": "symmetric"
+  },
+  "questions": [
+    {
+      "qid": "gsm8k-test-13",
+      "gold": "18",
+      "final_answer": "18",
+      "correct": true,
+      "prompt_tokens": 110,
+      "completion_tokens": 242,
+      "total_tokens": 352,
+      "meta": {
+        "raw_response": "Let's work through the problem step by step.\n\nLet the total number of vacuum cleaners Melanie started with be $ x $.\n\n1. **At the green house**: She sold $ \\frac{1}{3} $ of her vacuum cleaners.  \n   So, she sold $ \\frac{x}{3} $, and she has $ x - \\frac{x}{3} = \\frac{2x}{3} $ left.\n\n2. **At the red house**: She sold 2 more.  \n   So, she has $ \\frac{2x}{3} - 2 $ left.\n\n3. **At the orange house**: She sold half of what was left.  \n   So, she sold $ \\frac{1}{2} \\left( \\frac{2x}{3} - 2 \\right) $, and she has half of that left:  \n   $$\n   \\frac{1}{2} \\left( \\frac{2x}{3} - 2 \\right)\n   $$\n\nWe are told that after these sales, she has 5 vacuum cleaners left. So:\n$$\n\\frac{1}{2} \\left( \\frac{2x}{3} - 2 \\right) = 5\n$$\n\nNow solve this equation:\n\nMultiply both sides by 2:\n$$\n\\frac{2x}{3} - 2 = 10\n$$\n\nAdd 2 to both sides:\n$$\n\\frac{2x}{3} = 12\n$$\n\nMultiply both sides by 3:\n$$\n2x = 36\n$$\n\nDivide by 2:\n$$\nx = 18\n$$\n\nSo, Melanie started with **18** vacuum cleaners.\n\n#### 18"
+      }
+    },
+    {
+      "qid": "gsm8k-test-51",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 89,
+      "completion_tokens": 236,
+      "total_tokens": 325,
+      "meta": {
+        "raw_response": "To solve this problem, we need to determine how long it takes Tom to return, given that he travels at 6 mph. However, we are not given the distance of the trip. Therefore, we need to calculate the distance first using the information about his initial trip.\n\n### Step 1: Determine the time of the initial trip\nTom is sailing from 1 PM to 4 PM. This is a duration of:\n\n$$\n4 \\text{ PM} - 1 \\text{ PM} = 3 \\text{ hours}\n$$\n\n### Step 2: Calculate the distance of the trip\nTom's speed during the initial trip is 10 miles per hour. Using the formula:\n\n$$\n\\text{Distance} = \\text{Speed} \\times \\text{Time}\n$$\n\n$$\n\\text{Distance} = 10 \\text{ mph} \\times 3 \\text{ hours} = 30 \\text{ miles}\n$$\n\n### Step 3: Calculate the time to return\nTom returns at a speed of 6 mph. Using the formula:\n\n$$\n\\text{Time} = \\frac{\\text{Distance}}{\\text{Speed}}\n$$\n\n$$\n\\text{Time} = \\frac{30 \\text{ miles}}{6 \\text{ mph}} = 5 \\text{ hours}\n$$\n\n### Final Answer:\n$$\n#### 5\n$$"
+      }
+    },
+    {
+      "qid": "gsm8k-test-54",
+      "gold": "40",
+      "final_answer": "40",
+      "correct": true,
+      "prompt_tokens": 139,
+      "completion_tokens": 150,
+      "total_tokens": 289,
+      "meta": {
+        "raw_response": "Let's break the problem down step by step:\n\n1. The Doubtfire sisters are driving home with **7 kittens** that they adopted from the animal shelter.\n2. Their mother informs them that **Patchy**, the first cat, has had **thrice the number of adopted kittens**. Since they adopted 7 kittens, Patchy has had:\n   $$\n   3 \\times 7 = 21 \\text{ kittens}\n   $$\n3. **Trixie**, the other cat, has had **12 kittens**.\n\nNow, to find the total number of kittens the Doubtfire family now has, we add:\n- The 7 adopted kittens\n- The 21 kittens from Patchy\n- The 12 kittens from Trixie\n\n$$\n7 + 21 + 12 = 40\n$$\n\n#### 40"
+      }
+    },
+    {
+      "qid": "gsm8k-test-61",
+      "gold": "1430",
+      "final_answer": "1430",
+      "correct": true,
+      "prompt_tokens": 103,
+      "completion_tokens": 156,
+      "total_tokens": 259,
+      "meta": {
+        "raw_response": "To find out how much Janet paid in total, we need to add up the costs of the materials, the construction, and the insurance.\n\n1. **Cost of materials**: $500  \n2. **Cost of construction**: $800  \n3. **Insurance cost**: 10% of the total cost of materials and construction  \n\nFirst, calculate the total cost of materials and construction:  \n$$\n500 + 800 = 1300\n$$\n\nNext, calculate the insurance cost, which is 10% of $1300:  \n$$\n0.10 \\times 1300 = 130\n$$\n\nNow, add the insurance cost to the total cost of materials and construction:  \n$$\n1300 + 130 = 1430\n$$\n\nSo, the total amount Janet paid is:  \n$$\n\\boxed{1430}\n$$\n\n#### 1430"
+      }
+    },
+    {
+      "qid": "gsm8k-test-65",
+      "gold": "36",
+      "final_answer": "36",
+      "correct": true,
+      "prompt_tokens": 95,
+      "completion_tokens": 129,
+      "total_tokens": 224,
+      "meta": {
+        "raw_response": "First, let's calculate how long Jim spends watching TV and reading in one session:\n\n- Jim watches TV for 2 hours.\n- He reads for half as long as he watches TV, which is $ \\frac{1}{2} \\times 2 = 1 $ hour.\n\nSo, in one session, he spends $ 2 + 1 = 3 $ hours on TV and reading.\n\nNext, we calculate how many hours he spends on these activities in one week:\n\n- He does this 3 times a week, so $ 3 \\times 3 = 9 $ hours per week.\n\nNow, we calculate how many hours he spends in 4 weeks:\n\n- $ 9 \\times 4 = 36 $ hours.\n\n#### 36"
+      }
+    },
+    {
+      "qid": "gsm8k-test-88",
+      "gold": "8000",
+      "final_answer": "8000",
+      "correct": true,
+      "prompt_tokens": 84,
+      "completion_tokens": 112,
+      "total_tokens": 196,
+      "meta": {
+        "raw_response": "Let's define the number of copies Harald sold as $ x $.  \nAccording to the problem, Marilyn's first record sold 10 times as many copies as Harald's, so Marilyn sold $ 10x $ copies.\n\nThe total number of copies sold by both is given as 88,000. So we can write the equation:\n\n$$\nx + 10x = 88,000\n$$\n\nCombine like terms:\n\n$$\n11x = 88,000\n$$\n\nNow, solve for $ x $:\n\n$$\nx = \\frac{88,000}{11}\n$$\n\n$$\nx = 8,000\n$$\n\nSo, Harald sold 8,000 copies.\n\n#### 8000"
+      }
+    },
+    {
+      "qid": "gsm8k-test-93",
+      "gold": "36",
+      "final_answer": "36",
+      "correct": true,
+      "prompt_tokens": 128,
+      "completion_tokens": 222,
+      "total_tokens": 350,
+      "meta": {
+        "raw_response": "We are told that Lee used to be able to run the 400-meter hurdles **two seconds faster** than Gerald.  \nWe are also told that **Gerald changed his diet**, which improved his speed by **10%**.  \nFinally, we are told that **Lee runs the 400-meter hurdles in 38 seconds**.\n\n---\n\n### Step 1: Determine Gerald's original time\n\nSince Lee is **2 seconds faster** than Gerald, and Lee's time is **38 seconds**, then Gerald's original time is:\n\n$$\n38 + 2 = 40 \\text{ seconds}\n$$\n\n---\n\n### Step 2: Calculate Gerald's improved time\n\nGerald's speed improved by **10%**, which means his **time decreased by 10%** (since time is inversely proportional to speed).\n\nSo, we calculate 10% of Gerald's original time:\n\n$$\n10\\% \\text{ of } 40 = 0.10 \\times 40 = 4 \\text{ seconds}\n$$\n\nNow subtract that from his original time:\n\n$$\n40 - 4 = 36 \\text{ seconds}\n$$\n\n---\n\n### Final Answer:\n\n$$\n\\boxed{36}\n$$\n\n#### 36"
+      }
+    },
+    {
+      "qid": "gsm8k-test-142",
+      "gold": "140",
+      "final_answer": "140",
+      "correct": true,
+      "prompt_tokens": 100,
+      "completion_tokens": 155,
+      "total_tokens": 255,
+      "meta": {
+        "raw_response": "To determine how much money Jordan would earn in one week if he spent his video game time working instead, we need to follow these steps:\n\n1. **Calculate the total number of hours Jordan plays video games in a week:**\n   - Jordan plays 2 hours every day.\n   - There are 7 days in a week.\n   - Total hours = 2 hours/day × 7 days = 14 hours.\n\n2. **Calculate how much money Jordan would earn if he worked instead of playing video games:**\n   - Jordan earns $10 per hour.\n   - Total earnings = 14 hours × $10/hour = $140.\n\nSo, Jordan would earn **$140** in one week if he spent his video game time working instead.\n\n#### 140"
+      }
+    },
+    {
+      "qid": "gsm8k-test-146",
+      "gold": "2125",
+      "final_answer": "2125",
+      "correct": true,
+      "prompt_tokens": 126,
+      "completion_tokens": 112,
+      "total_tokens": 238,
+      "meta": {
+        "raw_response": "Let's break down the problem step by step:\n\n1. The first lego set has 500 pieces.\n2. The second lego set has 3 times more pieces than the first one.  \n   So, the second set has:  \n   $ 3 \\times 500 = 1500 $ pieces.\n3. The third lego set has 1/4 the number of pieces of the first one.  \n   So, the third set has:  \n   $ \\frac{1}{4} \\times 500 = 125 $ pieces.\n\nNow, we add up all the pieces from the three sets:  \n$ 500 + 1500 + 125 = 2125 $\n\n#### 2125"
+      }
+    },
+    {
+      "qid": "gsm8k-test-161",
+      "gold": "32",
+      "final_answer": "32",
+      "correct": true,
+      "prompt_tokens": 114,
+      "completion_tokens": 172,
+      "total_tokens": 286,
+      "meta": {
+        "raw_response": "To find the total number of fish Anakin and Locsin were able to catch, we will calculate the number of fish each of them caught and then add those totals together.\n\n### Step 1: Calculate the number of fish Anakin caught\nAnakin caught:\n- 10 starfish\n- 6 sea horses\n- 3 clownfish\n\nTotal fish caught by Anakin:\n$$\n10 + 6 + 3 = 19\n$$\n\n### Step 2: Calculate the number of fish Locsin caught\nLocsin caught:\n- 5 fewer starfish than Anakin: $10 - 5 = 5$\n- 3 fewer sea horses than Anakin: $6 - 3 = 3$\n- 2 more clownfish than Anakin: $3 + 2 = 5$\n\nTotal fish caught by Locsin:\n$$\n5 + 3 + 5 = 13\n$$\n\n### Step 3: Add the totals\nTotal fish caught by both Anakin and Locsin:\n$$\n19 + 13 = 32\n$$\n\n#### 32"
+      }
+    },
+    {
+      "qid": "gsm8k-test-163",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 101,
+      "completion_tokens": 285,
+      "total_tokens": 386,
+      "meta": {
+        "raw_response": "We are given the following information:\n\n- There are 5 red cars.\n- There are 3 action figures.\n- There is 1 doll.\n- The doll costs as much as 3 action figures.\n- One red car costs $4.\n- One action figure costs $5.\n\nWe are asked to find the total value of all the toys.\n\n---\n\n### Step 1: Calculate the cost of the red cars\n\nEach red car costs $4, and there are 5 red cars:\n\n$$\n5 \\text{ red cars} \\times 4 \\text{ dollars per car} = 20 \\text{ dollars}\n$$\n\n---\n\n### Step 2: Calculate the cost of the action figures\n\nEach action figure costs $5, and there are 3 action figures:\n\n$$\n3 \\text{ action figures} \\times 5 \\text{ dollars per figure} = 15 \\text{ dollars}\n$$\n\n---\n\n### Step 3: Calculate the cost of the doll\n\nThe doll costs as much as 3 action figures. Since one action figure costs $5:\n\n$$\n3 \\text{ action figures} \\times 5 \\text{ dollars per figure} = 15 \\text{ dollars}\n$$\n\nSo, the doll costs $15.\n\n---\n\n### Step 4: Add up the total cost of all the toys\n\n$$\n\\text{Total cost} = \\text{cost of red cars} + \\text{cost of action figures} + \\text{cost of doll}\n$$\n$$\n\\text{Total cost} = 20 + 15 + 15 = 50\n$$\n\n---\n\n### Final Answer:\n#### 50"
+      }
+    },
+    {
+      "qid": "gsm8k-test-178",
+      "gold": "122",
+      "final_answer": "122",
+      "correct": true,
+      "prompt_tokens": 87,
+      "completion_tokens": 136,
+      "total_tokens": 223,
+      "meta": {
+        "raw_response": "We are given the following information:\n\n- Bo has 40 crabs.\n- Monic has 4 fewer crabs than Bo.\n- Rani has 10 more crabs than Monic.\n\n### Step 1: Calculate the number of crabs Monic has\nMonic has 4 fewer crabs than Bo:\n$$\n\\text{Monic's crabs} = 40 - 4 = 36\n$$\n\n### Step 2: Calculate the number of crabs Rani has\nRani has 10 more crabs than Monic:\n$$\n\\text{Rani's crabs} = 36 + 10 = 46\n$$\n\n### Step 3: Calculate the total number of crabs\nAdd the number of crabs that Bo, Monic, and Rani have:\n$$\n\\text{Total crabs} = 40 + 36 + 46 = 122\n$$\n\n#### 122"
+      }
+    },
+    {
+      "qid": "gsm8k-test-189",
+      "gold": "34",
+      "final_answer": "34",
+      "correct": true,
+      "prompt_tokens": 113,
+      "completion_tokens": 174,
+      "total_tokens": 287,
+      "meta": {
+        "raw_response": "First, let's break down the total cost step by step.\n\n1. **Cost of tickets:**  \n   The three friends spent $20.25 on 3 tickets.  \n   So, the total cost for tickets is $20.25.\n\n2. **Cost of food:**  \n   They spent $4.50 less on food than on the tickets.  \n   So, the cost of food is:  \n   $ 20.25 - 4.50 = 15.75 $\n\n3. **Cost of rides:**  \n   They went on 2 different rides, and each ride cost $33.  \n   So, the total cost for the rides is:  \n   $ 2 \\times 33 = 66 $\n\n4. **Total cost:**  \n   Add up the cost of tickets, food, and rides:  \n   $ 20.25 + 15.75 + 66 = 102 $\n\n5. **Cost per person:**  \n   Since there are 3 friends, they split the total cost evenly:  \n   $ \\frac{102}{3} = 34 $\n\n#### 34"
+      }
+    },
+    {
+      "qid": "gsm8k-test-191",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 86,
+      "completion_tokens": 126,
+      "total_tokens": 212,
+      "meta": {
+        "raw_response": "To find out how many pounds of insects the flock of ten ducks need per day, we can follow these steps:\n\n1. **Total weekly requirement for 10 ducks**:  \n   Each duck needs 3.5 pounds of insects per week.  \n   For 10 ducks, the total weekly requirement is:  \n   $$\n   10 \\times 3.5 = 35 \\text{ pounds}\n   $$\n\n2. **Convert the weekly requirement to a daily requirement**:  \n   There are 7 days in a week, so we divide the weekly total by 7:  \n   $$\n   \\frac{35}{7} = 5 \\text{ pounds per day}\n   $$\n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-198",
+      "gold": "320",
+      "final_answer": "320",
+      "correct": true,
+      "prompt_tokens": 140,
+      "completion_tokens": 156,
+      "total_tokens": 296,
+      "meta": {
+        "raw_response": "Let's break the problem down step by step.\n\n1. **Initial number of cards**:  \n   Elaine initially had 20 Pokemon cards.\n\n2. **First month**:  \n   She collected three times the initial number:  \n   $ 3 \\times 20 = 60 $ cards.\n\n3. **Second month**:  \n   She collected 20 fewer cards than she collected in the first month:  \n   $ 60 - 20 = 40 $ cards.\n\n4. **Third month**:  \n   She collected twice the combined number of cards from the first and second months:  \n   $ (60 + 40) \\times 2 = 100 \\times 2 = 200 $ cards.\n\n5. **Total number of cards**:  \n   Add up all the cards:  \n   $ 20 + 60 + 40 + 200 = 320 $ cards.\n\n#### 320"
+      }
+    },
+    {
+      "qid": "gsm8k-test-206",
+      "gold": "860",
+      "final_answer": "860",
+      "correct": true,
+      "prompt_tokens": 123,
+      "completion_tokens": 160,
+      "total_tokens": 283,
+      "meta": {
+        "raw_response": "Let's break the problem into parts and calculate the total distance Micheal rode.\n\n### Part 1: Riding 5 times a week for 4 weeks\n- Distance per ride: 25 kilometers\n- Rides per week: 5\n- Weeks: 4\n\nTotal distance for this part:\n$$\n5 \\text{ rides/week} \\times 25 \\text{ km/ride} \\times 4 \\text{ weeks} = 500 \\text{ km}\n$$\n\n### Part 2: Riding 2 times a week for 3 weeks\n- Distance per ride: 60 kilometers\n- Rides per week: 2\n- Weeks: 3\n\nTotal distance for this part:\n$$\n2 \\text{ rides/week} \\times 60 \\text{ km/ride} \\times 3 \\text{ weeks} = 360 \\text{ km}\n$$\n\n### Total Distance\n$$\n500 \\text{ km} + 360 \\text{ km} = 860 \\text{ km}\n$$\n\n#### 860"
+      }
+    },
+    {
+      "qid": "gsm8k-test-209",
+      "gold": "145",
+      "final_answer": "145",
+      "correct": true,
+      "prompt_tokens": 86,
+      "completion_tokens": 235,
+      "total_tokens": 321,
+      "meta": {
+        "raw_response": "We are given the following information:\n\n- Twenty dozen cups cost **$1200 less** than the total cost of **half a dozen plates** sold at **$6000 each**.\n- We are to find the **total cost of buying each cup**.\n\n---\n\n### Step 1: Understand the quantities\n\n- **Twenty dozen cups** = $ 20 \\times 12 = 240 $ cups\n- **Half a dozen plates** = $ \\frac{1}{2} \\times 12 = 6 $ plates\n\n---\n\n### Step 2: Calculate the total cost of the plates\n\nEach plate costs **$6000**, so:\n\n$$\n\\text{Total cost of plates} = 6 \\times 6000 = 36000\n$$\n\n---\n\n### Step 3: Calculate the total cost of the cups\n\nWe are told that the cost of the cups is **$1200 less** than the cost of the plates:\n\n$$\n\\text{Total cost of cups} = 36000 - 1200 = 34800\n$$\n\n---\n\n### Step 4: Find the cost per cup\n\nThere are 240 cups, so the cost per cup is:\n\n$$\n\\text{Cost per cup} = \\frac{34800}{240}\n$$\n\nNow perform the division:\n\n$$\n\\frac{34800}{240} = 145\n$$\n\n---\n\n### Final Answer:\n\n#### 145"
+      }
+    },
+    {
+      "qid": "gsm8k-test-228",
+      "gold": "1",
+      "final_answer": "1",
+      "correct": true,
+      "prompt_tokens": 108,
+      "completion_tokens": 138,
+      "total_tokens": 246,
+      "meta": {
+        "raw_response": "First, let's determine how many pieces per minute each person can place:\n\n- Kalinda can place 4 pieces per minute.\n- Her mom can place half as many as Kalinda, so:\n  $$\n  \\frac{4}{2} = 2 \\text{ pieces per minute}\n  $$\n\nNow, let's find the total number of pieces they can place together per minute:\n$$\n4 + 2 = 6 \\text{ pieces per minute}\n$$\n\nNext, we calculate how many minutes it will take them to complete the 360-piece puzzle:\n$$\n\\frac{360}{6} = 60 \\text{ minutes}\n$$\n\nFinally, we convert minutes to hours:\n$$\n\\frac{60}{60} = 1 \\text{ hour}\n$$\n\n#### 1"
+      }
+    },
+    {
+      "qid": "gsm8k-test-255",
+      "gold": "192",
+      "final_answer": "176",
+      "correct": false,
+      "prompt_tokens": 97,
+      "completion_tokens": 241,
+      "total_tokens": 338,
+      "meta": {
+        "raw_response": "We are given the following:\n\n- There are 10 stalls, each with 20 cows.  \n- Mr. Sylas buys 40 cows and divides them equally among 20 stalls.  \n- We are asked to find how many cows are in 8 of the stalls.\n\n---\n\n### Step 1: Calculate the total number of cows initially\n\nEach of the 10 stalls has 20 cows:\n\n$$\n10 \\text{ stalls} \\times 20 \\text{ cows per stall} = 200 \\text{ cows}\n$$\n\n---\n\n### Step 2: Add the new cows\n\nMr. Sylas buys 40 cows and divides them equally among 20 stalls:\n\n$$\n\\frac{40 \\text{ cows}}{20 \\text{ stalls}} = 2 \\text{ cows per stall}\n$$\n\nSo, each of the 20 stalls now has 2 additional cows.\n\n---\n\n### Step 3: Find the number of cows in each stall\n\nOriginally, each stall had 20 cows. Now, each stall gets 2 more:\n\n$$\n20 \\text{ cows} + 2 \\text{ cows} = 22 \\text{ cows per stall}\n$$\n\n---\n\n### Step 4: Find the number of cows in 8 stalls\n\n$$\n8 \\text{ stalls} \\times 22 \\text{ cows per stall} = 176 \\text{ cows}\n$$\n\n---\n\n### Final Answer:\n\n#### 176"
+      }
+    },
+    {
+      "qid": "gsm8k-test-285",
+      "gold": "21",
+      "final_answer": "21",
+      "correct": true,
+      "prompt_tokens": 74,
+      "completion_tokens": 52,
+      "total_tokens": 126,
+      "meta": {
+        "raw_response": "Ann is currently 9 years old.  \nHer brother is twice her age, so his current age is:  \n$$\n2 \\times 9 = 18 \\text{ years old}\n$$\n\nIn 3 years, her brother will be:  \n$$\n18 + 3 = 21 \\text{ years old}\n$$\n\n#### 21"
+      }
+    },
+    {
+      "qid": "gsm8k-test-318",
+      "gold": "123",
+      "final_answer": "123",
+      "correct": true,
+      "prompt_tokens": 96,
+      "completion_tokens": 201,
+      "total_tokens": 297,
+      "meta": {
+        "raw_response": "We are given the following information:\n\n- The classroom has 30 boys.\n- There are 3 times as many girls as boys.\n- There are 1/10 as many non-gendered children as boys.\n\n### Step 1: Calculate the number of girls\nSince there are 3 times as many girls as boys:\n$$\n\\text{Number of girls} = 3 \\times \\text{Number of boys} = 3 \\times 30 = 90\n$$\n\n### Step 2: Calculate the number of non-gendered children\nSince there are 1/10 as many non-gendered children as boys:\n$$\n\\text{Number of non-gendered children} = \\frac{1}{10} \\times \\text{Number of boys} = \\frac{1}{10} \\times 30 = 3\n$$\n\n### Step 3: Calculate the total number of children\n$$\n\\text{Total children} = \\text{Number of boys} + \\text{Number of girls} + \\text{Number of non-gendered children}\n$$\n$$\n\\text{Total children} = 30 + 90 + 3 = 123\n$$\n\n#### 123"
+      }
+    },
+    {
+      "qid": "gsm8k-test-326",
+      "gold": "14",
+      "final_answer": "14",
+      "correct": true,
+      "prompt_tokens": 116,
+      "completion_tokens": 162,
+      "total_tokens": 278,
+      "meta": {
+        "raw_response": "Let's work through the problem step by step.\n\nLet the number of people who got on the bus at the terminal be $ x $.\n\n1. At the first bus stop, 5 more people got in.  \n   So, the number of people on the bus now is:  \n   $ x + 5 $\n\n2. At the second bus stop, 7 people got down and 8 more got in.  \n   So, the number of people on the bus now is:  \n   $ (x + 5) - 7 + 8 = x + 6 $\n\n3. We are told that there were a total of 20 people heading to the third stop.  \n   So, we set up the equation:  \n   $ x + 6 = 20 $\n\n4. Solve for $ x $:  \n   $ x = 20 - 6 $  \n   $ x = 14 $\n\nSo, the number of people who got on the bus at the terminal is **14**.\n\n#### 14"
+      }
+    },
+    {
+      "qid": "gsm8k-test-333",
+      "gold": "100",
+      "final_answer": "100",
+      "correct": true,
+      "prompt_tokens": 129,
+      "completion_tokens": 185,
+      "total_tokens": 314,
+      "meta": {
+        "raw_response": "To find the cost difference between the two offers, we need to calculate the total cost of each offer and then subtract the smaller total from the larger one.\n\n### Step 1: Calculate the total cost of the Furniture United offer\n- Advance payment: $1,350\n- Monthly installments: 6 installments of $350 each\n\n$$\n\\text{Total cost for Furniture United} = 1,350 + (6 \\times 350)\n$$\n$$\n= 1,350 + 2,100 = 3,450\n$$\n\n### Step 2: Calculate the total cost of the Cozy Homes offer\n- Advance payment: $1,100\n- Monthly installments: 9 installments of $250 each\n\n$$\n\\text{Total cost for Cozy Homes} = 1,100 + (9 \\times 250)\n$$\n$$\n= 1,100 + 2,250 = 3,350\n$$\n\n### Step 3: Find the cost difference\n$$\n\\text{Cost difference} = 3,450 - 3,350 = 100\n$$\n\n#### 100"
+      }
+    },
+    {
+      "qid": "gsm8k-test-334",
+      "gold": "6",
+      "final_answer": "6",
+      "correct": true,
+      "prompt_tokens": 101,
+      "completion_tokens": 130,
+      "total_tokens": 231,
+      "meta": {
+        "raw_response": "To find out how many guns each person would have if they shared their guns equally, we need to follow these steps:\n\n1. **Add up the total number of guns**:\n   - DJ has 8 guns.\n   - Nick has 10 guns.\n   - Richard has 5 guns.\n   - Jason has 1 gun.\n\n   Total guns = 8 + 10 + 5 + 1 = 24 guns.\n\n2. **Divide the total number of guns by the number of people**:\n   - There are 4 people: DJ, Nick, Richard, and Jason.\n\n   Guns per person = 24 ÷ 4 = 6.\n\nSo, if they shared their guns equally, each of them would have 6 guns.\n\n#### 6"
+      }
+    },
+    {
+      "qid": "gsm8k-test-350",
+      "gold": "8",
+      "final_answer": "8",
+      "correct": true,
+      "prompt_tokens": 142,
+      "completion_tokens": 175,
+      "total_tokens": 317,
+      "meta": {
+        "raw_response": "Let's calculate the total time for each of Peyton's after-work activities step by step:\n\n1. **Monday (Yoga class):**  \n   The yoga class is 1 hour long.  \n   Time = 1 hour\n\n2. **Tuesday (Cooking class):**  \n   The cooking class lasts three times as long as the yoga class.  \n   Time = 3 × 1 hour = 3 hours\n\n3. **Wednesday (Cheese-tasting event):**  \n   The event is 0.5 hours long.  \n   Time = 0.5 hours\n\n4. **Thursday (Museum tour):**  \n   The museum tour takes half as long as the cooking class.  \n   Time = 0.5 × 3 hours = 1.5 hours\n\n5. **Friday (Errands):**  \n   The errands take 2 hours.  \n   Time = 2 hours\n\nNow, let's add up all the times:  \nTotal time = 1 + 3 + 0.5 + 1.5 + 2 = 8 hours\n\n#### 8"
+      }
+    },
+    {
+      "qid": "gsm8k-test-393",
+      "gold": "20",
+      "final_answer": "20",
+      "correct": true,
+      "prompt_tokens": 90,
+      "completion_tokens": 140,
+      "total_tokens": 230,
+      "meta": {
+        "raw_response": "First, let's convert all the times to the same unit. We'll use hours.\n\n- Time spent writing: 4 hours  \n- Time spent recording: Half of 4 hours = 2 hours  \n- Time spent editing: 90 minutes = 1.5 hours  \n\nNow, calculate the total work time:\n\n$$\n\\text{Total time} = 4 + 2 + 1.5 = 7.5 \\text{ hours}\n$$\n\nNext, calculate the percentage of time spent editing:\n\n$$\n\\text{Percentage} = \\left( \\frac{\\text{Time editing}}{\\text{Total time}} \\right) \\times 100 = \\left( \\frac{1.5}{7.5} \\right) \\times 100\n$$\n\n$$\n\\frac{1.5}{7.5} = 0.2\n$$\n\n$$\n0.2 \\times 100 = 20\\%\n$$\n\n#### 20"
+      }
+    },
+    {
+      "qid": "gsm8k-test-407",
+      "gold": "2000",
+      "final_answer": "2000",
+      "correct": true,
+      "prompt_tokens": 139,
+      "completion_tokens": 239,
+      "total_tokens": 378,
+      "meta": {
+        "raw_response": "Let's break the problem down step by step.\n\n1. **Total steps Elliott wants to take in a day:**  \n   $ 10,000 $ steps.\n\n2. **Steps taken on walks to and from school:**  \n   He finished **half** of his steps on these walks.  \n   $$\n   \\frac{1}{2} \\times 10,000 = 5,000 \\text{ steps}\n   $$\n\n3. **Steps taken on a short walk with his friend:**  \n   $ 1,000 $ steps.\n\n4. **Steps taken during the jog:**  \n   Let this be $ x $ steps.\n\n5. **Steps remaining after the jog:**  \n   $ 2,000 $ steps.\n\nNow, we can write an equation for the total steps Elliott has taken so far (walks to and from school, short walk, and jog) and the remaining steps:\n\n$$\n5,000 \\text{ (walks to and from school)} + 1,000 \\text{ (short walk)} + x \\text{ (jog)} + 2,000 \\text{ (remaining)} = 10,000\n$$\n\nSimplify the equation:\n\n$$\n6,000 + x + 2,000 = 10,000\n$$\n\n$$\n8,000 + x = 10,000\n$$\n\n$$\nx = 10,000 - 8,000\n$$\n\n$$\nx = 2,000\n$$\n\nSo, Elliott took **2,000 steps** during his jog.\n\n#### 2000"
+      }
+    },
+    {
+      "qid": "gsm8k-test-429",
+      "gold": "13",
+      "final_answer": "13",
+      "correct": true,
+      "prompt_tokens": 92,
+      "completion_tokens": 118,
+      "total_tokens": 210,
+      "meta": {
+        "raw_response": "Let's break the problem down step by step.\n\n1. Indras has 6 letters in her name.  \n   So, the number of letters in Indras' name = 6.\n\n2. Her sister's name has 4 more letters than half of the letters in Indras' name.  \n   Half of the letters in Indras' name = $ \\frac{6}{2} = 3 $.  \n   Then, 4 more than that = $ 3 + 4 = 7 $.  \n   So, the number of letters in her sister's name = 7.\n\n3. To find the total number of letters in both names, we add:  \n   $ 6 + 7 = 13 $.\n\n#### 13"
+      }
+    },
+    {
+      "qid": "gsm8k-test-440",
+      "gold": "98",
+      "final_answer": "98",
+      "correct": true,
+      "prompt_tokens": 86,
+      "completion_tokens": 238,
+      "total_tokens": 324,
+      "meta": {
+        "raw_response": "We are given the area of a rectangular bedroom and the length of the room, and we are asked to find the perimeter of the room in feet. Let's solve this step by step.\n\n### Step 1: Convert the length from yards to feet\nWe know that:\n$$\n1 \\text{ yard} = 3 \\text{ feet}\n$$\nSo, the length of the room in feet is:\n$$\n3 \\text{ yards} \\times 3 = 9 \\text{ feet}\n$$\n\n### Step 2: Use the area formula to find the width\nThe area of a rectangle is given by:\n$$\n\\text{Area} = \\text{length} \\times \\text{width}\n$$\nWe are given that the area is 360 square feet and the length is 9 feet. So:\n$$\n360 = 9 \\times \\text{width}\n$$\nSolve for the width:\n$$\n\\text{width} = \\frac{360}{9} = 40 \\text{ feet}\n$$\n\n### Step 3: Calculate the perimeter\nThe perimeter of a rectangle is given by:\n$$\n\\text{Perimeter} = 2 \\times (\\text{length} + \\text{width})\n$$\nSubstitute the values:\n$$\n\\text{Perimeter} = 2 \\times (9 + 40) = 2 \\times 49 = 98 \\text{ feet}\n$$\n\n### Final Answer:\n#### 98"
+      }
+    },
+    {
+      "qid": "gsm8k-test-447",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 90,
+      "completion_tokens": 111,
+      "total_tokens": 201,
+      "meta": {
+        "raw_response": "Joey starts with 214 points and scores 26 points during his turn. To find his new total, we add these two amounts:\n\n$$\n214 + 26 = 240\n$$\n\nSo, Joey now has 240 points.\n\nMarcy starts with 225 points and scores 10 points. To find her new total, we add these two amounts:\n\n$$\n225 + 10 = 235\n$$\n\nSo, Marcy now has 235 points.\n\nTo find by how many points Joey is now winning, we subtract Marcy's total from Joey's total:\n\n$$\n240 - 235 = 5\n$$\n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-449",
+      "gold": "112",
+      "final_answer": "112",
+      "correct": true,
+      "prompt_tokens": 106,
+      "completion_tokens": 163,
+      "total_tokens": 269,
+      "meta": {
+        "raw_response": "To find the total number of crayons Beatrice bought, we need to calculate the number of crayons in each group of packets and then add them together.\n\n1. First, calculate the total number of crayons in the six packets that each had eight pieces:\n   $$\n   6 \\text{ packets} \\times 8 \\text{ crayons per packet} = 48 \\text{ crayons}\n   $$\n\n2. Next, calculate the total number of crayons in the four packets that each had sixteen pieces:\n   $$\n   4 \\text{ packets} \\times 16 \\text{ crayons per packet} = 64 \\text{ crayons}\n   $$\n\n3. Finally, add the two totals together:\n   $$\n   48 \\text{ crayons} + 64 \\text{ crayons} = 112 \\text{ crayons}\n   $$\n\n#### 112"
+      }
+    },
+    {
+      "qid": "gsm8k-test-451",
+      "gold": "11050",
+      "final_answer": "11050",
+      "correct": true,
+      "prompt_tokens": 111,
+      "completion_tokens": 110,
+      "total_tokens": 221,
+      "meta": {
+        "raw_response": "First, we calculate the original cost per balloon before the price increase.  \nThe total cost for 20 balloons was $900, so the cost per balloon was:\n\n$$\n\\frac{900}{20} = 45\n$$\n\nNext, we account for the price increase. The cost of filling each balloon increased by $20, so the new cost per balloon is:\n\n$$\n45 + 20 = 65\n$$\n\nNow, we calculate how much Bentley paid to fill 170 balloons at the new price:\n\n$$\n170 \\times 65 = 11050\n$$\n\n#### 11050"
+      }
+    },
+    {
+      "qid": "gsm8k-test-457",
+      "gold": "45",
+      "final_answer": "45",
+      "correct": true,
+      "prompt_tokens": 133,
+      "completion_tokens": 127,
+      "total_tokens": 260,
+      "meta": {
+        "raw_response": "Let's break the problem down step by step:\n\n1. Katelyn initially saw 50 fairies flying above the forest.  \n   So, the initial number of fairies = 50.\n\n2. After twenty minutes, one of her friends saw half as many fairies as Katelyn saw come from the east and join the fairies that were there.  \n   Half of 50 is 25.  \n   So, 25 fairies joined the original 50.  \n   Total fairies now = 50 + 25 = 75.\n\n3. Ten minutes later, 30 fairies flew away.  \n   So, the number of fairies remaining = 75 - 30 = 45.\n\n#### 45"
+      }
+    },
+    {
+      "qid": "gsm8k-test-466",
+      "gold": "1",
+      "final_answer": "100",
+      "correct": false,
+      "prompt_tokens": 96,
+      "completion_tokens": 181,
+      "total_tokens": 277,
+      "meta": {
+        "raw_response": "First, let's calculate how much Becky paid for the apples.\n\nBecky bought 20 apples at 45 cents each:\n$$\n20 \\times 45 = 900 \\text{ cents}\n$$\n\nShe received a $1 discount. Since $1 is equal to 100 cents:\n$$\n900 - 100 = 800 \\text{ cents}\n$$\n\nSo, Becky paid 800 cents.\n\nNext, let's calculate how much Kelly paid for the apples.\n\nKelly bought 20 apples at 50 cents each:\n$$\n20 \\times 50 = 1000 \\text{ cents}\n$$\n\nShe received a 10% discount. A 10% discount on 1000 cents is:\n$$\n10\\% \\times 1000 = 0.10 \\times 1000 = 100 \\text{ cents}\n$$\n\nSo, Kelly paid:\n$$\n1000 - 100 = 900 \\text{ cents}\n$$\n\nNow, we find how much more Kelly paid than Becky:\n$$\n900 - 800 = 100 \\text{ cents}\n$$\n\nThus, Kelly paid 100 cents more than Becky.\n\n#### 100"
+      }
+    },
+    {
+      "qid": "gsm8k-test-476",
+      "gold": "5",
+      "final_answer": "5",
+      "correct": true,
+      "prompt_tokens": 94,
+      "completion_tokens": 122,
+      "total_tokens": 216,
+      "meta": {
+        "raw_response": "First, we need to determine how many books Sarah bought in total. She spent $300, and each book cost $15. To find the total number of books, we divide the total amount spent by the cost per book:\n\n$$\n\\text{Total number of books} = \\frac{300}{15} = 20\n$$\n\nNext, we know that Sarah gave an equal number of books to her 4 kids. To find out how many books each child received, we divide the total number of books by the number of kids:\n\n$$\n\\text{Books per child} = \\frac{20}{4} = 5\n$$\n\n#### 5"
+      }
+    },
+    {
+      "qid": "gsm8k-test-501",
+      "gold": "273",
+      "final_answer": "273",
+      "correct": true,
+      "prompt_tokens": 102,
+      "completion_tokens": 153,
+      "total_tokens": 255,
+      "meta": {
+        "raw_response": "To find out how many yards of yarn Mariah and her grandma used altogether, we need to follow these steps:\n\n### Step 1: Determine how much yarn each of them used in yards\nWe know that:\n- 1 skein of yarn = 364 yards\n- Mariah used $ \\frac{1}{4} $ of a skein\n- Her grandma used $ \\frac{1}{2} $ of a skein\n\nSo, we calculate the yards each used:\n\n**Mariah's yarn:**\n$$\n\\frac{1}{4} \\times 364 = \\frac{364}{4} = 91 \\text{ yards}\n$$\n\n**Grandma's yarn:**\n$$\n\\frac{1}{2} \\times 364 = \\frac{364}{2} = 182 \\text{ yards}\n$$\n\n### Step 2: Add the yards used by both\n$$\n91 + 182 = 273 \\text{ yards}\n$$\n\n### Final Answer:\n#### 273"
+      }
+    },
+    {
+      "qid": "gsm8k-test-541",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 111,
+      "completion_tokens": 267,
+      "total_tokens": 378,
+      "meta": {
+        "raw_response": "To solve this problem, we need to determine how much Elvis needs to save each day in the second half of April to meet his monthly target of $1125, given that he wants to save **twice as much daily in the second half** as he does in the first half.\n\n---\n\n### Step 1: Understand the structure of April\nApril has **30 days**.  \nSo, the **first half** of April is 15 days, and the **second half** is also 15 days.\n\n---\n\n### Step 2: Define variables\nLet $ x $ be the amount Elvis saves **each day in the first half**.\n\nThen, he saves $ 2x $ each day in the second half.\n\n---\n\n### Step 3: Set up the equation\nTotal savings = (Daily savings in first half × 15) + (Daily savings in second half × 15)\n\n$$\n1125 = 15x + 15(2x)\n$$\n\nSimplify the equation:\n\n$$\n1125 = 15x + 30x\n$$\n\n$$\n1125 = 45x\n$$\n\n---\n\n### Step 4: Solve for $ x $\n$$\nx = \\frac{1125}{45} = 25\n$$\n\nSo, Elvis saves **$25 per day** in the first half.\n\n---\n\n### Step 5: Find the daily savings in the second half\nHe saves **twice as much** in the second half:\n\n$$\n2x = 2 \\times 25 = 50\n$$\n\n---\n\n### Final Answer:\n#### 50"
+      }
+    },
+    {
+      "qid": "gsm8k-test-546",
+      "gold": "130",
+      "final_answer": "130",
+      "correct": true,
+      "prompt_tokens": 110,
+      "completion_tokens": 161,
+      "total_tokens": 271,
+      "meta": {
+        "raw_response": "Let's break the problem down step by step.\n\n1. **The alphabet has 26 letters.**\n\n2. **She writes it in full twice:**  \n   That's $26 \\times 2 = 52$ letters.\n\n3. **She writes half of it once:**  \n   Half of 26 is $26 \\div 2 = 13$ letters.\n\n4. **She re-writes everything she has already written:**  \n   The total number of letters she has written so far is:  \n   $52 + 13 = 65$ letters.  \n   So she re-writes 65 letters.\n\nNow, we add all the letters she has written:\n\n- First two full alphabets: 52 letters  \n- Half of the alphabet: 13 letters  \n- Re-writing everything she has already written: 65 letters  \n\nTotal = $52 + 13 + 65 = 130$\n\n#### 130"
+      }
+    },
+    {
+      "qid": "gsm8k-test-552",
+      "gold": "450",
+      "final_answer": "450",
+      "correct": true,
+      "prompt_tokens": 117,
+      "completion_tokens": 146,
+      "total_tokens": 263,
+      "meta": {
+        "raw_response": "To calculate the amount of money Antonella earned, we need to break down the commission based on the given structure:\n\n1. **Commission for the first $1000 of sales:**  \n   This is 30% of $1000.  \n   $$\n   0.30 \\times 1000 = 300\n   $$\n\n2. **Commission for the sales over $1000:**  \n   Antonella sold $2500, so the amount over $1000 is:  \n   $$\n   2500 - 1000 = 1500\n   $$  \n   For this portion, she earns an additional 10% commission.  \n   $$\n   0.10 \\times 1500 = 150\n   $$\n\n3. **Total commission earned:**  \n   Add the two parts together:  \n   $$\n   300 + 150 = 450\n   $$\n\n#### 450"
+      }
+    },
+    {
+      "qid": "gsm8k-test-563",
+      "gold": "12",
+      "final_answer": "12",
+      "correct": true,
+      "prompt_tokens": 94,
+      "completion_tokens": 140,
+      "total_tokens": 234,
+      "meta": {
+        "raw_response": "First, we need to determine the ages of both sons. One son is 12 years old, and the other is 4 years younger:\n\n$$\n12 - 4 = 8\n$$\n\nSo, the sons are 12 and 8 years old.\n\nNext, we calculate the total number of candles James needs. Since each son gets one candle per year of age:\n\n$$\n12 + 8 = 20\n$$\n\nJames needs 20 candles in total.\n\nNow, we determine how many packs of candles James needs to buy. Each pack contains 5 candles:\n\n$$\n\\frac{20}{5} = 4\n$$\n\nJames needs to buy 4 packs of candles.\n\nEach pack costs $3, so the total cost is:\n\n$$\n4 \\times 3 = 12\n$$\n\n#### 12"
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.95,
+  "total_tokens": 10916,
+  "meta": {}
+}
