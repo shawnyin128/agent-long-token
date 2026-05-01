@@ -13,3 +13,7 @@ artifacts/
 # But DO commit smoke-test evidence artifacts:
 !artifacts/serving/
 !artifacts/serving/*.json
+# And per-cell grid summaries (per-question records included; small JSON):
+!artifacts/grid/
+!artifacts/grid/**
+
