@@ -16,7 +16,7 @@ set -euo pipefail
 MODEL="${MODEL:-openai/gpt-oss-20b}"
 PORT="${VLLM_PORT:-8000}"
 HOST="${VLLM_HOST:-0.0.0.0}"
-MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-65536}"
+MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-65536}"  # gpt-oss-20b natively supports 128k
 API_KEY="${VLLM_API_KEY:-EMPTY}"
 
 if [[ -z "${VLLM_TP_SIZE:-}" ]]; then
