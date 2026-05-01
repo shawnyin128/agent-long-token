@@ -8,7 +8,7 @@
 # Override defaults via env:
 #   VLLM_PORT          — default 8000
 #   VLLM_TP_SIZE       — default = number of GPUs visible to CUDA
-#   VLLM_MAX_MODEL_LEN — default 32768
+#   VLLM_MAX_MODEL_LEN — default 65536 (AIME debate accumulates context)
 #   VLLM_HOST          — default 0.0.0.0
 #   VLLM_API_KEY       — default EMPTY
 set -euo pipefail
@@ -16,7 +16,7 @@ set -euo pipefail
 MODEL="${MODEL:-openai/gpt-oss-20b}"
 PORT="${VLLM_PORT:-8000}"
 HOST="${VLLM_HOST:-0.0.0.0}"
-MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-32768}"
+MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-65536}"
 API_KEY="${VLLM_API_KEY:-EMPTY}"
 
 if [[ -z "${VLLM_TP_SIZE:-}" ]]; then

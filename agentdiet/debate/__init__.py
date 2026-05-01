@@ -86,7 +86,10 @@ def run_debate(
                     api_msgs, model=model, temperature=temperature,
                     thinking=thinking,
                 )
-                agent.record_turn(user_content_for_all, result.response)
+                agent.record_turn(
+                    user_content_for_all,
+                    strip_thinking_trace(result.response),
+                )
                 round_messages.append(Message(agent_id=agent.id, round=r, text=result.response))
                 total_prompt_tokens += result.prompt_tokens or 0
                 total_completion_tokens += result.completion_tokens or 0
@@ -103,7 +106,10 @@ def run_debate(
                     api_msgs, model=model, temperature=temperature,
                     thinking=thinking,
                 )
-                agent.record_turn(user_content, result.response)
+                agent.record_turn(
+                    user_content,
+                    strip_thinking_trace(result.response),
+                )
                 round_messages.append(Message(agent_id=agent.id, round=r, text=result.response))
                 total_prompt_tokens += result.prompt_tokens or 0
                 total_completion_tokens += result.completion_tokens or 0
