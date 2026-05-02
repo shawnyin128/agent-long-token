@@ -1,0 +1,496 @@
+{
+  "condition": "sa",
+  "cell": {
+    "model": "openai/gpt-oss-20b",
+    "model_family": "gpt-oss",
+    "dataset_name": "aime",
+    "thinking": true,
+    "prompt_variant": "cooperative"
+  },
+  "questions": [
+    {
+      "qid": "aime-2026-q00",
+      "gold": "277",
+      "final_answer": "277",
+      "correct": true,
+      "prompt_tokens": 256,
+      "completion_tokens": 41482,
+      "total_tokens": 41738,
+      "meta": {
+        "raw_response": "Let  \n\n* \\(v\\) = Patrick’s walking speed (mph)  \n* \\(v+2\\) = Tanya’s running speed (mph)  \n* \\(v+9\\) = Jose’s bicycling speed (mph)  \n\nLet the distance from school to the park be \\(D\\) miles and let the time at which all three arrive at the park be \\(T\\) hours after Patrick left.\n\n\\[\n\\begin{aligned}\n\\text{Patrick:}&\\quad D = vT \\\\\n\\text{Tanya:}&\\quad D = (v+2)(T-1) \\\\\n\\text{Jose:}&\\quad D = (v+9)(T-2)\n\\end{aligned}\n\\]\n\nSet the first two equal:\n\n\\[\nvT = (v+2)(T-1) \\implies v = 2T-2 \\tag{1}\n\\]\n\nSet the first and third equal:\n\n\\[\nvT = (v+9)(T-2) \\implies 2v = 9T-18 \\implies v = \\frac{9T-18}{2} \\tag{2}\n\\]\n\nEquate (1) and (2):\n\n\\[\n2T-2 = \\frac{9T-18}{2}\\quad\\Longrightarrow\\quad 4T-4 = 9T-18\n\\]\n\\[\n5T = 14 \\implies T = \\frac{14}{5}\\text{ hours}\n\\]\n\nNow find \\(v\\):\n\n\\[\nv = 2T-2 = 2\\left(\\frac{14}{5}\\right)-2 = \\frac{28}{5}-\\frac{10}{5} = \\frac{18}{5}\\text{ mph}\n\\]\n\nDistance \\(D\\):\n\n\\[\nD = vT = \\frac{18}{5}\\cdot\\frac{14}{5} = \\frac{252}{25}\\text{ miles}\n\\]\n\nThe fraction \\(\\frac{252}{25}\\) is already in lowest terms (\\(\\gcd(252,25)=1\\)).  \nThus \\(m=252\\) and \\(n=25\\).\n\n\\[\nm+n = 252+25 = 277\n\\]\n\n\\[\n\\boxed{277}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2026-q01",
+      "gold": "62",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 175,
+      "completion_tokens": 65361,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q02",
+      "gold": "79",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 227,
+      "completion_tokens": 65309,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q03",
+      "gold": "70",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 146,
+      "completion_tokens": 65390,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q04",
+      "gold": "65",
+      "final_answer": "65",
+      "correct": true,
+      "prompt_tokens": 246,
+      "completion_tokens": 4192,
+      "total_tokens": 4438,
+      "meta": {
+        "raw_response": "Let \\(B=(0,0)\\) and \\(A=(1,0)\\) so that \\(AB=1\\).\n\n**1. Rotate \\(A\\) counterclockwise about \\(B\\) by \\(\\theta\\).**  \nSince \\(B\\) is the origin, the image \\(A'\\) is just \\(A\\) rotated by \\(\\theta\\):\n\n\\[\nA' = (\\cos\\theta,\\;\\sin\\theta).\n\\]\n\n**2. Rotate \\(B\\) clockwise about \\(A'\\) by \\(\\theta\\).**  \nClockwise rotation by \\(\\theta\\) is a rotation by \\(-\\theta\\).  \nThe vector from \\(A'\\) to \\(B\\) is \\(B-A' = -A' = (-\\cos\\theta,\\,-\\sin\\theta)\\).\n\nApply the rotation matrix \\(R(-\\theta)=\\begin{pmatrix}\\cos\\theta & \\sin\\theta\\\\ -\\sin\\theta & \\cos\\theta\\end{pmatrix}\\):\n\n\\[\nR(-\\theta)(-A')=\n\\begin{pmatrix}\\cos\\theta & \\sin\\theta\\\\ -\\sin\\theta & \\cos\\theta\\end{pmatrix}\n\\begin{pmatrix}-\\cos\\theta\\\\ -\\sin\\theta\\end{pmatrix}\n=\n\\begin{pmatrix}-1\\\\ 0\\end{pmatrix}.\n\\]\n\nThus\n\n\\[\nB' = A' + R(-\\theta)(B-A') = A' + (-1,0) = (\\cos\\theta-1,\\;\\sin\\theta).\n\\]\n\n**3. Compute \\(AB'\\).**  \n\\(A=(1,0)\\) and \\(B'=(\\cos\\theta-1,\\;\\sin\\theta)\\).  \nThe vector \\(AB'\\) is\n\n\\[\nB'-A = (\\cos\\theta-2,\\;\\sin\\theta).\n\\]\n\nHence\n\n\\[\nAB'^2 = (\\cos\\theta-2)^2 + \\sin^2\\theta\n       = \\cos^2\\theta - 4\\cos\\theta + 4 + \\sin^2\\theta\n       = 1 - 4\\cos\\theta + 4\n       = 5 - 4\\cos\\theta.\n\\]\n\nGiven \\(AB'=\\frac{4}{3}\\),\n\n\\[\n\\sqrt{5-4\\cos\\theta} = \\frac{4}{3}\n\\quad\\Longrightarrow\\quad\n5-4\\cos\\theta = \\frac{16}{9}.\n\\]\n\nMultiply by \\(9\\):\n\n\\[\n45 - 36\\cos\\theta = 16\n\\quad\\Longrightarrow\\quad\n36\\cos\\theta = 29\n\\quad\\Longrightarrow\\quad\n\\cos\\theta = \\frac{29}{36}.\n\\]\n\nSince \\(\\theta\\) is acute, \\(\\cos\\theta>0\\) and this value is valid.\n\nThus \\(\\cos\\theta = \\frac{29}{36}\\) with \\(m=29,\\;n=36\\).  \nThey are relatively prime, so\n\n\\[\nm+n = 29+36 = 65.\n\\]\n\n\\[\n\\boxed{65}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2026-q05",
+      "gold": "441",
+      "final_answer": "441",
+      "correct": true,
+      "prompt_tokens": 160,
+      "completion_tokens": 17601,
+      "total_tokens": 17761,
+      "meta": {
+        "raw_response": "First rewrite the equation\n\n\\[\n\\sqrt[20]{x^{\\log_{2026}x}}=26x\n\\]\n\nas\n\n\\[\n\\bigl(x^{\\log_{2026}x}\\bigr)^{1/20}=26x\n\\quad\\Longrightarrow\\quad\nx^{\\frac{\\log_{2026}x}{20}}=26x .\n\\]\n\nLet  \n\n\\[\ny=\\log_{2026}x \\quad\\Longrightarrow\\quad x=2026^{\\,y}.\n\\]\n\nThen\n\n\\[\nx^{\\frac{\\log_{2026}x}{20}}\n= (2026^{\\,y})^{y/20}\n= 2026^{\\,y^2/20},\n\\]\n\nand the right–hand side becomes\n\n\\[\n26x=26\\cdot 2026^{\\,y}.\n\\]\n\nThus\n\n\\[\n2026^{\\,y^2/20}=26\\cdot 2026^{\\,y}.\n\\]\n\nTaking logarithms base \\(2026\\),\n\n\\[\n\\frac{y^2}{20}= \\log_{2026}26 + y .\n\\]\n\nMultiply by \\(20\\):\n\n\\[\ny^2-20y-20\\log_{2026}26=0 .\n\\]\n\nThis quadratic has solutions\n\n\\[\ny=10\\pm\\sqrt{100+20\\log_{2026}26}.\n\\]\n\nBoth solutions are real, so we have two positive values of \\(x\\):\n\n\\[\nx_1=2026^{\\,10+\\sqrt{100+20\\log_{2026}26}},\\qquad\nx_2=2026^{\\,10-\\sqrt{100+20\\log_{2026}26}} .\n\\]\n\nThe product of all possible positive \\(x\\) is\n\n\\[\nx_1x_2\n=2026^{\\,\\bigl(10+\\sqrt{\\,}\\bigr)+\\bigl(10-\\sqrt{\\,}\\bigr)}\n=2026^{\\,20}.\n\\]\n\nNow factor \\(2026\\):\n\n\\[\n2026=2\\cdot1013,\\qquad 1013\\text{ is prime}.\n\\]\n\nHence\n\n\\[\n2026^{20}=2^{20}\\cdot1013^{20}.\n\\]\n\nThe number of positive divisors of a number \\(p^a q^b\\) is \\((a+1)(b+1)\\).  \nThus\n\n\\[\n\\text{divisors}(2026^{20})=(20+1)(20+1)=21\\cdot21=441.\n\\]\n\n\\[\n\\boxed{441}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2026-q06",
+      "gold": "396",
+      "final_answer": "396",
+      "correct": true,
+      "prompt_tokens": 179,
+      "completion_tokens": 15131,
+      "total_tokens": 15310,
+      "meta": {
+        "raw_response": "#### 396"
+      }
+    },
+    {
+      "qid": "aime-2026-q07",
+      "gold": "244",
+      "final_answer": "244",
+      "correct": true,
+      "prompt_tokens": 160,
+      "completion_tokens": 4444,
+      "total_tokens": 4604,
+      "meta": {
+        "raw_response": "To find the number of divisors \\(d\\) of \\(17017^{17}\\) that satisfy \\(d\\equiv5\\pmod{12}\\), we first factor \\(17017\\):\n\n\\[\n17017 = 7\\cdot 11\\cdot 13\\cdot 17 .\n\\]\n\nHence\n\n\\[\n17017^{17}=7^{17}\\,11^{17}\\,13^{17}\\,17^{17}.\n\\]\n\nA divisor of this number has the form\n\n\\[\nd=7^{a}\\,11^{b}\\,13^{c}\\,17^{d}\\qquad(0\\le a,b,c,d\\le17).\n\\]\n\n---\n\n### 1.  Congruence conditions\n\nWe need \\(d\\equiv5\\pmod{12}\\).  \nSince \\(12=3\\cdot4\\) and \\(\\gcd(3,4)=1\\), this is equivalent to\n\n\\[\nd\\equiv5\\pmod{3}\\quad\\text{and}\\quad d\\equiv5\\pmod{4}.\n\\]\n\n---\n\n#### Modulo \\(3\\)\n\n\\[\n\\begin{aligned}\n7^a &\\equiv 1^a \\equiv 1 \\pmod{3},\\\\\n11^b &\\equiv 2^b \\equiv (-1)^b \\pmod{3},\\\\\n13^c &\\equiv 1^c \\equiv 1 \\pmod{3},\\\\\n17^d &\\equiv 2^d \\equiv (-1)^d \\pmod{3}.\n\\end{aligned}\n\\]\n\nThus\n\n\\[\nd\\equiv 2^{\\,b+d}\\pmod{3}.\n\\]\n\nWe need \\(2^{\\,b+d}\\equiv5\\equiv2\\pmod{3}\\), which occurs exactly when \\(b+d\\) is **odd**.\n\n---\n\n#### Modulo \\(4\\)\n\n\\[\n\\begin{aligned}\n7^a &\\equiv 3^a \\equiv (-1)^a \\pmod{4},\\\\\n11^b &\\equiv 3^b \\equiv (-1)^b \\pmod{4},\\\\\n13^c &\\equiv 1^c \\equiv 1 \\pmod{4},\\\\\n17^d &\\equiv 1^d \\equiv 1 \\pmod{4}.\n\\end{aligned}\n\\]\n\nHence\n\n\\[\nd\\equiv 3^{\\,a+b}\\pmod{4}\\equiv(-1)^{\\,a+b}\\pmod{4}.\n\\]\n\nWe need this to equal \\(5\\equiv1\\pmod{4}\\), so \\(a+b\\) must be **even**.\n\n---\n\n### 2.  Counting admissible triples \\((a,b,d)\\)\n\nThe exponents \\(a,b,d\\) each range from \\(0\\) to \\(17\\).  \nAmong these 18 values, 9 are even and 9 are odd.\n\nThe parity conditions are:\n\n\\[\n\\begin{cases}\na+b\\text{ even},\\\\\nb+d\\text{ odd}.\n\\end{cases}\n\\]\n\nThese imply \\(a=b\\) (both even or both odd) and \\(d\\neq b\\).\n\nThus the only admissible parity patterns are\n\n1. \\(a\\) even, \\(b\\) even, \\(d\\) odd.\n2. \\(a\\) odd,  \\(b\\) odd,  \\(d\\) even.\n\nFor each pattern the number of choices is\n\n\\[\n9\\ (\\text{choices for }a)\\times 9\\ (\\text{choices for }b)\\times 9\\ (\\text{choices for }d)=9^3=729.\n\\]\n\nHence\n\n\\[\nM=\\text{# of admissible }(a,b,d)=729+729=1458.\n\\]\n\n---\n\n### 3.  Including the exponent \\(c\\)\n\nThe exponent \\(c\\) of \\(13\\) is unrestricted: \\(0\\le c\\le17\\), giving 18 possibilities.\n\nTherefore\n\n\\[\nN=18\\cdot M=18\\cdot1458=26244.\n\\]\n\n---\n\n### 4.  Remainder modulo \\(1000\\)\n\n\\[\n26244 \\bmod 1000 = 244.\n\\]\n\n---\n\n\\[\n\\boxed{244}\n\\]\n\n#### 244"
+      }
+    },
+    {
+      "qid": "aime-2026-q08",
+      "gold": "29",
+      "final_answer": "29",
+      "correct": true,
+      "prompt_tokens": 286,
+      "completion_tokens": 26938,
+      "total_tokens": 27224,
+      "meta": {
+        "raw_response": "#### 29"
+      }
+    },
+    {
+      "qid": "aime-2026-q09",
+      "gold": "156",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 213,
+      "completion_tokens": 65323,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q10",
+      "gold": "896",
+      "final_answer": "896",
+      "correct": true,
+      "prompt_tokens": 264,
+      "completion_tokens": 24338,
+      "total_tokens": 24602,
+      "meta": {
+        "raw_response": "#### 896"
+      }
+    },
+    {
+      "qid": "aime-2026-q11",
+      "gold": "161",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 289,
+      "completion_tokens": 65247,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q12",
+      "gold": "39",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 259,
+      "completion_tokens": 65277,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q13",
+      "gold": "681",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 198,
+      "completion_tokens": 65338,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q14",
+      "gold": "83",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 359,
+      "completion_tokens": 65177,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q15",
+      "gold": "178",
+      "final_answer": "178",
+      "correct": true,
+      "prompt_tokens": 151,
+      "completion_tokens": 6225,
+      "total_tokens": 6376,
+      "meta": {
+        "raw_response": "To have an arithmetic sequence of integers with first term \\(4\\) that contains both \\(24\\) and \\(34\\), the common difference \\(d\\) must satisfy  \n\n\\[\n4+(m-1)d = 24,\\qquad 4+(n-1)d = 34\n\\]\n\nfor some integers \\(m,n\\ge 1\\).  \nThus  \n\n\\[\n(m-1)d = 20,\\qquad (n-1)d = 30.\n\\]\n\nHence \\(d\\) must divide both \\(20\\) and \\(30\\).  \nThe positive common divisors of \\(20\\) and \\(30\\) are  \n\n\\[\nd\\in\\{1,2,5,10\\}.\n\\]\n\nFor each such \\(d\\), the 10th term is  \n\n\\[\na_{10}=4+9d.\n\\]\n\nCompute:\n\n\\[\n\\begin{aligned}\nd=1 &: a_{10}=4+9(1)=13,\\\\\nd=2 &: a_{10}=4+9(2)=22,\\\\\nd=5 &: a_{10}=4+9(5)=49,\\\\\nd=10&: a_{10}=4+9(10)=94.\n\\end{aligned}\n\\]\n\nSum of all 10th terms:\n\n\\[\n13+22+49+94 = 178.\n\\]\n\n\\[\n\\boxed{178}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2026-q16",
+      "gold": "243",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 458,
+      "completion_tokens": 65078,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q17",
+      "gold": "503",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 238,
+      "completion_tokens": 65298,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q18",
+      "gold": "279",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 231,
+      "completion_tokens": 65305,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q19",
+      "gold": "190",
+      "final_answer": "190",
+      "correct": true,
+      "prompt_tokens": 201,
+      "completion_tokens": 46254,
+      "total_tokens": 46455,
+      "meta": {
+        "raw_response": "To have  \n\n\\[\nP(\\text{exactly }4\\text{ red})=P(\\text{exactly }5\\text{ red})\n\\]\n\nwe need  \n\n\\[\n\\binom{r}{4}\\binom{b}{3}=\\binom{r}{5}\\binom{b}{2},\n\\]\n\nwhere \\(r\\) and \\(b\\) are the numbers of red and blue marbles, respectively, and \\(n=r+b\\).\n\n---\n\n### Simplifying the equation\n\n\\[\n\\frac{\\binom{r}{4}}{\\binom{r}{5}}=\\frac{\\binom{b}{2}}{\\binom{b}{3}}\n\\]\n\n\\[\n\\frac{5}{r-4}=\\frac{3}{b-2}\\quad\\Longrightarrow\\quad 5(b-2)=3(r-4).\n\\]\n\nThus\n\n\\[\n3r-5b=2.\n\\]\n\n---\n\n### Integer solutions\n\nSolve \\(3r-5b=2\\) in integers.  \nA particular solution is \\(r=4,\\;b=2\\).  \nThe general solution is\n\n\\[\nr=5k+4,\\qquad b=3k+2\\qquad(k\\in\\mathbb Z).\n\\]\n\nBecause the urn must contain at least 7 marbles of each color,\n\n\\[\nr\\ge 7,\\; b\\ge 7 \\Longrightarrow k\\ge 2.\n\\]\n\nSo the admissible pairs are\n\n\\[\n(r,b)=(14,8),(19,11),(24,14),(29,17),(34,20),\\dots\n\\]\n\nand the corresponding total numbers of marbles are\n\n\\[\nn=r+b=8k+6.\n\\]\n\nFor \\(k=2,3,4,5,6\\) we get\n\n\\[\nn=22,\\;30,\\;38,\\;46,\\;54.\n\\]\n\nThese are the five smallest possible values of \\(n\\).\n\n---\n\n### Sum of the five least values\n\n\\[\n22+30+38+46+54=190.\n\\]\n\n\\[\n\\boxed{190}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2026-q20",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 170,
+      "completion_tokens": 51086,
+      "total_tokens": 51256,
+      "meta": {
+        "raw_response": "The parabola can be written as  \n\n\\[\ny=\\frac{x^2-8x+12}{2}=\\frac{(x-4)^2}{2}-2 .\n\\]\n\nThe circle centered at \\((4,39)\\) with radius \\(r\\) is  \n\n\\[\n(x-4)^2+(y-39)^2=r^2 .\n\\]\n\n---\n\n### Tangency condition\n\nAt a point of tangency the slopes of the two curves are equal.\n\n* For the parabola: \\(y' = x-4\\).\n* For the circle (implicit differentiation):  \n  \\[\n  2(x-4)+2(y-39)y'=0 \\quad\\Longrightarrow\\quad y'=-\\frac{x-4}{\\,y-39\\,}.\n  \\]\n\nSet the slopes equal:\n\n\\[\n-\\frac{x-4}{y-39}=x-4 .\n\\]\n\nThis gives two possibilities:\n\n1. **\\(x-4=0\\)**  \n   Then \\(x=4\\).  \n   The parabola gives \\(y=-2\\).  \n   Substituting into the circle equation:\n   \\[\n   (4-4)^2+(-2-39)^2=r^2 \\;\\Longrightarrow\\; r^2=41^2 \\;\\Longrightarrow\\; r=41 .\n   \\]\n\n2. **\\(x-4\\neq0\\)**  \n   Divide by \\(x-4\\) to obtain \\(y-39=-1\\), i.e. \\(y=38\\).  \n   The parabola gives\n   \\[\n   38=\\frac{(x-4)^2}{2}-2 \\;\\Longrightarrow\\; (x-4)^2=80 \\;\\Longrightarrow\\; x=4\\pm4\\sqrt5 .\n   \\]\n   For either \\(x\\), the circle equation yields\n   \\[\n   (x-4)^2+(38-39)^2=r^2 \\;\\Longrightarrow\\; 80+1=r^2 \\;\\Longrightarrow\\; r^2=81 \\;\\Longrightarrow\\; r=9 .\n   \\]\n\nThus the only radii for which the circle is tangent to the parabola are \\(r=9\\) and \\(r=41\\).\n\n---\n\n### Sum of all such radii\n\n\\[\n9+41=50 .\n\\]\n\n\\[\n\\boxed{50}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2026-q21",
+      "gold": "754",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 220,
+      "completion_tokens": 65316,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q22",
+      "gold": "245",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 184,
+      "completion_tokens": 65352,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q23",
+      "gold": "669",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 193,
+      "completion_tokens": 65343,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q24",
+      "gold": "850",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 255,
+      "completion_tokens": 65281,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q25",
+      "gold": "132",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 213,
+      "completion_tokens": 65323,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q26",
+      "gold": "223",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 249,
+      "completion_tokens": 65287,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q27",
+      "gold": "107",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 242,
+      "completion_tokens": 65294,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q28",
+      "gold": "157",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 289,
+      "completion_tokens": 65247,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2026-q29",
+      "gold": "393",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 280,
+      "completion_tokens": 65256,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2025-q00",
+      "gold": "70",
+      "final_answer": "70",
+      "correct": true,
+      "prompt_tokens": 139,
+      "completion_tokens": 1342,
+      "total_tokens": 1481,
+      "meta": {
+        "raw_response": "To work in base \\(b\\) we write the numbers in terms of \\(b\\):\n\n\\[\n17_b = 1\\cdot b + 7 = b+7,\n\\qquad\n97_b = 9\\cdot b + 7 = 9b+7.\n\\]\n\nWe need \\(b+7\\) to divide \\(9b+7\\).\n\nLet  \n\\[\nd = b+7 \\quad\\Longrightarrow\\quad b = d-7.\n\\]\n\nThen\n\n\\[\n9b+7 = 9(d-7)+7 = 9d-63+7 = 9d-56.\n\\]\n\nThus the divisibility condition becomes\n\n\\[\nd \\mid (9d-56).\n\\]\n\nSince \\(d\\) divides \\(9d\\), it must also divide the difference:\n\n\\[\n9d-56 - 9d = -56 \\quad\\Longrightarrow\\quad d \\mid 56.\n\\]\n\nSo \\(d\\) is a positive divisor of \\(56\\).  \nThe divisors of \\(56 = 2^3\\cdot 7\\) are\n\n\\[\n1,\\;2,\\;4,\\;7,\\;8,\\;14,\\;28,\\;56.\n\\]\n\nBecause \\(b>9\\), we have \\(d=b+7>16\\).  \nThe only divisors of \\(56\\) exceeding \\(16\\) are \\(28\\) and \\(56\\).\n\nNow recover \\(b\\):\n\n* If \\(d=28\\), then \\(b = 28-7 = 21\\).\n* If \\(d=56\\), then \\(b = 56-7 = 49\\).\n\nBoth \\(b=21\\) and \\(b=49\\) satisfy \\(b>9\\) and the digit‑size condition (digits \\(1,7,9 < b\\)).\n\nHence the required bases are \\(b=21\\) and \\(b=49\\).  \nTheir sum is\n\n\\[\n21 + 49 = 70.\n\\]\n\n\\[\n\\boxed{70}\n\\]\n\n#### 70"
+      }
+    },
+    {
+      "qid": "aime-2025-q01",
+      "gold": "588",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 719,
+      "completion_tokens": 64817,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2025-q02",
+      "gold": "16",
+      "final_answer": "16",
+      "correct": true,
+      "prompt_tokens": 222,
+      "completion_tokens": 2005,
+      "total_tokens": 2227,
+      "meta": {
+        "raw_response": "The counts of chocolate (C), vanilla (V), and strawberry (S) must satisfy  \n\n\\[\nC+V+S=9,\\qquad C>V>S>0 .\n\\]\n\nThe only positive integer solutions are  \n\n\\[\n(6,2,1),\\;(5,3,1),\\;(4,3,2).\n\\]\n\nFor each triple, the number of assignments of flavors to the 9 distinct players is the multinomial coefficient  \n\n\\[\n\\frac{9!}{C!\\,V!\\,S!}.\n\\]\n\nCompute each:\n\n\\[\n\\begin{aligned}\n(6,2,1): &\\quad \\frac{9!}{6!\\,2!\\,1!}= \\frac{362880}{720\\cdot2}=252,\\\\[4pt]\n(5,3,1): &\\quad \\frac{9!}{5!\\,3!\\,1!}= \\frac{362880}{120\\cdot6}=504,\\\\[4pt]\n(4,3,2): &\\quad \\frac{9!}{4!\\,3!\\,2!}= \\frac{362880}{24\\cdot6\\cdot2}=1260.\n\\end{aligned}\n\\]\n\nAdding them gives  \n\n\\[\nN = 252+504+1260 = 2016.\n\\]\n\nThe remainder when \\(N\\) is divided by \\(1000\\) is  \n\n\\[\n2016 \\bmod 1000 = 16.\n\\]\n\n\\[\n\\boxed{16}\n\\]\n\n#### 16"
+      }
+    },
+    {
+      "qid": "aime-2025-q03",
+      "gold": "117",
+      "final_answer": "117",
+      "correct": true,
+      "prompt_tokens": 163,
+      "completion_tokens": 23460,
+      "total_tokens": 23623,
+      "meta": {
+        "raw_response": "The equation can be factored:\n\n\\[\n12x^2-xy-6y^2=(3x+2y)(4x-3y)=0.\n\\]\n\nThus either  \n\n1. \\(3x+2y=0 \\;\\Rightarrow\\; x=-\\frac{2}{3}y\\).  \n   For \\(x\\) to be an integer, \\(y\\) must be a multiple of \\(3\\).  \n   Let \\(y=3m\\). Then \\(x=-2m\\).\n\n2. \\(4x-3y=0 \\;\\Rightarrow\\; x=\\frac{3}{4}y\\).  \n   For \\(x\\) to be an integer, \\(y\\) must be a multiple of \\(4\\).  \n   Let \\(y=4k\\). Then \\(x=3k\\).\n\nNow impose the bounds \\(-100\\le x,y\\le 100\\).\n\n**Case 1**: \\(y=3m,\\;x=-2m\\).  \n\\[\n-100\\le 3m\\le 100 \\;\\Rightarrow\\; -33\\le m\\le 33,\n\\]\n\\[\n-100\\le -2m\\le 100 \\;\\Rightarrow\\; -50\\le m\\le 50.\n\\]\nThe tighter restriction is \\(-33\\le m\\le 33\\).  \nNumber of integer \\(m\\): \\(33-(-33)+1=67\\).\n\n**Case 2**: \\(y=4k,\\;x=3k\\).  \n\\[\n-100\\le 4k\\le 100 \\;\\Rightarrow\\; -25\\le k\\le 25,\n\\]\n\\[\n-100\\le 3k\\le 100 \\;\\Rightarrow\\; -33\\le k\\le 33.\n\\]\nThe tighter restriction is \\(-25\\le k\\le 25\\).  \nNumber of integer \\(k\\): \\(25-(-25)+1=51\\).\n\nThe two families intersect only at \\((x,y)=(0,0)\\), which has been counted twice.  \nHence the total number of distinct ordered pairs is\n\n\\[\n67+51-1=117.\n\\]\n\n\\[\n\\boxed{117}\n\\]\n\n#### 117"
+      }
+    },
+    {
+      "qid": "aime-2025-q04",
+      "gold": "279",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 185,
+      "completion_tokens": 65351,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2025-q05",
+      "gold": "504",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 189,
+      "completion_tokens": 65347,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2025-q06",
+      "gold": "821",
+      "final_answer": "271",
+      "correct": false,
+      "prompt_tokens": 254,
+      "completion_tokens": 31435,
+      "total_tokens": 31689,
+      "meta": {
+        "raw_response": "The 12 letters are paired at random.  \nFor each pair the two letters are written in alphabetical order, giving a two‑letter word.  \nThe six words are then sorted alphabetically.  \nThe last word in this sorted list is the lexicographically largest word.\n\n--------------------------------------------------------------------\n\n### When does the largest word contain \\(G\\)?\n\nThe first letter of a word is the smaller letter of its pair.  \nHence the largest word will have the **largest first letter** among all six words.  \nThus the largest word contains \\(G\\) **iff** \\(G\\) is the largest of the six smaller letters.\n\nSo we need the probability that\n\n* \\(G\\) is the smaller letter in its pair, and  \n* no other pair has a smaller letter larger than \\(G\\).\n\n--------------------------------------------------------------------\n\n### Counting the favourable pairings\n\nLet  \n\n* \\(L_1=\\{A,B,C,D,E,F\\}\\) (letters smaller than \\(G\\)),  \n* \\(L_2=\\{H,I,J,K,L\\}\\) (letters larger than \\(G\\)).\n\nFor \\(G\\) to be the largest smaller letter:\n\n1. **\\(G\\) must pair with a letter from \\(L_2\\).**  \n   There are \\(5\\) choices.\n\n2. **The remaining four letters of \\(L_2\\) must each pair with a distinct letter from \\(L_1\\).**  \n   Choose which \\(4\\) of the \\(6\\) letters of \\(L_1\\) will be used: \\(\\binom{6}{4}=15\\) ways.  \n   Assign the four chosen \\(L_1\\) letters to the four remaining \\(L_2\\) letters: \\(4! = 24\\) ways.\n\n3. **The two leftover letters of \\(L_1\\) pair together.**  \n   Only one way to do this.\n\nHence the number of pairings that satisfy the condition is  \n\n\\[\n5 \\times 15 \\times 24 = 1800 .\n\\]\n\n--------------------------------------------------------------------\n\n### Total number of pairings\n\nThe number of ways to pair 12 distinct letters into 6 unordered pairs is  \n\n\\[\n\\frac{12!}{2!^6\\,6!}=10395 .\n\\]\n\n--------------------------------------------------------------------\n\n### Probability\n\n\\[\nP=\\frac{1800}{10395}=\\frac{40}{231}\\quad(\\text{reduced fraction}).\n\\]\n\nThus \\(m=40,\\; n=231\\) and\n\n\\[\nm+n = 40+231 = 271 .\n\\]\n\n--------------------------------------------------------------------\n\n\\[\n\\boxed{271}\n\\]"
+      }
+    },
+    {
+      "qid": "aime-2025-q07",
+      "gold": "77",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 223,
+      "completion_tokens": 65313,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2025-q08",
+      "gold": "62",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 213,
+      "completion_tokens": 65323,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    },
+    {
+      "qid": "aime-2025-q09",
+      "gold": "81",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 417,
+      "completion_tokens": 65119,
+      "total_tokens": 65536,
+      "meta": {
+        "raw_response": ""
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.325,
+  "total_tokens": 2002720,
+  "meta": {}
+}

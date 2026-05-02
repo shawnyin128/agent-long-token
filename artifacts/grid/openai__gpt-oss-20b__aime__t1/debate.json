@@ -1,0 +1,736 @@
+{
+  "condition": "debate",
+  "cell": {
+    "model": "openai/gpt-oss-20b",
+    "model_family": "gpt-oss",
+    "dataset_name": "aime",
+    "thinking": true,
+    "prompt_variant": "cooperative"
+  },
+  "questions": [
+    {
+      "qid": "aime-2026-q00",
+      "gold": "277",
+      "final_answer": "277",
+      "correct": true,
+      "prompt_tokens": 20085,
+      "completion_tokens": 140041,
+      "total_tokens": 160126,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "277",
+          "1": "277",
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q01",
+      "gold": "62",
+      "final_answer": "62",
+      "correct": true,
+      "prompt_tokens": 6843,
+      "completion_tokens": 351986,
+      "total_tokens": 358829,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "62",
+          "2": "62"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q02",
+      "gold": "79",
+      "final_answer": "79",
+      "correct": true,
+      "prompt_tokens": 6302,
+      "completion_tokens": 281077,
+      "total_tokens": 287379,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "79",
+          "1": "79",
+          "2": "79"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q03",
+      "gold": "70",
+      "final_answer": "70",
+      "correct": true,
+      "prompt_tokens": 3364,
+      "completion_tokens": 425882,
+      "total_tokens": 429246,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "70",
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q04",
+      "gold": "65",
+      "final_answer": "65",
+      "correct": true,
+      "prompt_tokens": 16523,
+      "completion_tokens": 118558,
+      "total_tokens": 135081,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "65",
+          "1": "65",
+          "2": "65"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q05",
+      "gold": "441",
+      "final_answer": "441",
+      "correct": true,
+      "prompt_tokens": 11355,
+      "completion_tokens": 244154,
+      "total_tokens": 255509,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "441",
+          "1": null,
+          "2": "441"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q06",
+      "gold": "396",
+      "final_answer": "396",
+      "correct": true,
+      "prompt_tokens": 4158,
+      "completion_tokens": 427666,
+      "total_tokens": 431824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "396",
+          "2": "396"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q07",
+      "gold": "244",
+      "final_answer": "244",
+      "correct": true,
+      "prompt_tokens": 16534,
+      "completion_tokens": 204506,
+      "total_tokens": 221040,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "244",
+          "1": "244",
+          "2": "244"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q08",
+      "gold": "29",
+      "final_answer": "39",
+      "correct": false,
+      "prompt_tokens": 3366,
+      "completion_tokens": 558303,
+      "total_tokens": 561669,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "39",
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q09",
+      "gold": "156",
+      "final_answer": "156",
+      "correct": true,
+      "prompt_tokens": 2709,
+      "completion_tokens": 580371,
+      "total_tokens": 583080,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": "156"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q10",
+      "gold": "896",
+      "final_answer": "896",
+      "correct": true,
+      "prompt_tokens": 3168,
+      "completion_tokens": 573317,
+      "total_tokens": 576485,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": "896"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q11",
+      "gold": "161",
+      "final_answer": "161",
+      "correct": true,
+      "prompt_tokens": 12525,
+      "completion_tokens": 400539,
+      "total_tokens": 413064,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": "161"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q12",
+      "gold": "39",
+      "final_answer": "39",
+      "correct": true,
+      "prompt_tokens": 6217,
+      "completion_tokens": 531985,
+      "total_tokens": 538202,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": "39"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q13",
+      "gold": "681",
+      "final_answer": "681",
+      "correct": true,
+      "prompt_tokens": 15263,
+      "completion_tokens": 205847,
+      "total_tokens": 221110,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "681",
+          "1": "681",
+          "2": "681"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q14",
+      "gold": "83",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 4023,
+      "completion_tokens": 585801,
+      "total_tokens": 589824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q15",
+      "gold": "178",
+      "final_answer": "178",
+      "correct": true,
+      "prompt_tokens": 7765,
+      "completion_tokens": 273888,
+      "total_tokens": 281653,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "178",
+          "2": "178"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q16",
+      "gold": "243",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 4958,
+      "completion_tokens": 560218,
+      "total_tokens": 565176,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q17",
+      "gold": "503",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 2934,
+      "completion_tokens": 586890,
+      "total_tokens": 589824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q18",
+      "gold": "279",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 2871,
+      "completion_tokens": 586953,
+      "total_tokens": 589824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q19",
+      "gold": "190",
+      "final_answer": "190",
+      "correct": true,
+      "prompt_tokens": 18346,
+      "completion_tokens": 127226,
+      "total_tokens": 145572,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "190",
+          "1": "190",
+          "2": "190"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q20",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 14719,
+      "completion_tokens": 164436,
+      "total_tokens": 179155,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "50",
+          "1": "50",
+          "2": "50"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q21",
+      "gold": "754",
+      "final_answer": "754",
+      "correct": true,
+      "prompt_tokens": 15377,
+      "completion_tokens": 354564,
+      "total_tokens": 369941,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "754",
+          "2": "754"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q22",
+      "gold": "245",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 2508,
+      "completion_tokens": 438290,
+      "total_tokens": 440798,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q23",
+      "gold": "669",
+      "final_answer": "669",
+      "correct": true,
+      "prompt_tokens": 24447,
+      "completion_tokens": 290447,
+      "total_tokens": 314894,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "669",
+          "1": null,
+          "2": "669"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q24",
+      "gold": "850",
+      "final_answer": "850",
+      "correct": true,
+      "prompt_tokens": 12664,
+      "completion_tokens": 255458,
+      "total_tokens": 268122,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "850",
+          "1": null,
+          "2": "850"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q25",
+      "gold": "132",
+      "final_answer": "132",
+      "correct": true,
+      "prompt_tokens": 2724,
+      "completion_tokens": 513822,
+      "total_tokens": 516546,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "132",
+          "2": "132"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q26",
+      "gold": "223",
+      "final_answer": "223",
+      "correct": true,
+      "prompt_tokens": 29372,
+      "completion_tokens": 260798,
+      "total_tokens": 290170,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "223",
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q27",
+      "gold": "107",
+      "final_answer": "42",
+      "correct": false,
+      "prompt_tokens": 3798,
+      "completion_tokens": 573565,
+      "total_tokens": 577363,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": "42"
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q28",
+      "gold": "157",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 3393,
+      "completion_tokens": 586431,
+      "total_tokens": 589824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2026-q29",
+      "gold": "393",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 21312,
+      "completion_tokens": 568512,
+      "total_tokens": 589824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q00",
+      "gold": "70",
+      "final_answer": "70",
+      "correct": true,
+      "prompt_tokens": 9516,
+      "completion_tokens": 137432,
+      "total_tokens": 146948,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "70",
+          "1": "70",
+          "2": "70"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q01",
+      "gold": "588",
+      "final_answer": "588",
+      "correct": true,
+      "prompt_tokens": 9444,
+      "completion_tokens": 465870,
+      "total_tokens": 475314,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "588",
+          "2": null
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q02",
+      "gold": "16",
+      "final_answer": "16",
+      "correct": true,
+      "prompt_tokens": 16845,
+      "completion_tokens": 144176,
+      "total_tokens": 161021,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "16",
+          "2": "16"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q03",
+      "gold": "117",
+      "final_answer": "117",
+      "correct": true,
+      "prompt_tokens": 11313,
+      "completion_tokens": 211319,
+      "total_tokens": 222632,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "117",
+          "1": null,
+          "2": "117"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q04",
+      "gold": "279",
+      "final_answer": "279",
+      "correct": true,
+      "prompt_tokens": 9617,
+      "completion_tokens": 239382,
+      "total_tokens": 248999,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "279",
+          "1": "279",
+          "2": "279"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q05",
+      "gold": "504",
+      "final_answer": "504",
+      "correct": true,
+      "prompt_tokens": 11142,
+      "completion_tokens": 154515,
+      "total_tokens": 165657,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "504",
+          "1": "504",
+          "2": "504"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q06",
+      "gold": "821",
+      "final_answer": "271",
+      "correct": false,
+      "prompt_tokens": 6020,
+      "completion_tokens": 427038,
+      "total_tokens": 433058,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": "271",
+          "2": "271"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q07",
+      "gold": "77",
+      "final_answer": "77",
+      "correct": true,
+      "prompt_tokens": 15829,
+      "completion_tokens": 99978,
+      "total_tokens": 115807,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "77",
+          "1": "77",
+          "2": "77"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q08",
+      "gold": "62",
+      "final_answer": "62",
+      "correct": true,
+      "prompt_tokens": 12245,
+      "completion_tokens": 234113,
+      "total_tokens": 246358,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": "62",
+          "1": "62",
+          "2": "62"
+        }
+      }
+    },
+    {
+      "qid": "aime-2025-q09",
+      "gold": "81",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 4545,
+      "completion_tokens": 585279,
+      "total_tokens": 589824,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "per_agent_final_answers": {
+          "0": null,
+          "1": null,
+          "2": null
+        }
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.725,
+  "total_tokens": 14876772,
+  "meta": {}
+}
