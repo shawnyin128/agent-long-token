@@ -1,0 +1,536 @@
+{
+  "condition": "sa",
+  "cell": {
+    "model": "openai/gpt-oss-20b",
+    "model_family": "gpt-oss",
+    "dataset_name": "livecodebench",
+    "thinking": false,
+    "prompt_variant": "cooperative"
+  },
+  "questions": [
+    {
+      "qid": "abc365_b",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    n = int(data[0])\n    arr = list(map(int, data[1:1+n]))\n    # pair each value with its 1‑based index\n    pairs = [(val, idx+1) for idx, val in enumerate(arr)]\n    # sort by value descending\n    pairs.sort(key=lambda x: x[0], reverse=True)\n    # second element in sorted list is the second largest\n    print(pairs[1][1])\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 335,
+      "completion_tokens": 211,
+      "total_tokens": 546,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc365_a",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef main():\n    Y = int(sys.stdin.readline().strip())\n    if Y % 400 == 0:\n        print(366)\n    elif Y % 100 == 0:\n        print(365)\n    elif Y % 4 == 0:\n        print(366)\n    else:\n        print(365)\n\nif __name__ == \"__main__\":\n    main()",
+      "correct": false,
+      "prompt_tokens": 424,
+      "completion_tokens": 147,
+      "total_tokens": 571,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc365_e",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().split())\n    n = int(next(it))\n    a = [int(next(it)) for _ in range(n)]\n\n    # prefix XORs\n    pref = [0] * (n + 1)\n    for i in range(1, n + 1):\n        pref[i] = pref[i - 1] ^ a[i - 1]\n\n    # count prefixes with bit 0 and 1 for each bit position\n    B = 27  # since 10^8 < 2^27\n    cnt0 = [0] * B\n    cnt1 = [0] * B\n    for val in pref:\n        for k in range(B):\n            if (val >> k) & 1:\n                cnt1[k] += 1\n            else:\n                cnt0[k] += 1\n\n    ans = 0\n    for k in range(B):\n        pairs = cnt0[k] * cnt1[k]\n        ans += pairs * (1 << k)\n\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 580,
+      "completion_tokens": 695,
+      "total_tokens": 1275,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc365_d",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    input = sys.stdin.readline\n    N = int(input().strip())\n    S = input().strip()\n\n    # mapping: 0->R, 1->P, 2->S\n    win = [[0]*3 for _ in range(3)]  # win[a][b] = 1 if a beats b\n    # R beats S, S beats P, P beats R\n    win[0][2] = 1  # R beats S\n    win[2][1] = 1  # S beats P\n    win[1][0] = 1  # P beats R\n\n    # convert S to indices\n    aoki = [0]*N\n    for i,ch in enumerate(S):\n        if ch == 'R':\n            aoki[i] = 0\n        elif ch == 'P':\n            aoki[i] = 1\n        else:\n            aoki[i] = 2\n\n    # dp for previous round\n    dp_prev = [-10**9]*3\n    for m in range(3):\n        dp_prev[m] = win[m][aoki[0]]\n\n    for i in range(1, N):\n        dp_cur = [-10**9]*3\n        for m in range(3):\n            best = -10**9\n            for pm in range(3):\n                if pm == m:\n                    continue\n                best = max(best, dp_prev[pm])\n            dp_cur[m] = best + win[m][aoki[i]]\n        dp_prev = dp_cur\n\n    print(max(dp_prev))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 532,
+      "completion_tokens": 612,
+      "total_tokens": 1144,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc365_c",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    try:\n        N = int(next(it))\n    except StopIteration:\n        return\n    M = int(next(it))\n    A = [int(next(it)) for _ in range(N)]\n\n    total = sum(A)\n    if total <= M:\n        print(\"infinite\")\n        return\n\n    lo, hi = 0, max(A)\n    while lo < hi:\n        mid = (lo + hi + 1) // 2\n        s = 0\n        for a in A:\n            s += a if a < mid else mid\n            if s > M:  # early exit to avoid overflow\n                break\n        if s <= M:\n            lo = mid\n        else:\n            hi = mid - 1\n    print(lo)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 604,
+      "completion_tokens": 400,
+      "total_tokens": 1004,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3517",
+      "gold": "shortestDistanceAfterQueries",
+      "final_answer": "class Solution:\n    def shortestDistanceAfterQueries(self, n: int, queries: List[List[int]]) -> List[int]:\n        # initial distances: 0->i takes i steps\n        dist = [i for i in range(n)]\n        ans = []\n        for u, v in queries:\n            # if the new edge shortens distance to v\n            if dist[u] + 1 < dist[v]:\n                dist[v] = dist[u] + 1\n                # propagate forward using existing edges i -> i+1\n                for i in range(v + 1, n):\n                    if dist[i] > dist[i - 1] + 1:\n                        dist[i] = dist[i - 1] + 1\n                    else:\n                        # further nodes cannot be improved via this path\n                        break\n            ans.append(dist[n - 1])\n        return ans",
+      "correct": false,
+      "prompt_tokens": 576,
+      "completion_tokens": 621,
+      "total_tokens": 1197,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3527",
+      "gold": "numberOfAlternatingGroups",
+      "final_answer": "from bisect import bisect_left, insort\nfrom collections import defaultdict\nfrom typing import List\n\nclass Solution:\n    def numberOfAlternatingGroups(self, colors: List[int], queries: List[List[int]]) -> List[int]:\n        n = len(colors)\n        # initial breakpoints: positions i where colors[i]==colors[(i+1)%n]\n        break_set = set()\n        for i in range(n):\n            if colors[i] == colors[(i+1)%n]:\n                break_set.add(i)\n        break_list = sorted(break_set)\n        # length counts\n        len_count = defaultdict(int)\n\n        def add_run(p, q):\n            \"\"\"add run between breakpoint p and q (cyclic)\"\"\"\n            length = (q - p) % n\n            len_count[length] += 1\n\n        def remove_run(p, q):\n            length = (q - p) % n\n            len_count[length] -= 1\n            if len_count[length] == 0:\n                del len_count[length]\n\n        # initialize runs\n        if break_list:\n            for i in range(len(break_list)):\n                p = break_list[i]\n                q = break_list[(i+1)%len(break_list)]\n                add_run(p, q)\n        else:\n            # whole circle is alternating\n            len_count[n] = 1\n\n        def remove_breakpoint(pos):\n            \"\"\"remove breakpoint at pos from structures\"\"\"\n            idx = bisect_left(break_list, pos)\n            # find prev and next\n            prev = break_list[idx-1] if idx > 0 else break_list[-1]\n            nxt = break_list[(idx+1)%len(break_list)] if len(break_list) > 1 else prev\n            # remove old run between prev and pos\n            remove_run(prev, pos)\n            # remove old run between pos and nxt\n            remove_run(pos, nxt)\n            # remove pos\n            break_list.pop(idx)\n            break_set.remove(pos)\n\n        def add_breakpoint(pos):\n            \"\"\"add breakpoint at pos to structures\"\"\"\n            # insert into list\n            insort(break_list, pos)\n            break_set.add(pos)\n            idx = bisect_left(break_list, pos)\n            # find prev and next\n            prev = break_list[idx-1] if idx > 0 else break_list[-1]\n            nxt = break_list[(idx+1)%len(break_list)] if len(break_list) > 1 else prev\n            # add new runs\n            add_run(prev, pos)\n            add_run(pos, nxt)\n\n        def update_pair(i, j):\n            \"\"\"check pair (i,j) for breakpoint status before and after update\"\"\"\n            before = colors[i] == colors[j]\n            after = colors[i] == colors[j]\n            return before, after\n\n        ans = []\n        for q in queries:\n            if q[0] == 1:\n                size = q[1]\n                ans.append(len_count.get(size, 0))\n            else:\n                idx, new_color = q[1], q[2]\n                if colors[idx] == new_color:\n                    continue\n                # pairs: (idx-1, idx) and (idx, idx+1)\n                pairs = [((idx-1)%n, idx), (idx, (idx+1)%n)]\n                # record before status\n                before_status = []\n                for a,b in pairs:\n                    before_status.append(colors[a] == colors[b])\n                # apply change\n                colors[idx] = new_color\n                # after status\n                after_status = []\n                for a,b in pairs:\n                    after_status.append(colors[a] == colors[b])\n                # handle each pair\n                for (a,b), before, after in zip(pairs, before_status, after_status):\n                    pos = a  # breakpoint stored at left index\n                    if before and not after:\n                        # remove breakpoint\n                        remove_breakpoint(pos)\n                    elif not before and after:\n                        # add breakpoint\n                        add_breakpoint(pos)\n                # special case: if no breakpoints left, ensure len_count[n]=1\n                if not break_list:\n                    len_count.clear()\n                    len_count[n] = 1\n                else:\n                    # if previously empty and now has breakpoints, remove the whole circle run\n                    if len_count.get(n,0):\n                        len_count[n] -= 1\n                        if len_count[n]==0:\n                            del len_count[n]\n        return ans",
+      "correct": false,
+      "prompt_tokens": 621,
+      "completion_tokens": 1653,
+      "total_tokens": 2274,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3533",
+      "gold": "finalPositionOfSnake",
+      "final_answer": "from typing import List\n\nclass Solution:\n    def finalPositionOfSnake(self, n: int, commands: List[str]) -> int:\n        row, col = 0, 0\n        for cmd in commands:\n            if cmd == \"UP\":\n                row -= 1\n            elif cmd == \"DOWN\":\n                row += 1\n            elif cmd == \"LEFT\":\n                col -= 1\n            elif cmd == \"RIGHT\":\n                col += 1\n        return row * n + col",
+      "correct": false,
+      "prompt_tokens": 465,
+      "completion_tokens": 191,
+      "total_tokens": 656,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3535",
+      "gold": "countOfPairs",
+      "final_answer": "from typing import List\n\nclass Solution:\n    MOD = 10**9 + 7\n\n    def countOfPairs(self, nums: List[int]) -> int:\n        n = len(nums)\n        maxV = 50  # given constraint\n        # dp for i=0\n        dp = [0] * (maxV + 1)\n        for v in range(nums[0] + 1):\n            dp[v] = 1\n\n        for i in range(1, n):\n            delta = nums[i] - nums[i - 1]\n            m = max(0, delta)\n            # prefix sums of previous dp\n            pref = [0] * (maxV + 1)\n            s = 0\n            for v in range(maxV + 1):\n                s = (s + dp[v]) % self.MOD\n                pref[v] = s\n\n            new_dp = [0] * (maxV + 1)\n            for v in range(nums[i] + 1):\n                limit = v - m\n                if limit < 0:\n                    continue\n                limit = min(limit, maxV)\n                new_dp[v] = pref[limit]\n            dp = new_dp\n\n        return sum(dp) % self.MOD",
+      "correct": false,
+      "prompt_tokens": 437,
+      "completion_tokens": 977,
+      "total_tokens": 1414,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3519",
+      "gold": "winningPlayerCount",
+      "final_answer": "from collections import defaultdict\nfrom typing import List\n\nclass Solution:\n    def winningPlayerCount(self, n: int, pick: List[List[int]]) -> int:\n        # counts[player][color] = number of times player picked that color\n        counts = [defaultdict(int) for _ in range(n)]\n        for player, color in pick:\n            counts[player][color] += 1\n\n        win_count = 0\n        for i in range(n):\n            if counts[i]:\n                max_color_count = max(counts[i].values())\n                if max_color_count >= i + 1:\n                    win_count += 1\n        return win_count",
+      "correct": false,
+      "prompt_tokens": 478,
+      "completion_tokens": 229,
+      "total_tokens": 707,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3526",
+      "gold": "minFlips",
+      "final_answer": "from typing import List\n\nclass Solution:\n    def minFlips(self, grid: List[List[int]]) -> int:\n        m, n = len(grid), len(grid[0])\n        # flips to make all rows palindromic\n        row_flips = 0\n        for i in range(m):\n            for j in range(n // 2):\n                a, b = grid[i][j], grid[i][n - 1 - j]\n                row_flips += min(a + b, 2 - (a + b))  # min(count of 1s, count of 0s)\n\n        # flips to make all columns palindromic\n        col_flips = 0\n        for j in range(n):\n            for i in range(m // 2):\n                a, b = grid[i][j], grid[m - 1 - i][j]\n                col_flips += min(a + b, 2 - (a + b))\n\n        return min(row_flips, col_flips)",
+      "correct": false,
+      "prompt_tokens": 376,
+      "completion_tokens": 520,
+      "total_tokens": 896,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "3532",
+      "gold": "timeTaken",
+      "final_answer": "from typing import List\nimport sys\nsys.setrecursionlimit(1 << 25)\n\nclass Solution:\n    def timeTaken(self, edges: List[List[int]]) -> List[int]:\n        n = len(edges) + 1\n        g = [[] for _ in range(n)]\n        for u, v in edges:\n            g[u].append(v)\n            g[v].append(u)\n\n        def dfs(start: int):\n            dist = [-1] * n\n            stack = [(start, -1, 0)]\n            while stack:\n                u, p, d = stack.pop()\n                dist[u] = d\n                for v in g[u]:\n                    if v == p: continue\n                    w = 1 if v & 1 else 2\n                    stack.append((v, u, d + w))\n            far_node = max(range(n), key=lambda x: dist[x])\n            return far_node, dist[far_node], dist\n\n        # first DFS to find one endpoint of diameter\n        a, _, _ = dfs(0)\n        # second DFS from a to find the other endpoint\n        b, _, distA = dfs(a)\n        # third DFS from b to get distances to b\n        _, _, distB = dfs(b)\n\n        return [max(distA[i], distB[i]) for i in range(n)]",
+      "correct": false,
+      "prompt_tokens": 604,
+      "completion_tokens": 934,
+      "total_tokens": 1538,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_f",
+      "gold": "main",
+      "final_answer": "import sys\nimport itertools\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    N = int(next(it))\n    K = int(next(it))\n    funcs = [(int(next(it)), int(next(it))) for _ in range(N)]\n\n    best = -1\n    for idxs in itertools.permutations(range(N), K):\n        val = 1\n        for idx in idxs:\n            a, b = funcs[idx]\n            val = a * val + b\n        if val > best:\n            best = val\n    print(best)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 582,
+      "completion_tokens": 2680,
+      "total_tokens": 3262,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_b",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().splitlines())\n    N = int(next(it))\n    S = [next(it).rstrip('\\n') for _ in range(N)]\n    M = max(len(s) for s in S)\n\n    out = []\n    for j in range(M):\n        col = [''] * N\n        for i in range(N):\n            ch = S[i][j] if j < len(S[i]) else '*'\n            col[N - 1 - i] = ch  # bottom is S1\n        # remove trailing '*'\n        while col and col[-1] == '*':\n            col.pop()\n        out.append(''.join(col))\n\n    sys.stdout.write('\\n'.join(out))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 571,
+      "completion_tokens": 919,
+      "total_tokens": 1490,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_e",
+      "gold": "main",
+      "final_answer": "import sys\nimport bisect\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    N = int(next(it))\n    D = int(next(it))\n    xs = []\n    ys = []\n    for _ in range(N):\n        x = int(next(it)); y = int(next(it))\n        xs.append(x + y)\n        ys.append(x - y)\n\n    xs.sort()\n    ys.sort()\n    pref_x = [0]\n    for v in xs:\n        pref_x.append(pref_x[-1] + v)\n    pref_y = [0]\n    for v in ys:\n        pref_y.append(pref_y[-1] + v)\n\n    def f(arr, pref, val):\n        \"\"\"sum |val - arr[i]|\"\"\"\n        idx = bisect.bisect_left(arr, val)\n        left_sum = pref[idx]\n        right_sum = pref[-1] - left_sum\n        return val * idx - left_sum + right_sum - val * (len(arr) - idx)\n\n    # bounds for u and v\n    min_u = xs[0] - D\n    max_u = xs[-1] + D\n    min_v = ys[0] - D\n    max_v = ys[-1] + D\n\n    # helper to find v range for given rem\n    def v_range(rem):\n        # find smallest v with g(v)<=rem\n        lo = min_v\n        hi = max_v\n        v_min = None\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if f(ys, pref_y, mid) <= rem:\n                v_min = mid\n                hi = mid - 1\n            else:\n                lo = mid + 1\n        if v_min is None:\n            return None, None\n        # find largest v\n        lo = v_min\n        hi = max_v\n        v_max = v_min\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if f(ys, pref_y, mid) <= rem:\n                v_max = mid\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return v_min, v_max\n\n    ans = 0\n    for u in range(min_u, max_u + 1):\n        fu = f(xs, pref_x, u)\n        rem = 2 * D - fu\n        if rem < 0:\n            continue\n        v_min, v_max = v_range(rem)\n        if v_min is None:\n            continue\n        # count integers v in [v_min, v_max] with same parity as u\n        if (v_min % 2) != (u % 2):\n            v_min += 1\n        if (v_max % 2) != (u % 2):\n            v_max -= 1\n        if v_min <= v_max:\n            ans += (v_max - v_min) // 2 + 1\n\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 463,
+      "completion_tokens": 1743,
+      "total_tokens": 2206,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_d",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef main():\n    it = iter(sys.stdin.read().split())\n    N = int(next(it))\n    # 1-indexed prefix array\n    ps = [[[0]*(N+1) for _ in range(N+1)] for __ in range(N+1)]\n    # read values and build prefix on the fly\n    for x in range(1, N+1):\n        for y in range(1, N+1):\n            for z in range(1, N+1):\n                val = int(next(it))\n                ps[x][y][z] = (val\n                               + ps[x-1][y][z] + ps[x][y-1][z] + ps[x][y][z-1]\n                               - ps[x-1][y-1][z] - ps[x-1][y][z-1] - ps[x][y-1][z-1]\n                               + ps[x-1][y-1][z-1])\n    Q = int(next(it))\n    out_lines = []\n    for _ in range(Q):\n        Lx = int(next(it)); Rx = int(next(it))\n        Ly = int(next(it)); Ry = int(next(it))\n        Lz = int(next(it)); Rz = int(next(it))\n        def get(x, y, z):\n            return ps[x][y][z]\n        res = (get(Rx, Ry, Rz)\n               - get(Lx-1, Ry, Rz) - get(Rx, Ly-1, Rz) - get(Rx, Ry, Lz-1)\n               + get(Lx-1, Ly-1, Rz) + get(Lx-1, Ry, Lz-1) + get(Rx, Ly-1, Lz-1)\n               - get(Lx-1, Ly-1, Lz-1))\n        out_lines.append(str(res))\n    sys.stdout.write(\"\\n\".join(out_lines))\n\nif __name__ == \"__main__\":\n    main()",
+      "correct": false,
+      "prompt_tokens": 1182,
+      "completion_tokens": 718,
+      "total_tokens": 1900,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_a",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef main() -> None:\n    N, T, A = map(int, sys.stdin.read().split())\n    rem = N - (T + A)\n    if T > A + rem or A > T + rem:\n        print(\"Yes\")\n    else:\n        print(\"No\")\n\nif __name__ == \"__main__\":\n    main()",
+      "correct": false,
+      "prompt_tokens": 393,
+      "completion_tokens": 192,
+      "total_tokens": 585,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_c",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    Q = int(next(it))\n    freq = [0] * (10**6 + 1)\n    distinct = 0\n    out_lines = []\n\n    for _ in range(Q):\n        t = int(next(it))\n        if t == 1:\n            x = int(next(it))\n            if freq[x] == 0:\n                distinct += 1\n            freq[x] += 1\n        elif t == 2:\n            x = int(next(it))\n            freq[x] -= 1\n            if freq[x] == 0:\n                distinct -= 1\n        else:  # t == 3\n            out_lines.append(str(distinct))\n\n    sys.stdout.write(\"\\n\".join(out_lines))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 705,
+      "completion_tokens": 321,
+      "total_tokens": 1026,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc366_g",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    try:\n        N = int(next(it))\n    except StopIteration:\n        return\n    M = int(next(it))\n    adj = [[] for _ in range(N)]\n    for _ in range(M):\n        u = int(next(it)) - 1\n        v = int(next(it)) - 1\n        adj[u].append(v)\n        adj[v].append(u)\n\n    # vertices with degree >=1\n    rows = []\n    for v in range(N):\n        if adj[v]:\n            mask = 0\n            for u in adj[v]:\n                mask |= 1 << u\n            rows.append(mask)\n\n    K = len(rows)\n    if K == 0:\n        # all isolated\n        print(\"Yes\")\n        print(\"1\" * N)\n        return\n\n    # Gaussian elimination over GF(2)\n    mat = rows[:]  # list of ints\n    pivot_col = [-1] * K\n    col_used = [False] * N\n    r = 0\n    for c in range(N):\n        # find pivot\n        pivot = -1\n        for i in range(r, K):\n            if (mat[i] >> c) & 1:\n                pivot = i\n                break\n        if pivot == -1:\n            continue\n        # swap\n        mat[r], mat[pivot] = mat[pivot], mat[r]\n        pivot_col[r] = c\n        col_used[c] = True\n        # eliminate below\n        for i in range(K):\n            if i != r and ((mat[i] >> c) & 1):\n                mat[i] ^= mat[r]\n        r += 1\n        if r == K:\n            break\n\n    rank = r\n    if rank == N:\n        # only zero solution\n        print(\"No\")\n        return\n\n    # find a non-zero solution in nullspace\n    # free variables are columns not used as pivots\n    free_cols = [c for c in range(N) if not col_used[c]]\n    if not free_cols:\n        # should not happen because rank < N\n        print(\"No\")\n        return\n    # set first free variable to 1, others 0\n    sol = 0\n    free_col = free_cols[0]\n    sol |= 1 << free_col\n    # back-substitute to find pivot variables\n    for i in range(rank-1, -1, -1):\n        c = pivot_col[i]\n        # compute value of pivot variable\n        s = 0\n        row = mat[i]\n        # sum over free vars that are 1 in this row\n        for fc in free_cols:\n            if (row >> fc) & 1:\n                s ^= (sol >> fc) & 1\n        if s:\n            sol |= 1 << c\n        else:\n            sol &= ~(1 << c)\n\n    # sol is a non-zero vector in nullspace\n    # use it as the binary representation of the number\n    num = sol\n    if num == 0:\n        # shouldn't happen\n        print(\"No\")\n        return\n    print(\"Yes\")\n    print(\" \".join(str(num) for _ in range(N)))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 753,
+      "completion_tokens": 1239,
+      "total_tokens": 1992,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_e",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    try:\n        N = int(next(it))\n    except StopIteration:\n        return\n    K = int(next(it))\n    X = [int(next(it)) - 1 for _ in range(N)]  # zero‑based\n    A = [int(next(it)) for _ in range(N)]\n\n    visited = [False] * N\n    B = [0] * N\n\n    for i in range(N):\n        if visited[i]:\n            continue\n        # build cycle starting at i\n        cycle = []\n        cur = i\n        while not visited[cur]:\n            visited[cur] = True\n            cycle.append(cur)\n            cur = X[cur]\n        L = len(cycle)\n        shift = K % L\n        for idx, pos in enumerate(cycle):\n            src = cycle[(idx + shift) % L]\n            B[pos] = A[src]\n\n    print(' '.join(map(str, B)))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 597,
+      "completion_tokens": 524,
+      "total_tokens": 1121,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_f",
+      "gold": "main",
+      "final_answer": "import sys, random\n\ndef solve() -> None:\n    input = sys.stdin.readline\n    N, Q = map(int, input().split())\n    A = list(map(int, input().split()))\n    B = list(map(int, input().split()))\n\n    # assign random 64-bit hash to each value 1..N\n    rnd = [0] * (N + 1)\n    for v in range(1, N + 1):\n        rnd[v] = random.getrandbits(64)\n\n    # prefix sums of hashes\n    prefA = [0] * (N + 1)\n    prefB = [0] * (N + 1)\n    for i in range(N):\n        prefA[i+1] = prefA[i] + rnd[A[i]]\n        prefB[i+1] = prefB[i] + rnd[B[i]]\n\n    out_lines = []\n    for _ in range(Q):\n        l, r, L, R = map(int, input().split())\n        len1 = r - l + 1\n        len2 = R - L + 1\n        if len1 != len2:\n            out_lines.append(\"No\")\n            continue\n        sumA = prefA[r] - prefA[l-1]\n        sumB = prefB[R] - prefB[L-1]\n        out_lines.append(\"Yes\" if sumA == sumB else \"No\")\n\n    sys.stdout.write(\"\\n\".join(out_lines))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 737,
+      "completion_tokens": 496,
+      "total_tokens": 1233,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_a",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    A, B, C = map(int, sys.stdin.read().split())\n    # Determine if A is awake\n    if B < C:\n        # Sleep from B to C\n        awake = not (B <= A < C)\n    else:\n        # Sleep wraps midnight: [B,24) and [0,C)\n        awake = not (A >= B or A < C)\n    print(\"Yes\" if awake else \"No\")\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 458,
+      "completion_tokens": 266,
+      "total_tokens": 724,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_g",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    # The real solution is omitted due to its complexity.\n    print(0)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 803,
+      "completion_tokens": 904,
+      "total_tokens": 1707,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_b",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef main():\n    s = sys.stdin.readline().strip()\n    if '.' in s:\n        s = s.rstrip('0').rstrip('.')\n    print(s)\n\nif __name__ == \"__main__\":\n    main()",
+      "correct": false,
+      "prompt_tokens": 337,
+      "completion_tokens": 253,
+      "total_tokens": 590,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_d",
+      "gold": "main",
+      "final_answer": "import sys\nfrom collections import Counter\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    try:\n        N = int(next(it))\n    except StopIteration:\n        return\n    M = int(next(it))\n    A = [int(next(it)) for _ in range(N)]\n\n    pref = 0\n    freq = Counter()\n    freq[0] = 1  # pref[0]\n    for a in A:\n        pref = (pref + a) % M\n        freq[pref] += 1\n\n    ans = 0\n    for k in freq.values():\n        ans += k * (k - 1) // 2\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 771,
+      "completion_tokens": 830,
+      "total_tokens": 1601,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc367_c",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    N = int(next(it))\n    K = int(next(it))\n    R = [int(next(it)) for _ in range(N)]\n\n    out_lines = []\n    seq = [0] * N\n\n    def dfs(pos: int, cur_sum: int):\n        if pos == N:\n            if cur_sum % K == 0:\n                out_lines.append(' '.join(map(str, seq)))\n            return\n        for val in range(1, R[pos] + 1):\n            seq[pos] = val\n            dfs(pos + 1, cur_sum + val)\n\n    dfs(0, 0)\n    sys.stdout.write('\\n'.join(out_lines))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 774,
+      "completion_tokens": 373,
+      "total_tokens": 1147,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_g",
+      "gold": "main",
+      "final_answer": "# Placeholder solution – not functional for the full problem constraints.\n# A complete solution would require advanced data structures to handle\n# the composition of max(v + a, v * b) over ranges with point updates.\nprint(\"This is a placeholder. A full solution is required for the problem.\")",
+      "correct": false,
+      "prompt_tokens": 756,
+      "completion_tokens": 1516,
+      "total_tokens": 2272,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_a",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    N, K = map(int, data[:2])\n    A = list(map(int, data[2:2+N]))\n    result = A[-K:] + A[:-K]\n    print(' '.join(map(str, result)))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 432,
+      "completion_tokens": 182,
+      "total_tokens": 614,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_b",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    n = int(data[0])\n    a = list(map(int, data[1:1+n]))\n    total = sum(a)\n    mx = max(a)\n    ans = min(total // 2, total - mx)\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 408,
+      "completion_tokens": 727,
+      "total_tokens": 1135,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_f",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    N = int(next(it))\n    A = [int(next(it)) for _ in range(N)]\n    MAX = 100000\n\n    # For each number, store the set of Grundy numbers of its proper divisors\n    reachable = [set() for _ in range(MAX + 1)]\n    # 1 has no proper divisors, but we never need its Grundy (numbers >=2)\n    for d in range(1, MAX + 1):\n        g = 0  # placeholder, will be set later\n        for m in range(2 * d, MAX + 1, d):\n            reachable[m].add(g)  # g will be set after d processed\n\n    # Now compute Grundy numbers in increasing order\n    grundy = [0] * (MAX + 1)\n    for n in range(2, MAX + 1):\n        # mex of reachable[n]\n        s = reachable[n]\n        g = 0\n        while g in s:\n            g += 1\n        grundy[n] = g\n\n    xor_sum = 0\n    for v in A:\n        xor_sum ^= grundy[v]\n\n    print(\"Anna\" if xor_sum else \"Bruno\")\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 460,
+      "completion_tokens": 613,
+      "total_tokens": 1073,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_c",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    n = int(next(it))\n    total = 0\n    for _ in range(n):\n        h = int(next(it))\n        k = h // 5\n        r = h % 5\n        turns = 3 * k\n        if r == 0:\n            pass\n        elif r <= 2:\n            turns += r\n        else:\n            turns += 3\n        total += turns\n    print(total)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 625,
+      "completion_tokens": 549,
+      "total_tokens": 1174,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_d",
+      "gold": "main",
+      "final_answer": "import sys\nsys.setrecursionlimit(1 << 25)\n\ndef solve() -> None:\n    input = sys.stdin.readline\n    N, K = map(int, input().split())\n    g = [[] for _ in range(N)]\n    for _ in range(N - 1):\n        a, b = map(int, input().split())\n        a -= 1; b -= 1\n        g[a].append(b)\n        g[b].append(a)\n    specials = list(map(int, input().split()))\n    special_set = [False] * N\n    for v in specials:\n        special_set[v - 1] = True\n\n    parent = [-1] * N\n    order = [0]\n    for u in order:\n        for v in g[u]:\n            if v == parent[u]:\n                continue\n            parent[v] = u\n            order.append(v)\n\n    cnt = [0] * N\n    for u in reversed(order):\n        c = 1 if special_set[u] else 0\n        for v in g[u]:\n            if v == parent[u]:\n                continue\n            c += cnt[v]\n        cnt[u] = c\n\n    edges_needed = 0\n    for v in range(1, N):\n        c = cnt[v]\n        if c > 0 and K - c > 0:\n            edges_needed += 1\n\n    if K == 0:\n        print(0)\n    else:\n        print(edges_needed + 1)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 474,
+      "completion_tokens": 1068,
+      "total_tokens": 1542,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc368_e",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    N = int(next(it))\n    M = int(next(it))\n    X1 = int(next(it))\n    A = [0]*M\n    B = [0]*M\n    S = [0]*M\n    T = [0]*M\n    for i in range(M):\n        A[i] = int(next(it)) - 1\n        B[i] = int(next(it)) - 1\n        S[i] = int(next(it))\n        T[i] = int(next(it))\n    X = [0]*M\n    X[0] = X1\n    # sort indices by S\n    order = sorted(range(M), key=lambda i: S[i])\n    best = [-10**30]*N  # best[city] = max(X_i + T_i) for arrivals at city\n    # process train 1 first to set its arrival contribution\n    best[B[0]] = X[0] + T[0]\n    for idx in order:\n        if idx == 0:\n            continue\n        city = A[idx]\n        val = best[city] - S[idx]\n        if val < 0:\n            val = 0\n        X[idx] = val\n        # update arrival city\n        if X[idx] + T[idx] > best[B[idx]]:\n            best[B[idx]] = X[idx] + T[idx]\n    print(' '.join(str(x) for x in X[1:]))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 918,
+      "completion_tokens": 1486,
+      "total_tokens": 2404,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc369_d",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    n = int(next(it))\n    A = [int(next(it)) for _ in range(n)]\n\n    INF_NEG = -10**30\n    dp0, dp1 = 0, INF_NEG  # even, odd\n\n    for a in A:\n        ndp0, ndp1 = dp0, dp1  # skip case\n\n        # take when current parity is even -> new parity odd\n        val = dp0 + a  # new count odd, no bonus\n        if val > ndp1:\n            ndp1 = val\n\n        # take when current parity is odd -> new parity even, bonus\n        val = dp1 + 2 * a  # new count even, double reward\n        if val > ndp0:\n            ndp0 = val\n\n        dp0, dp1 = ndp0, ndp1\n\n    print(max(dp0, dp1))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 682,
+      "completion_tokens": 754,
+      "total_tokens": 1436,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc369_g",
+      "gold": "main",
+      "final_answer": "import sys\nsys.setrecursionlimit(1 << 25)\n\ndef solve() -> None:\n    import sys\n    input = sys.stdin.readline\n    N = int(input())\n    g = [[] for _ in range(N)]\n    edges = []\n    for _ in range(N-1):\n        u, v, w = map(int, input().split())\n        u -= 1; v -= 1\n        g[u].append((v, w))\n        g[v].append((u, w))\n        edges.append((u, v, w))\n\n    parent = [-1]*N\n    pw = [0]*N  # weight to parent\n    depth_sum = [0]*N\n    stack = [0]\n    parent[0] = 0\n    while stack:\n        u = stack.pop()\n        for v, w in g[u]:\n            if v == parent[u]:\n                continue\n            parent[v] = u\n            pw[v] = w\n            depth_sum[v] = depth_sum[u] + w\n            stack.append(v)\n\n    # leaves except root\n    leaves = [i for i in range(1, N) if len(g[i]) == 1]\n    leaves.sort(key=lambda x: depth_sum[x], reverse=True)\n\n    visited = [False]*N\n    visited[0] = True  # root is considered visited\n    total = 0\n    ans = [0]*(N+1)  # 1-indexed\n    idx = 0\n    for k in range(1, N+1):\n        if idx < len(leaves):\n            leaf = leaves[idx]\n            idx += 1\n            u = leaf\n            while not visited[u]:\n                visited[u] = True\n                total += pw[u]\n                u = parent[u]\n        ans[k] = 2*total\n\n    # For K > number of leaves, answer stays the same as for all vertices\n    full_total = sum(w for _,_,w in edges)\n    full_ans = 2*full_total\n    for k in range(len(leaves)+1, N+1):\n        ans[k] = full_ans\n\n    out = '\\n'.join(str(ans[k]) for k in range(1, N+1))\n    print(out)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 897,
+      "completion_tokens": 2030,
+      "total_tokens": 2927,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc369_c",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    try:\n        n = int(next(it))\n    except StopIteration:\n        return\n    a = [int(next(it)) for _ in range(n)]\n    if n == 0:\n        print(0)\n        return\n    # compute differences\n    diffs = [a[i+1] - a[i] for i in range(n-1)]\n    ans = n  # single elements\n    i = 0\n    m = len(diffs)\n    while i < m:\n        j = i\n        while j + 1 < m and diffs[j+1] == diffs[i]:\n            j += 1\n        k = j - i + 1  # number of equal diffs\n        ans += (k + 1) * k // 2\n        i = j + 1\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 558,
+      "completion_tokens": 639,
+      "total_tokens": 1197,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc369_a",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    A, B = map(int, sys.stdin.read().split())\n    candidates = set()\n    if (A + B) % 2 == 0:\n        candidates.add((A + B) // 2)\n    candidates.add(2 * A - B)\n    candidates.add(2 * B - A)\n    print(len(candidates))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 432,
+      "completion_tokens": 586,
+      "total_tokens": 1018,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc369_b",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    try:\n        N = int(next(it))\n    except StopIteration:\n        return\n    presses = []\n    for _ in range(N):\n        a = int(next(it))\n        s = next(it)\n        presses.append((a, s))\n\n    INF = 10**9\n    # dp[l][r] = min fatigue after current step\n    dp = [[0]*101 for _ in range(101)]  # 1-indexed keys\n\n    for a, s in presses:\n        new_dp = [[INF]*101 for _ in range(101)]\n        if s == 'L':\n            for l in range(1, 101):\n                for r in range(1, 101):\n                    cost = dp[l][r]\n                    if cost == INF:\n                        continue\n                    nl = a\n                    nr = r\n                    nc = cost + abs(nl - l)\n                    if nc < new_dp[nl][nr]:\n                        new_dp[nl][nr] = nc\n        else:  # 'R'\n            for l in range(1, 101):\n                for r in range(1, 101):\n                    cost = dp[l][r]\n                    if cost == INF:\n                        continue\n                    nl = l\n                    nr = a\n                    nc = cost + abs(nr - r)\n                    if nc < new_dp[nl][nr]:\n                        new_dp[nl][nr] = nc\n        dp = new_dp\n\n    ans = INF\n    for l in range(1, 101):\n        for r in range(1, 101):\n            if dp[l][r] < ans:\n                ans = dp[l][r]\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 628,
+      "completion_tokens": 769,
+      "total_tokens": 1397,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc369_e",
+      "gold": "main",
+      "final_answer": "import sys\n\nINF = 10**30\n\ndef solve() -> None:\n    it = iter(sys.stdin.read().strip().split())\n    N = int(next(it)); M = int(next(it))\n    U = [0]*M; V = [0]*M; T = [0]*M\n    for i in range(M):\n        U[i] = int(next(it))-1\n        V[i] = int(next(it))-1\n        T[i] = int(next(it))\n    # Floyd-Warshall\n    dist = [[INF]*N for _ in range(N)]\n    for i in range(N):\n        dist[i][i] = 0\n    for i in range(M):\n        u, v, t = U[i], V[i], T[i]\n        if t < dist[u][v]:\n            dist[u][v] = dist[v][u] = t\n    for k in range(N):\n        dk = dist[k]\n        for i in range(N):\n            di = dist[i]\n            ik = di[k]\n            if ik == INF: continue\n            for j in range(N):\n                nd = ik + dk[j]\n                if nd < di[j]:\n                    di[j] = nd\n    Q = int(next(it))\n    out_lines = []\n    for _ in range(Q):\n        K = int(next(it))\n        bridges = [int(next(it))-1 for _ in range(K)]\n        # collect relevant nodes\n        nodes_set = {0, N-1}\n        for b in bridges:\n            nodes_set.add(U[b]); nodes_set.add(V[b])\n        nodes = list(nodes_set)\n        idx = {node:i for i,node in enumerate(nodes)}\n        sz = len(nodes)\n        full = (1<<K)-1\n        dp = [[INF]*sz for _ in range(1<<K)]\n        dp[0][idx[0]] = 0\n        for mask in range(1<<K):\n            for cur_i in range(sz):\n                cur_cost = dp[mask][cur_i]\n                if cur_cost == INF: continue\n                cur_node = nodes[cur_i]\n                for ei, b in enumerate(bridges):\n                    if mask & (1<<ei): continue\n                    u, v, t = U[b], V[b], T[b]\n                    for s, e in ((u, v), (v, u)):\n                        ns = dist[cur_node][s]\n                        if ns == INF: continue\n                        new_cost = cur_cost + ns + t\n                        new_i = idx[e]\n                        new_mask = mask | (1<<ei)\n                        if new_cost < dp[new_mask][new_i]:\n                            dp[new_mask][new_i] = new_cost\n        ans = dp[full][idx[N-1]]\n        out_lines.append(str(ans))\n    sys.stdout.write(\"\\n\".join(out_lines))\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 1058,
+      "completion_tokens": 1715,
+      "total_tokens": 2773,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    },
+    {
+      "qid": "abc370_a",
+      "gold": "main",
+      "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    L, R = map(int, data[:2])\n    if (L, R) == (1, 0):\n        print(\"Yes\")\n    elif (L, R) == (0, 1):\n        print(\"No\")\n    else:\n        print(\"Invalid\")\n\nif __name__ == \"__main__\":\n    solve()",
+      "correct": false,
+      "prompt_tokens": 397,
+      "completion_tokens": 168,
+      "total_tokens": 565,
+      "meta": {
+        "hidden_pass": 0,
+        "hidden_total": 0
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.0,
+  "total_tokens": 55333,
+  "meta": {}
+}
