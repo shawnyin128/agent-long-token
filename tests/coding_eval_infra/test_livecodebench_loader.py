@@ -62,14 +62,14 @@ def test_dataset_attrs():
 
 
 def test_no_fixture_no_package_raises(monkeypatch):
-    """Without fixture and without huggingface `datasets` installed,
+    """Without fixture and without huggingface_hub installed,
     load() should raise ImportError pointing at the extras group."""
     import builtins
     real_import = builtins.__import__
 
     def fake_import(name, *args, **kwargs):
-        if name == "datasets" or name.startswith("datasets."):
-            raise ImportError("simulated absent datasets")
+        if name == "huggingface_hub" or name.startswith("huggingface_hub."):
+            raise ImportError("simulated absent huggingface_hub")
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)

@@ -62,50 +62,67 @@ class LiveCodeBenchDataset:
 
     @staticmethod
     def _load_from_package() -> list[dict]:
-        """Load LiveCodeBench via HuggingFace datasets directly.
+        """Load LiveCodeBench by directly downloading the JSONL data
+        files from the livecodebench/code_generation_lite HF repo.
 
-        The `livecodebench` PyPI package's API has churned; the most
-        portable path is the HF mirror at livecodebench/code_generation_lite.
-        Each row is converted to our internal dict schema with TestCase
-        scripts that handle both stdin/stdout and functional (Solution
-        class) test types.
+        We can't use `datasets.load_dataset` here because that repo
+        ships a dataset-loading script (`code_generation_lite.py`) and
+        modern HF `datasets` refuses to execute scripts. Instead, we
+        pull the per-release JSONL shards via `huggingface_hub`:
+          - release_v1: test.jsonl
+          - release_v2: + test2.jsonl
+          - release_v3: + test3.jsonl
+          - release_v4: + test4.jsonl
+          - release_v5: + test5.jsonl
+          - release_v6: + test6.jsonl
+        and parse each line as a row. We default to the full v6 set so
+        we get all contests through 2025; the contest_date filter
+        (>= 2024-08-01) trims pre-cutoff problems downstream.
         """
         try:
-            from datasets import load_dataset  # type: ignore
+            from huggingface_hub import hf_hub_download  # type: ignore
         except ImportError as exc:
             raise ImportError(
-                "huggingface `datasets` package required for LiveCodeBench; "
-                "install agentdiet[code_eval] (or `pip install datasets`)"
+                "huggingface_hub package required for LiveCodeBench; "
+                "install agentdiet[code_eval] (or `pip install huggingface_hub`)"
             ) from exc
 
-        # release_v6 covers contests through 2025; release_v5 is the
-        # earlier stable. Try v6 then fall back. Modern HF datasets
-        # rejects trust_remote_code, so we don't pass it; the
-        # code_generation_lite repo is parquet-only and doesn't need it.
+        repo_id = "livecodebench/code_generation_lite"
+        shards = ("test.jsonl", "test2.jsonl", "test3.jsonl",
+                  "test4.jsonl", "test5.jsonl", "test6.jsonl")
+
+        local_paths: list[str] = []
         last_err: Exception | None = None
-        for version in ("release_v6", "release_v5", "release_v4"):
+        for fname in shards:
             try:
-                ds = load_dataset(
-                    "livecodebench/code_generation_lite",
-                    version_tag=version,
-                    split="test",
-                )
-                break
+                p = hf_hub_download(repo_id=repo_id, filename=fname,
+                                    repo_type="dataset")
+                local_paths.append(p)
             except Exception as exc:  # noqa: BLE001
                 last_err = exc
+                # Older shards may be absent in some repo states; keep
+                # going. We only error if ALL shards failed.
                 continue
-        else:
+
+        if not local_paths:
             raise RuntimeError(
-                f"could not load livecodebench/code_generation_lite from HF: {last_err}"
+                "could not download any livecodebench/code_generation_lite "
+                f"shard from HF: {last_err}"
             ) from last_err
 
         rows: list[dict] = []
-        for r in ds:
-            try:
-                rows.append(_lcb_hf_row_to_dict(r))
-            except Exception:  # noqa: BLE001
-                # Skip rows we can't parse (rare malformed test_cases JSON)
-                continue
+        for path in local_paths:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        rows.append(_lcb_hf_row_to_dict(rec))
+                    except Exception:  # noqa: BLE001
+                        # Skip malformed/unparseable rows
+                        continue
         return rows
 
 
