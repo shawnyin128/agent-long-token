@@ -1,0 +1,616 @@
+{
+  "condition": "debate",
+  "cell": {
+    "model": "openai/gpt-oss-20b",
+    "model_family": "gpt-oss",
+    "dataset_name": "humaneval_plus",
+    "thinking": false,
+    "prompt_variant": "cooperative"
+  },
+  "questions": [
+    {
+      "qid": "HumanEval/0",
+      "gold": "has_close_elements",
+      "final_answer": "from typing import List\nimport math\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\"\n    Return ``True`` if any two distinct numbers in *numbers* are closer than\n    *threshold*; otherwise return ``False``.\n\n    Parameters\n    ----------\n    numbers : List[float]\n        The list of numbers to examine.\n    threshold : float\n        The distance threshold. A non‑positive value immediately yields\n        ``False`` because no two real numbers can be closer than a\n        non‑positive distance.\n\n    Returns\n    -------\n    bool\n        ``True`` if a pair of numbers satisfies ``abs(a - b) < threshold``.\n        ``False`` otherwise.\n\n    Notes\n    -----\n    * NaN values are ignored because comparisons involving NaN are undefined.\n    * The algorithm sorts the cleaned list and then scans adjacent pairs,\n      which guarantees that any two close numbers become adjacent.\n    * Complexity: O(n log n) due to sorting; the scan is linear.\n\n    Examples\n    --------\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    >>> has_close_elements([1.0, 1.0, 2.0], 0.1)\n    True\n    >>> has_close_elements([1.0, float('nan'), 1.1], 0.2)\n    True\n    >>> has_close_elements([1.0, float('inf'), 2.0], 1.5)\n    False\n    >>> has_close_elements([1.0, 2.0], -0.1)\n    False\n    >>> has_close_elements([], 1.0)\n    False\n    \"\"\"\n    if threshold <= 0:\n        return False\n\n    # Remove NaNs – they cannot participate in a valid comparison\n    cleaned = [x for x in numbers if not math.isnan(x)]\n    if len(cleaned) < 2:\n        return False\n\n    cleaned.sort()\n    for i in range(1, len(cleaned)):\n        if abs(cleaned[i] - cleaned[i - 1]) < threshold:\n            return True\n    return False\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 7963,
+      "completion_tokens": 4546,
+      "total_tokens": 12509,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/1",
+      "gold": "separate_paren_groups",
+      "final_answer": "from typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\"\n    Split a string containing multiple top‑level parenthesis groups into a list of those groups.\n    Spaces are ignored. The function validates that the input is balanced and contains only\n    parentheses and spaces; otherwise it raises ValueError.\n\n    Args:\n        paren_string: A string with parentheses and optional spaces.\n\n    Returns:\n        A list of balanced parenthesis groups, each as a string without spaces.\n\n    Example:\n        >>> separate_paren_groups('( ) (( )) (( )( ))')\n        ['()', '(())', '(()())']\n    \"\"\"\n    groups: List[str] = []\n    current: List[str] = []\n    depth = 0\n\n    for ch in paren_string:\n        if ch == ' ':\n            continue\n        if ch not in ('(', ')'):\n            raise ValueError(\n                f\"Invalid character '{ch}' in input; only parentheses and spaces allowed.\"\n            )\n        if ch == '(':\n            if depth == 0:\n                current = []  # start a new group\n            depth += 1\n            current.append(ch)\n        else:  # ch == ')'\n            depth -= 1\n            if depth < 0:\n                raise ValueError(\"Unbalanced parentheses: too many closing brackets.\")\n            current.append(ch)\n            if depth == 0:\n                groups.append(''.join(current))\n\n    if depth != 0:\n        raise ValueError(\"Unbalanced parentheses: missing closing brackets.\")\n\n    return groups",
+      "correct": true,
+      "prompt_tokens": 6915,
+      "completion_tokens": 4006,
+      "total_tokens": 10921,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/2",
+      "gold": "truncate_number",
+      "final_answer": "import math\nfrom numbers import Real\n\ndef truncate_number(number: float) -> float:\n    \"\"\"\n    Return the decimal (fractional) part of a positive floating point number.\n\n    Parameters\n    ----------\n    number : float\n        A positive floating point number. Integers are treated as having a\n        fractional part of 0.0.\n\n    Returns\n    -------\n    float\n        The fractional part of ``number``. For example, ``truncate_number(3.5)``\n        returns ``0.5``.\n\n    Raises\n    ------\n    TypeError\n        If ``number`` is not a real numeric type.\n    ValueError\n        If ``number`` is not positive.\n\n    Examples\n    --------\n    >>> truncate_number(3.5)\n    0.5\n    >>> truncate_number(10)\n    0.0\n    >>> truncate_number(0.001)\n    0.001\n    \"\"\"\n    if not isinstance(number, Real):\n        raise TypeError(\"Input must be a real number\")\n\n    if number <= 0:\n        raise ValueError(\"Input must be a positive number\")\n\n    frac, _ = math.modf(float(number))\n    return frac\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()\n\n    # Unit tests\n    assert truncate_number(3.5) == 0.5\n    assert truncate_number(10) == 0.0\n    assert truncate_number(0.001) == 0.001\n    assert truncate_number(123456.789) == 0.789\n    assert truncate_number(1.0000000001) == 1.0000000001 - 1.0\n    try:\n        truncate_number(-2.3)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(\"Negative input did not raise ValueError\")\n    try:\n        truncate_number(\"abc\")\n    except TypeError:\n        pass\n    else:\n        raise AssertionError(\"Non‑numeric input did not raise TypeError\")\n    print(\"All tests passed.\")",
+      "correct": false,
+      "prompt_tokens": 7322,
+      "completion_tokens": 4456,
+      "total_tokens": 11778,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 0,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/3",
+      "gold": "below_zero",
+      "final_answer": "from typing import List\n\ndef below_zero(operations: List[int]) -> bool:\n    \"\"\"\n    Return True if the account balance ever falls below zero.\n\n    The account starts at zero. Each integer in *operations* represents a\n    deposit (positive) or withdrawal (negative). As soon as the cumulative\n    balance becomes negative, the function returns True; otherwise it\n    returns False after processing all operations.\n\n    >>> below_zero([1, 2, 3])\n    False\n    >>> below_zero([1, 2, -4, 5])\n    True\n    >>> below_zero([])\n    False\n    \"\"\"\n    balance = 0\n    for op in operations:\n        balance += op\n        if balance < 0:\n            return True\n    return False",
+      "correct": true,
+      "prompt_tokens": 5314,
+      "completion_tokens": 2338,
+      "total_tokens": 7652,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/4",
+      "gold": "mean_absolute_deviation",
+      "final_answer": "from typing import Iterable, List\nimport math\n\n\ndef mean_absolute_deviation(numbers: Iterable[float]) -> float:\n    \"\"\"\n    Calculate the Mean Absolute Deviation (MAD) of a sequence of numbers.\n\n    The MAD is the average of the absolute differences between each element\n    and the mean of the sequence.\n\n    Parameters\n    ----------\n    numbers : Iterable[float]\n        The dataset to analyze. Accepts any iterable of numeric values.\n\n    Returns\n    -------\n    float\n        The mean absolute deviation. Returns 0.0 for an empty sequence.\n\n    Examples\n    --------\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    >>> mean_absolute_deviation([])\n    0.0\n    >>> mean_absolute_deviation([1, 2, 3, 4, 5])\n    1.0\n    \"\"\"\n    # Convert to list to allow multiple passes and length calculation\n    data: List[float] = list(numbers)\n\n    if not data:\n        return 0.0\n\n    # Validate that all elements are numeric\n    if not all(isinstance(x, (int, float)) for x in data):\n        raise TypeError(\"All elements must be numeric (int or float).\")\n\n    mean_val = math.fsum(data) / len(data)\n    total_abs_diff = math.fsum(abs(x - mean_val) for x in data)\n    return total_abs_diff / len(data)",
+      "correct": true,
+      "prompt_tokens": 6236,
+      "completion_tokens": 3338,
+      "total_tokens": 9574,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/5",
+      "gold": "intersperse",
+      "final_answer": "from typing import List\n\ndef intersperse(numbers: List[int], delimeter: int) -> List[int]:\n    \"\"\"\n    Return a new list with `delimeter` inserted between each pair of consecutive\n    elements of `numbers`.\n\n    Parameters\n    ----------\n    numbers : List[int]\n        The input list of integers.\n    delimeter : int\n        The value to insert between elements.\n\n    Returns\n    -------\n    List[int]\n        A new list with the delimiter interleaved.\n\n    Examples\n    --------\n    >>> intersperse([], 4)\n    []\n    >>> intersperse([1], 4)\n    [1]\n    >>> intersperse([1, 2, 3], 4)\n    [1, 4, 2, 4, 3]\n    \"\"\"\n    # Build a list of (element, delimiter) pairs, then flatten.\n    return [x for pair in zip(numbers, [delimeter] * (len(numbers) - 1) + [None]) for x in pair if x is not None]\n\n# Simple doctest\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 6904,
+      "completion_tokens": 3724,
+      "total_tokens": 10628,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/6",
+      "gold": "parse_nested_parens",
+      "final_answer": "from typing import List\n\n\ndef parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\"\n    Return the maximum depth of nested parentheses for each group in the input string.\n    Groups are separated by whitespace. Raises ValueError if any group is unbalanced.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n    if not paren_string:\n        return []\n\n    result: List[int] = []\n\n    for group in paren_string.split():\n        depth = 0\n        max_depth = 0\n        for ch in group:\n            if ch == '(':\n                depth += 1\n                if depth > max_depth:\n                    max_depth = depth\n            elif ch == ')':\n                depth -= 1\n                if depth < 0:\n                    raise ValueError(f\"Unbalanced parentheses in group: '{group}'\")\n        if depth != 0:\n            raise ValueError(f\"Unbalanced parentheses in group: '{group}'\")\n        result.append(max_depth)\n\n    return result",
+      "correct": true,
+      "prompt_tokens": 6666,
+      "completion_tokens": 3596,
+      "total_tokens": 10262,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/7",
+      "gold": "filter_by_substring",
+      "final_answer": "from typing import List\n\n\ndef filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    \"\"\"\n    Return a new list containing only the strings from `strings` that contain\n    the specified `substring`.\n\n    Parameters\n    ----------\n    strings : List[str]\n        The list of strings to filter.\n    substring : str\n        The substring to search for within each string.\n\n    Returns\n    -------\n    List[str]\n        A list of strings that contain `substring`, preserving the original\n        order.\n\n    Examples\n    --------\n    >>> filter_by_substring([], 'a')\n    []\n    >>> filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a')\n    ['abc', 'bacd', 'array']\n    >>> filter_by_substring(['Hello', 'world', 'HELLO'], 'lo')\n    ['Hello', 'HELLO']\n    >>> filter_by_substring(['test', 'testing', 'best'], 'xyz')\n    []\n    \"\"\"\n    return [s for s in strings if substring in s]",
+      "correct": true,
+      "prompt_tokens": 5903,
+      "completion_tokens": 3155,
+      "total_tokens": 9058,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/8",
+      "gold": "sum_product",
+      "final_answer": "from __future__ import annotations\nfrom typing import Iterable, Tuple\nimport math\n\ndef sum_product(numbers: Iterable[int]) -> Tuple[int, int]:\n    \"\"\"\n    Return a tuple (total_sum, total_product) for the given iterable of integers.\n    An empty iterable yields (0, 1).\n\n    >>> sum_product([])\n    (0, 1)\n    >>> sum_product([1, 2, 3, 4])\n    (10, 24)\n    >>> sum_product([5])\n    (5, 5)\n    \"\"\"\n    total_sum = 0\n    total_prod = 1\n    for n in numbers:\n        total_sum += n\n        total_prod *= n\n    return total_sum, total_prod\n\n# Fallback for Python < 3.8\nif not hasattr(math, \"prod\"):\n    def prod(iterable: Iterable[int]) -> int:\n        result = 1\n        for n in iterable:\n            result *= n\n        return result\n    math.prod = prod  # type: ignore\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 5754,
+      "completion_tokens": 2825,
+      "total_tokens": 8579,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/9",
+      "gold": "rolling_max",
+      "final_answer": "from typing import List\n\n\ndef rolling_max(numbers: List[int]) -> List[int]:\n    \"\"\"\n    Return a list where each element is the maximum of all elements in the input list up to that index.\n    If the input list is empty, an empty list is returned.\n\n    Examples\n    --------\n    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])\n    [1, 2, 3, 3, 3, 4, 4]\n    >>> rolling_max([])\n    []\n    >>> rolling_max([5])\n    [5]\n    \"\"\"\n    result: List[int] = []\n    current_max: int | None = None\n\n    for num in numbers:\n        if current_max is None or num > current_max:\n            current_max = num\n        result.append(current_max)\n\n    return result",
+      "correct": true,
+      "prompt_tokens": 5896,
+      "completion_tokens": 2815,
+      "total_tokens": 8711,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/10",
+      "gold": "make_palindrome",
+      "final_answer": "def is_palindrome(string: str) -> bool:\n    \"\"\"Return True if `string` is a palindrome.\"\"\"\n    return string == string[::-1]\n\n\ndef _prefix_function(pattern: str) -> list[int]:\n    \"\"\"Compute the KMP prefix function for `pattern`.\"\"\"\n    n = len(pattern)\n    pi = [0] * n\n    for i in range(1, n):\n        j = pi[i - 1]\n        while j > 0 and pattern[i] != pattern[j]:\n            j = pi[j - 1]\n        if pattern[i] == pattern[j]:\n            j += 1\n        pi[i] = j\n    return pi\n\n\ndef make_palindrome(string: str) -> str:\n    \"\"\"\n    Find the shortest palindrome that begins with the supplied string.\n\n    The algorithm runs in O(n) time using the KMP prefix function.\n\n    Parameters\n    ----------\n    string : str\n        The original string.\n\n    Returns\n    -------\n    str\n        The shortest palindrome starting with `string`.\n\n    Examples\n    --------\n    >>> make_palindrome('')\n    ''\n    >>> make_palindrome('cat')\n    'catac'\n    >>> make_palindrome('cata')\n    'catac'\n    >>> make_palindrome('race')\n    'racecar'\n    >>> make_palindrome('ababa')\n    'ababa'\n    >>> make_palindrome('madam')\n    'madam'\n    \"\"\"\n    if not isinstance(string, str):\n        raise TypeError(\"Input must be a string\")\n\n    if string == \"\":\n        return \"\"\n\n    rev = string[::-1]\n    combined = string + \"#\" + rev\n    pi = _prefix_function(combined)\n    lps = pi[-1]  # length of longest palindromic suffix\n    prefix_to_reverse = string[:len(string) - lps]\n    return string + prefix_to_reverse[::-1]\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 8340,
+      "completion_tokens": 4594,
+      "total_tokens": 12934,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/11",
+      "gold": "string_xor",
+      "final_answer": "from typing import Iterable\n\n\ndef string_xor(a: str, b: str) -> str:\n    \"\"\"\n    Perform a bitwise XOR on two binary strings consisting only of '0' and '1'.\n\n    Parameters\n    ----------\n    a : str\n        First binary string.\n    b : str\n        Second binary string.\n\n    Returns\n    -------\n    str\n        Result of XOR operation as a binary string.\n\n    Raises\n    ------\n    ValueError\n        If the input strings are of different lengths or contain characters other than\n        '0' or '1'.\n\n    Examples\n    --------\n    >>> string_xor('010', '110')\n    '100'\n    >>> string_xor('', '')\n    ''\n    \"\"\"\n    if len(a) != len(b):\n        raise ValueError(\"Input strings must have the same length\")\n\n    # Empty strings are allowed and return an empty result\n    if not a:\n        return ''\n\n    # Validate characters\n    if not all(ch in '01' for ch in a + b):\n        raise ValueError(\"Input strings must contain only '0' and '1'\")\n\n    # Perform XOR using zip for clarity\n    return ''.join('1' if x != y else '0' for x, y in zip(a, b))\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 6556,
+      "completion_tokens": 3818,
+      "total_tokens": 10374,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/12",
+      "gold": "longest",
+      "final_answer": "from typing import List, Optional\n\ndef longest(strings: List[str]) -> Optional[str]:\n    \"\"\"\n    Return the longest string from the list. If multiple strings share the maximum\n    length, the first one encountered is returned. If the list is empty, None is returned.\n\n    >>> longest([])\n    >>> longest(['a', 'b', 'c'])\n    'a'\n    >>> longest(['a', 'bb', 'ccc'])\n    'ccc'\n    \"\"\"\n    return max(strings, key=len, default=None)",
+      "correct": true,
+      "prompt_tokens": 5252,
+      "completion_tokens": 2444,
+      "total_tokens": 7696,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/13",
+      "gold": "greatest_common_divisor",
+      "final_answer": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\"\n    Return the greatest common divisor (GCD) of two integers a and b.\n    Uses the Euclidean algorithm and works for negative numbers.\n    The GCD of (0, 0) is defined as 0.\n\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(-12, 18)\n    6\n    >>> greatest_common_divisor(0, 0)\n    0\n    >>> greatest_common_divisor(0, 7)\n    7\n    \"\"\"\n    if a == 0 and b == 0:\n        return 0\n\n    a, b = abs(a), abs(b)\n    while b:\n        a, b = b, a % b\n    return a",
+      "correct": true,
+      "prompt_tokens": 5290,
+      "completion_tokens": 2593,
+      "total_tokens": 7883,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/14",
+      "gold": "all_prefixes",
+      "final_answer": "from typing import List\n\n\ndef all_prefixes(string: str) -> List[str]:\n    \"\"\"\n    Return a list of all non‑empty prefixes of the input string,\n    ordered from shortest to longest.\n\n    Parameters\n    ----------\n    string : str\n        The string to generate prefixes from.\n\n    Returns\n    -------\n    List[str]\n        List of prefixes. For an empty string, returns an empty list.\n\n    Raises\n    ------\n    TypeError\n        If *string* is not an instance of ``str``.\n\n    Examples\n    --------\n    >>> all_prefixes('abc')\n    ['a', 'ab', 'abc']\n    >>> all_prefixes('')\n    []\n    \"\"\"\n    if not isinstance(string, str):\n        raise TypeError(\"all_prefixes expects a string input\")\n\n    return [string[:i] for i in range(1, len(string) + 1)]",
+      "correct": true,
+      "prompt_tokens": 4589,
+      "completion_tokens": 2198,
+      "total_tokens": 6787,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/15",
+      "gold": "string_sequence",
+      "final_answer": "def string_sequence(n: int) -> str:\n    \"\"\"\n    Return a string containing space‑delimited numbers starting from 0 up to n inclusive.\n\n    Parameters\n    ----------\n    n : int\n        The upper bound of the sequence. If n is negative, an empty string is returned.\n\n    Returns\n    -------\n    str\n        A space-separated string of integers from 0 to n.\n\n    Examples\n    --------\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    >>> string_sequence(-3)\n    ''\n    \"\"\"\n    if n < 0:\n        return \"\"\n    return \" \".join(str(i) for i in range(n + 1))\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 5256,
+      "completion_tokens": 2671,
+      "total_tokens": 7927,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/16",
+      "gold": "count_distinct_characters",
+      "final_answer": "def count_distinct_characters(string: str) -> int:\n    \"\"\"\n    Return the number of distinct characters in *string*, ignoring case.\n\n    Parameters\n    ----------\n    string : str\n        The input string to analyze.\n\n    Returns\n    -------\n    int\n        The count of unique characters, case‑insensitive.\n\n    Raises\n    ------\n    TypeError\n        If *string* is not an instance of ``str``.\n\n    Examples\n    --------\n    >>> count_distinct_characters('xyzXYZ')\n    3\n    >>> count_distinct_characters('Jerry')\n    4\n    >>> count_distinct_characters('')\n    0\n    >>> count_distinct_characters('123!@#')\n    6\n    \"\"\"\n    if not isinstance(string, str):\n        raise TypeError(\"Input must be a string\")\n\n    # Build a set of lowercase characters directly from the input\n    return len({ch.lower() for ch in string})\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 5181,
+      "completion_tokens": 2712,
+      "total_tokens": 7893,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/17",
+      "gold": "parse_music",
+      "final_answer": "from typing import List\n\n\ndef _token_to_beats(token: str) -> int:\n    \"\"\"Return beat count for a single note token.\"\"\"\n    mapping = {\"o\": 4, \"o|\": 2, \".|\": 1}\n    if token not in mapping:\n        raise ValueError(f\"Unknown note token: {token!r}\")\n    return mapping[token]\n\n\ndef parse_music(music_string: str) -> List[int]:\n    \"\"\"\n    Convert a string of musical note tokens into a list of beat counts.\n\n    Supported tokens:\n        'o'   -> 4 beats (whole note)\n        'o|'  -> 2 beats (half note)\n        '.|'  -> 1 beat (quarter note)\n\n    Parameters\n    ----------\n    music_string : str\n        The input string containing notes separated by whitespace.\n\n    Returns\n    -------\n    List[int]\n        Beat counts for each note in the order they appear.\n\n    Raises\n    ------\n    ValueError\n        If an unrecognized token is encountered.\n\n    Examples\n    --------\n    >>> parse_music('o o| .| o| o| .| .| .| .| o o')\n    [4, 2, 1, 2, 2, 1, 1, 1, 1, 4, 4]\n    \"\"\"\n    tokens = music_string.split()\n    return [_token_to_beats(t) for t in tokens]\n\n\nif __name__ == \"__main__\":\n    # Quick manual test\n    test_str = \"o o| .| o| o| .| .| .| .| o o\"\n    print(parse_music(test_str))",
+      "correct": true,
+      "prompt_tokens": 8240,
+      "completion_tokens": 4452,
+      "total_tokens": 12692,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/18",
+      "gold": "how_many_times",
+      "final_answer": "def how_many_times(string: str, substring: str) -> int:\n    \"\"\"\n    Count how many times ``substring`` occurs in ``string``, including overlapping matches.\n\n    Parameters\n    ----------\n    string : str\n        The text to search within.\n    substring : str\n        The pattern to count.\n\n    Returns\n    -------\n    int\n        Number of overlapping occurrences of ``substring`` in ``string``.\n\n    Examples\n    --------\n    >>> how_many_times('', 'a')\n    0\n    >>> how_many_times('aaa', 'a')\n    3\n    >>> how_many_times('aaaa', 'aa')\n    3\n    >>> how_many_times('abababa', 'aba')\n    3\n    \"\"\"\n    if not string or not substring:\n        return 0\n\n    count = 0\n    sub_len = len(substring)\n    for i in range(len(string) - sub_len + 1):\n        if string[i:i + sub_len] == substring:\n            count += 1\n    return count",
+      "correct": true,
+      "prompt_tokens": 6090,
+      "completion_tokens": 3116,
+      "total_tokens": 9206,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/19",
+      "gold": "sort_numbers",
+      "final_answer": "def sort_numbers(numbers: str) -> str:\n    \"\"\"\n    Input is a space-delimited string of numberals from 'zero' to 'nine'.\n    Valid choices are 'zero', 'one', 'two', 'three', 'four', 'five',\n    'six', 'seven', 'eight' and 'nine'.\n    Return the string with numbers sorted from smallest to largest.\n    >>> sort_numbers('three one five')\n    'one three five'\n    \"\"\"\n    # List indexed by numeric value for quick reverse lookup\n    words_by_val = [\n        'zero', 'one', 'two', 'three', 'four',\n        'five', 'six', 'seven', 'eight', 'nine'\n    ]\n\n    # Mapping from word to numeric value\n    word_to_val = {w: i for i, w in enumerate(words_by_val)}\n\n    # Strip and handle empty input\n    cleaned = numbers.strip()\n    if not cleaned:\n        return ''\n\n    # Split on whitespace\n    tokens = cleaned.split()\n\n    # Convert tokens to numeric values, validating each token\n    try:\n        values = [word_to_val[t] for t in tokens]\n    except KeyError as exc:\n        raise ValueError(f\"Invalid number word: '{exc.args[0]}'\") from None\n\n    # Sort numeric values\n    values.sort()\n\n    # Map back to words\n    sorted_words = [words_by_val[v] for v in values]\n\n    return ' '.join(sorted_words)",
+      "correct": true,
+      "prompt_tokens": 7213,
+      "completion_tokens": 3865,
+      "total_tokens": 11078,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/20",
+      "gold": "find_closest_elements",
+      "final_answer": "from typing import List, Tuple\n\n\ndef find_closest_elements(numbers: List[float]) -> Tuple[float, float]:\n    \"\"\"\n    Return the two numbers that are closest to each other in the given list.\n    The result is ordered as (smaller, larger).\n\n    Parameters\n    ----------\n    numbers : List[float]\n        A list containing at least two numeric values.\n\n    Returns\n    -------\n    Tuple[float, float]\n        The pair of numbers with the smallest absolute difference.\n\n    Examples\n    --------\n    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.2])\n    (2.0, 2.2)\n    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0])\n    (2.0, 2.0)\n    \"\"\"\n    if len(numbers) < 2:\n        raise ValueError(\"At least two numbers are required\")\n\n    # Sort once; adjacent elements in the sorted list are the only candidates\n    sorted_nums = sorted(numbers)\n\n    # Initialize with the first pair\n    best_pair = (sorted_nums[0], sorted_nums[1])\n    best_diff = abs(best_pair[1] - best_pair[0])\n\n    # Scan remaining adjacent pairs\n    for i in range(1, len(sorted_nums) - 1):\n        a, b = sorted_nums[i], sorted_nums[i + 1]\n        diff = abs(b - a)\n\n        if diff < best_diff:\n            best_diff = diff\n            best_pair = (a, b)\n            if best_diff == 0.0:          # cannot improve further\n                break\n        elif diff == best_diff:\n            # Deterministic tie‑break: prefer smaller first element, then smaller second\n            if a < best_pair[0] or (a == best_pair[0] and b < best_pair[1]):\n                best_pair = (a, b)\n\n    return best_pair",
+      "correct": true,
+      "prompt_tokens": 9160,
+      "completion_tokens": 4844,
+      "total_tokens": 14004,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/21",
+      "gold": "rescale_to_unit",
+      "final_answer": "from typing import List\n\n\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    \"\"\"\n    Rescale a list of floats to the [0, 1] interval.\n\n    Parameters\n    ----------\n    numbers : List[float]\n        Input list of numeric values. Must contain at least two elements.\n\n    Returns\n    -------\n    List[float]\n        Each element transformed so that the minimum becomes 0 and the maximum becomes 1.\n\n    Raises\n    ------\n    ValueError\n        If the input list has fewer than two elements.\n\n    Examples\n    --------\n    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])\n    [0.0, 0.25, 0.5, 0.75, 1.0]\n    >>> rescale_to_unit([5.0, 5.0, 5.0])\n    [0.0, 0.0, 0.0]\n    \"\"\"\n    if len(numbers) < 2:\n        raise ValueError(\"Input list must contain at least two elements\")\n\n    min_val = min(numbers)\n    max_val = max(numbers)\n\n    if min_val == max_val:\n        return [0.0] * len(numbers)\n\n    scale = max_val - min_val\n    return [(x - min_val) / scale for x in numbers]",
+      "correct": true,
+      "prompt_tokens": 7585,
+      "completion_tokens": 3997,
+      "total_tokens": 11582,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/22",
+      "gold": "filter_integers",
+      "final_answer": "from typing import List, Any\n\ndef filter_integers(values: List[Any]) -> List[int]:\n    \"\"\"\n    Return a new list containing only the integer values from the input list.\n    Booleans are excluded because they are subclasses of int.\n\n    >>> filter_integers(['a', 3.14, 5])\n    [5]\n    >>> filter_integers([1, 2, 3, 'abc', {}, [], True, False, None])\n    [1, 2, 3]\n    >>> filter_integers([True, False, 0, 1])\n    [0, 1]\n    >>> filter_integers([])\n    []\n    \"\"\"\n    return [x for x in values if type(x) is int]\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()\n\n    import unittest\n\n    class TestFilterIntegers(unittest.TestCase):\n        def test_examples(self):\n            self.assertEqual(filter_integers(['a', 3.14, 5]), [5])\n            self.assertEqual(\n                filter_integers([1, 2, 3, 'abc', {}, [], True, False, None]),\n                [1, 2, 3]\n            )\n\n        def test_booleans(self):\n            self.assertEqual(filter_integers([True, False, 0, 1]), [0, 1])\n\n        def test_empty(self):\n            self.assertEqual(filter_integers([]), [])\n\n        def test_mixed(self):\n            self.assertEqual(\n                filter_integers([1, '1', 2.0, 3, None, 4, True]),\n                [1, 3, 4]\n            )\n\n    unittest.main()",
+      "correct": true,
+      "prompt_tokens": 6576,
+      "completion_tokens": 3612,
+      "total_tokens": 10188,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/23",
+      "gold": "strlen",
+      "final_answer": "def strlen(string: str) -> int:\n    \"\"\"Return the length of the given string.\n\n    Parameters\n    ----------\n    string : str\n        The string whose length is to be computed.\n\n    Returns\n    -------\n    int\n        The number of characters in ``string``.\n\n    Raises\n    ------\n    TypeError\n        If *string* is not an instance of :class:`str`.\n\n    Examples\n    --------\n    >>> strlen('')\n    0\n    >>> strlen('abc')\n    3\n    \"\"\"\n    if not isinstance(string, str):\n        raise TypeError(f\"Expected a string, got {type(string).__name__}\")\n    return len(string)",
+      "correct": true,
+      "prompt_tokens": 4227,
+      "completion_tokens": 2092,
+      "total_tokens": 6319,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/24",
+      "gold": "largest_divisor",
+      "final_answer": "import math\nimport doctest\n\ndef largest_divisor(n: int) -> int:\n    \"\"\"\n    Return the largest proper divisor of ``n`` (a divisor strictly less than ``n``).\n\n    Parameters\n    ----------\n    n : int\n        The integer to analyze.\n\n    Returns\n    -------\n    int\n        The largest divisor of ``n`` that is strictly less than ``n``.\n        For ``n <= 1`` the function returns ``n`` itself, as no proper divisor exists.\n\n    Examples\n    --------\n    >>> largest_divisor(15)\n    5\n    >>> largest_divisor(13)\n    1\n    >>> largest_divisor(2)\n    1\n    >>> largest_divisor(1)\n    1\n    >>> largest_divisor(0)\n    0\n    >>> largest_divisor(100)\n    50\n    \"\"\"\n    if n <= 1:\n        return n\n\n    limit = int(math.isqrt(n))\n    for i in range(limit, 0, -1):\n        if n % i == 0:\n            # i is a divisor; n // i is the complementary divisor and is >= i\n            return n // i\n    # Fallback: n is prime, return 1\n    return 1\n\nif __name__ == \"__main__\":\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 6738,
+      "completion_tokens": 4383,
+      "total_tokens": 11121,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/25",
+      "gold": "factorize",
+      "final_answer": "from typing import List\nimport math\n\ndef factorize(n: int) -> List[int]:\n    \"\"\"\n    Return a list of prime factors of ``n`` in ascending order.\n\n    Each prime factor appears as many times as its multiplicity in the\n    prime factorization.  The product of the returned list equals ``n``.\n\n    Parameters\n    ----------\n    n : int\n        Integer to factorise.  For ``n <= 1`` an empty list is returned.\n\n    Returns\n    -------\n    List[int]\n        Sorted list of prime factors.\n\n    Examples\n    --------\n    >>> factorize(8)\n    [2, 2, 2]\n    >>> factorize(25)\n    [5, 5]\n    >>> factorize(70)\n    [2, 5, 7]\n    >>> factorize(1)\n    []\n    >>> factorize(0)\n    []\n    \"\"\"\n    if n <= 1:\n        return []\n\n    factors: List[int] = []\n\n    # Extract factor 2\n    while n % 2 == 0:\n        factors.append(2)\n        n //= 2\n\n    # Extract odd factors\n    d = 3\n    while d * d <= n:\n        while n % d == 0:\n            factors.append(d)\n            n //= d\n        d += 2\n\n    # Remaining prime > 1\n    if n > 1:\n        factors.append(n)\n\n    return factors\n\n# Run doctests if executed as a script\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 8520,
+      "completion_tokens": 4796,
+      "total_tokens": 13316,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/26",
+      "gold": "remove_duplicates",
+      "final_answer": "from typing import List\n\ndef remove_duplicates(numbers: List[int]) -> List[int]:\n    \"\"\"\n    Return a new list containing only the integers that appear exactly once\n    in the input list, preserving the original order.\n\n    >>> remove_duplicates([1, 2, 3, 2, 4])\n    [1, 3, 4]\n    >>> remove_duplicates([5, 5, 5])\n    []\n    >>> remove_duplicates([])\n    []\n    \"\"\"\n    # Count occurrences\n    counts = {}\n    for n in numbers:\n        counts[n] = counts.get(n, 0) + 1\n\n    # Keep only elements that appear once\n    return [n for n in numbers if counts[n] == 1]\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 5402,
+      "completion_tokens": 2644,
+      "total_tokens": 8046,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/27",
+      "gold": "flip_case",
+      "final_answer": "def flip_case(string: str) -> str:\n    \"\"\"\n    Flip the case of all alphabetic characters in the input string.\n    Lowercase letters become uppercase and vice versa. Non‑alphabetic\n    characters are left unchanged.\n\n    Parameters\n    ----------\n    string : str\n        The string to transform.\n\n    Returns\n    -------\n    str\n        The transformed string with flipped case.\n\n    Examples\n    --------\n    >>> flip_case('Hello')\n    'hELLO'\n    >>> flip_case('Python 3.8')\n    'pYTHON 3.8'\n    >>> flip_case('123')\n    '123'\n    \"\"\"\n    return string.swapcase()\n\n\nif __name__ == \"__main__\":\n    # Simple manual tests\n    tests = [\n        (\"Hello\", \"hELLO\"),\n        (\"Python 3.8\", \"pYTHON 3.8\"),\n        (\"123\", \"123\"),\n        (\"\", \"\"),\n        (\"aBcD\", \"AbCd\"),\n    ]\n    for inp, expected in tests:\n        result = flip_case(inp)\n        assert result == expected, f\"flip_case({inp!r}) -> {result!r}, expected {expected!r}\"\n    print(\"All tests passed.\")",
+      "correct": true,
+      "prompt_tokens": 5406,
+      "completion_tokens": 2799,
+      "total_tokens": 8205,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/28",
+      "gold": "concatenate",
+      "final_answer": "from typing import List\n\n\ndef concatenate(strings: List[str]) -> str:\n    \"\"\"\n    Concatenate a list of strings into a single string.\n\n    Parameters\n    ----------\n    strings : List[str]\n        The list of strings to concatenate.\n\n    Returns\n    -------\n    str\n        The concatenated string. Returns an empty string if the input list is empty.\n\n    Examples\n    --------\n    >>> concatenate([])\n    ''\n    >>> concatenate(['a', 'b', 'c'])\n    'abc'\n    \"\"\"\n    return \"\".join(strings)",
+      "correct": true,
+      "prompt_tokens": 4929,
+      "completion_tokens": 2515,
+      "total_tokens": 7444,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/29",
+      "gold": "filter_by_prefix",
+      "final_answer": "from typing import List\nimport doctest\n\n\ndef filter_by_prefix(strings: List[str], prefix: str) -> List[str]:\n    \"\"\"\n    Return a new list containing only the strings from *strings* that start with *prefix*.\n\n    Parameters\n    ----------\n    strings : List[str]\n        The list of strings to filter.\n    prefix : str\n        The prefix to match at the start of each string.\n\n    Returns\n    -------\n    List[str]\n        A list of strings that begin with *prefix*.\n\n    Examples\n    --------\n    >>> filter_by_prefix([], 'a')\n    []\n    >>> filter_by_prefix(['abc', 'bcd', 'cde', 'array'], 'a')\n    ['abc', 'array']\n    \"\"\"\n    if not isinstance(prefix, str):\n        raise TypeError(\"prefix must be a string\")\n\n    return [s for s in strings if s.startswith(prefix)]\n\n\nif __name__ == \"__main__\":\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 5816,
+      "completion_tokens": 2848,
+      "total_tokens": 8664,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/30",
+      "gold": "get_positive",
+      "final_answer": "from collections.abc import Iterable\nfrom typing import List, Union\n\nNumber = Union[int, float]\n\ndef get_positive(iterable: Iterable[Number]) -> List[Number]:\n    \"\"\"\n    Return only strictly positive numbers from the given iterable.\n\n    Parameters\n    ----------\n    iterable : Iterable[Number]\n        An iterable containing numeric values (int or float).\n\n    Returns\n    -------\n    List[Number]\n        A list of the positive numbers in the order they appear.\n\n    Raises\n    ------\n    TypeError\n        If an element is not an int or float.\n\n    Examples\n    --------\n    >>> get_positive([-1, 2, -4, 5, 6])\n    [2, 5, 6]\n    >>> get_positive([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    [5, 3, 2, 3, 9, 123, 1]\n    \"\"\"\n    result: List[Number] = []\n    for x in iterable:\n        if not isinstance(x, (int, float)):\n            raise TypeError(f\"Unsupported element type: {type(x).__name__}\")\n        if x > 0:\n            result.append(x)\n    return result",
+      "correct": true,
+      "prompt_tokens": 5341,
+      "completion_tokens": 2763,
+      "total_tokens": 8104,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/31",
+      "gold": "is_prime",
+      "final_answer": "def is_prime(n: int) -> bool:\n    \"\"\"\n    Return True if a given number is prime, and False otherwise.\n    >>> is_prime(6)\n    False\n    >>> is_prime(101)\n    True\n    >>> is_prime(11)\n    True\n    >>> is_prime(13441)\n    True\n    >>> is_prime(61)\n    True\n    >>> is_prime(4)\n    False\n    >>> is_prime(1)\n    False\n    \"\"\"\n    if n < 2:\n        return False\n    # Small primes\n    small_primes = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)\n    if n in small_primes:\n        return True\n    # Even numbers\n    if n % 2 == 0:\n        return False\n\n    # Write n-1 as d * 2^s\n    d = n - 1\n    s = 0\n    while d % 2 == 0:\n        d //= 2\n        s += 1\n\n    def check(a: int) -> bool:\n        x = pow(a, d, n)\n        if x == 1 or x == n - 1:\n            return True\n        for _ in range(s - 1):\n            x = pow(x, 2, n)\n            if x == n - 1:\n                return True\n        return False\n\n    # Deterministic bases for 64‑bit integers\n    bases = (2, 325, 9375, 28178, 450775, 9780504, 1795265022)\n    return all(check(a % n) for a in bases if a % n != 0)",
+      "correct": true,
+      "prompt_tokens": 6615,
+      "completion_tokens": 3657,
+      "total_tokens": 10272,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/32",
+      "gold": "find_zero",
+      "final_answer": "import math\nfrom typing import List\n\ndef poly(xs: List[float], x: float) -> float:\n    \"\"\"Evaluate polynomial with coefficients xs at point x.\"\"\"\n    return sum(coeff * (x ** i) for i, coeff in enumerate(xs))\n\ndef find_zero(xs: List[float]) -> float:\n    \"\"\"\n    Find a real root of the polynomial defined by coefficients xs.\n    xs must have an even number of coefficients (odd degree).\n    Raises ValueError for invalid input.\n    \"\"\"\n    if len(xs) % 2 != 0:\n        raise ValueError(\"Coefficient list must have an even number of elements (odd degree).\")\n    if not xs:\n        raise ValueError(\"Coefficient list cannot be empty.\")\n    if xs[-1] == 0:\n        raise ValueError(\"Leading coefficient must be non‑zero.\")\n\n    # Find an interval where the polynomial changes sign\n    low, high = -1.0, 1.0\n    f_low, f_high = poly(xs, low), poly(xs, high)\n    # Expand until sign change or limit reached\n    limit = 1e12\n    while f_low * f_high > 0:\n        low *= 2\n        high *= 2\n        f_low, f_high = poly(xs, low), poly(xs, high)\n        if abs(low) > limit or abs(high) > limit:\n            raise RuntimeError(\"Failed to find sign change interval.\")\n\n    # Bisection method\n    tol = 1e-12\n    while high - low > tol:\n        mid = (low + high) / 2\n        f_mid = poly(xs, mid)\n        if f_low * f_mid <= 0:\n            high, f_high = mid, f_mid\n        else:\n            low, f_low = mid, f_mid\n\n    return (low + high) / 2\n\n# doctest examples\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()\n    print(round(find_zero([1, 2]), 2))          # -0.5\n    print(round(find_zero([-6, 11, -6, 1]), 2)) # 1.0",
+      "correct": true,
+      "prompt_tokens": 11104,
+      "completion_tokens": 5936,
+      "total_tokens": 17040,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/33",
+      "gold": "sort_third",
+      "final_answer": "from typing import List, TypeVar\n\nT = TypeVar(\"T\")\n\ndef sort_third(l: List[T]) -> List[T]:\n    \"\"\"\n    Return a new list where elements at indices divisible by three are sorted\n    among themselves, while all other elements remain in their original positions.\n\n    Parameters\n    ----------\n    l : list\n        Input list of comparable elements.\n\n    Returns\n    -------\n    list\n        New list with sorted elements at indices 0, 3, 6, ...\n\n    Examples\n    --------\n    >>> sort_third([1, 2, 3])\n    [1, 2, 3]\n    >>> sort_third([5, 6, 3, 4, 8, 9, 2])\n    [2, 6, 3, 4, 8, 9, 5]\n    \"\"\"\n    # Extract values at indices divisible by 3\n    third_vals = [x for i, x in enumerate(l) if i % 3 == 0]\n    # Sort those values\n    third_vals.sort()\n    # Reconstruct the result\n    result = l.copy()\n    idx = 0\n    for i in range(len(result)):\n        if i % 3 == 0:\n            result[i] = third_vals[idx]\n            idx += 1\n    return result",
+      "correct": true,
+      "prompt_tokens": 6765,
+      "completion_tokens": 3491,
+      "total_tokens": 10256,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/34",
+      "gold": "unique",
+      "final_answer": "from typing import List, Any\n\ndef unique(l: List[Any]) -> List[Any]:\n    \"\"\"\n    Return a sorted list of the distinct elements from the input list.\n\n    The function works with any elements that can be compared for sorting,\n    including unhashable types such as lists or dictionaries.  Hashable\n    elements are tracked with a set for O(1) membership checks; unhashable\n    elements are tracked with a list.\n\n    Parameters\n    ----------\n    l : list\n        Input list containing any comparable elements.\n\n    Returns\n    -------\n    list\n        Sorted list of unique elements from ``l``.\n\n    Examples\n    --------\n    >>> unique([5, 3, 5, 2, 3, 3, 9, 0, 123])\n    [0, 2, 3, 5, 9, 123]\n    >>> unique([[1, 2], [1, 2], [3]])\n    [[1, 2], [3]]\n    \"\"\"\n    seen_hashable = set()\n    seen_unhashable = []\n    unique_items: List[Any] = []\n\n    for item in l:\n        try:\n            if item in seen_hashable:\n                continue\n            seen_hashable.add(item)\n            unique_items.append(item)\n        except TypeError:\n            # item is unhashable\n            if any(item == existing for existing in seen_unhashable):\n                continue\n            seen_unhashable.append(item)\n            unique_items.append(item)\n\n    return sorted(unique_items)",
+      "correct": true,
+      "prompt_tokens": 4843,
+      "completion_tokens": 2858,
+      "total_tokens": 7701,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/35",
+      "gold": "max_element",
+      "final_answer": "from typing import Iterable, TypeVar, Iterator\n\nT = TypeVar(\"T\")\n\ndef max_element(l: Iterable[T]) -> T:\n    \"\"\"\n    Return the maximum element in an iterable.\n\n    Parameters\n    ----------\n    l : Iterable[T]\n        An iterable of comparable elements.\n\n    Returns\n    -------\n    T\n        The maximum element.\n\n    Raises\n    ------\n    ValueError\n        If the iterable is empty.\n\n    Examples\n    --------\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    it: Iterator[T] = iter(l)\n    try:\n        max_val = next(it)\n    except StopIteration:\n        raise ValueError(\"max_element() arg is an empty sequence\")\n\n    for item in it:\n        if item > max_val:\n            max_val = item\n    return max_val\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()\n\n    # Additional unit tests\n    assert max_element([1, 2, 3]) == 3\n    assert max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10]) == 123\n    assert max_element([42]) == 42\n    try:\n        max_element([])\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(\"Expected ValueError for empty input\")\n\n    print(\"All tests passed.\")",
+      "correct": true,
+      "prompt_tokens": 6390,
+      "completion_tokens": 3638,
+      "total_tokens": 10028,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/36",
+      "gold": "fizz_buzz",
+      "final_answer": "def fizz_buzz(n: int) -> int:\n    \"\"\"\n    Return the number of times the digit 7 appears in integers less than n\n    which are divisible by 11 or 13.\n    >>> fizz_buzz(50)\n    0\n    >>> fizz_buzz(78)\n    2\n    >>> fizz_buzz(79)\n    3\n    \"\"\"\n    if n <= 0:\n        return 0\n\n    count = 0\n    for num in range(1, n):\n        if num % 11 == 0 or num % 13 == 0:\n            count += str(num).count('7')\n    return count\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()",
+      "correct": true,
+      "prompt_tokens": 5393,
+      "completion_tokens": 2888,
+      "total_tokens": 8281,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/37",
+      "gold": "sort_even",
+      "final_answer": "from typing import Iterable, List, Any\n\ndef sort_even(l: Iterable[Any]) -> List[Any]:\n    \"\"\"\n    Return a new list where elements at even indices are sorted,\n    while elements at odd indices remain in their original positions.\n\n    Parameters\n    ----------\n    l : Iterable\n        Input sequence (list, tuple, etc.).\n\n    Returns\n    -------\n    List\n        A new list with the described property.\n\n    Examples\n    --------\n    >>> sort_even([1, 2, 3])\n    [1, 2, 3]\n    >>> sort_even([5, 6, 3, 4])\n    [3, 6, 5, 4]\n    \"\"\"\n    seq = list(l)\n    even_sorted = sorted(seq[i] for i in range(0, len(seq), 2))\n    even_iter = iter(even_sorted)\n    return [next(even_iter) if i % 2 == 0 else seq[i] for i in range(len(seq))]\n\n# Simple test cases\nif __name__ == \"__main__\":\n    assert sort_even([1, 2, 3]) == [1, 2, 3]\n    assert sort_even([5, 6, 3, 4]) == [3, 6, 5, 4]\n    assert sort_even([]) == []\n    assert sort_even([10]) == [10]\n    assert sort_even([9, 8, 7, 6, 5]) == [5, 8, 7, 6, 9]\n    print(\"All tests passed.\")",
+      "correct": true,
+      "prompt_tokens": 6741,
+      "completion_tokens": 3485,
+      "total_tokens": 10226,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/38",
+      "gold": "decode_cyclic",
+      "final_answer": "def encode_cyclic(s: str) -> str:\n    \"\"\"\n    Encode the string by left‑rotating each full group of three characters.\n    Groups shorter than three are left unchanged.\n    \"\"\"\n    groups = [s[i:i+3] for i in range(0, len(s), 3)]\n    return \"\".join(g[1:] + g[0] if len(g) == 3 else g for g in groups)\n\n\ndef decode_cyclic(s: str) -> str:\n    \"\"\"\n    Decode a string produced by `encode_cyclic` by right‑rotating each full group of three.\n    Groups shorter than three are left unchanged.\n    \"\"\"\n    groups = [s[i:i+3] for i in range(0, len(s), 3)]\n    return \"\".join(g[-1] + g[:-1] if len(g) == 3 else g for g in groups)\n\n\n# Simple test harness\nif __name__ == \"__main__\":\n    test_cases = [\n        \"\",\n        \"a\",\n        \"ab\",\n        \"abc\",\n        \"abcd\",\n        \"abcdef\",\n        \"abcdefg\",\n        \"abcdefgh\",\n        \"abcdefghijklmnopqrstuvwxyz\",\n    ]\n    for original in test_cases:\n        encoded = encode_cyclic(original)\n        decoded = decode_cyclic(encoded)\n        assert decoded == original, f\"Round‑trip failed: {original!r} -> {encoded!r} -> {decoded!r}\"\n    print(\"All round‑trip tests passed.\")",
+      "correct": true,
+      "prompt_tokens": 7987,
+      "completion_tokens": 4004,
+      "total_tokens": 11991,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    },
+    {
+      "qid": "HumanEval/39",
+      "gold": "prime_fib",
+      "final_answer": "from __future__ import annotations\nfrom typing import List\n\n# Deterministic Miller–Rabin for 64‑bit integers\ndef _is_prime(n: int) -> bool:\n    if n < 2:\n        return False\n    # small primes\n    small_primes = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29)\n    for p in small_primes:\n        if n % p == 0:\n            return n == p\n    # write n-1 as d * 2^s\n    d, s = n - 1, 0\n    while d % 2 == 0:\n        d //= 2\n        s += 1\n    # bases for deterministic test up to 2^64\n    for a in (2, 325, 9375, 28178, 450775, 9780504, 1795265022):\n        if a % n == 0:\n            continue\n        x = pow(a, d, n)\n        if x == 1 or x == n - 1:\n            continue\n        for _ in range(s - 1):\n            x = (x * x) % n\n            if x == n - 1:\n                break\n        else:\n            return False\n    return True\n\ndef prime_fib(n: int) -> int:\n    \"\"\"\n    Return the n‑th Fibonacci number that is also prime.\n\n    Parameters\n    ----------\n    n : int\n        1‑based index of the desired prime Fibonacci number.\n\n    Returns\n    -------\n    int\n        The n‑th Fibonacci number that is prime.\n\n    Raises\n    ------\n    ValueError\n        If n <= 0.\n\n    Examples\n    --------\n    >>> prime_fib(1)\n    2\n    >>> prime_fib(2)\n    3\n    >>> prime_fib(3)\n    5\n    >>> prime_fib(4)\n    13\n    >>> prime_fib(5)\n    89\n    \"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n    # Known small prime Fibonacci numbers\n    known: List[int] = [2, 3, 5, 13, 89, 233, 1597, 28657, 514229]\n    if n <= len(known):\n        return known[n - 1]\n\n    # Generate further Fibonacci numbers\n    a, b = 1, 1  # F1, F2\n    count = 0   # count of primes found beyond the cache\n    while True:\n        a, b = b, a + b  # next Fibonacci number is b\n        if _is_prime(b):\n            count += 1\n            if count + len(known) == n:\n                return b",
+      "correct": true,
+      "prompt_tokens": 10014,
+      "completion_tokens": 9130,
+      "total_tokens": 19144,
+      "meta": {
+        "n_agents": 3,
+        "n_rounds": 3,
+        "hidden_pass": 1,
+        "hidden_total": 1
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.975,
+  "total_tokens": 406074,
+  "meta": {}
+}
