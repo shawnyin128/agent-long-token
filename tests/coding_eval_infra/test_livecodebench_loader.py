@@ -61,9 +61,18 @@ def test_dataset_attrs():
     assert ds.domain == "code"
 
 
-def test_no_fixture_no_package_raises():
-    """Without fixture and without livecodebench/evalscope installed,
+def test_no_fixture_no_package_raises(monkeypatch):
+    """Without fixture and without huggingface `datasets` installed,
     load() should raise ImportError pointing at the extras group."""
+    import builtins
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "datasets" or name.startswith("datasets."):
+            raise ImportError("simulated absent datasets")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
     ds = LiveCodeBenchDataset(fixture_path=None)
     with pytest.raises(ImportError, match="code_eval"):
         ds.load()

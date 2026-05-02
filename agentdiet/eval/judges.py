@@ -22,11 +22,16 @@ SUBPROCESS_HARNESS = '''\
 import sys, traceback
 __user_code__ = {code!r}
 __test_script__ = {script!r}
+__user_code_error__ = None
 try:
     exec(compile(__user_code__, "<user_code>", "exec"), globals())
-except Exception:
-    traceback.print_exc()
-    sys.exit(2)
+except Exception as __exc__:
+    # Pre-exec failure is non-fatal: some test types (e.g. LiveCodeBench
+    # stdin/stdout problems) need to run user_code as a fresh subprocess
+    # with input piped in, so a hung input() during pre-exec is
+    # expected. Record the error and let the test_script decide.
+    __user_code_error__ = __exc__
+    traceback.print_exc(file=sys.stderr)
 try:
     exec(compile(__test_script__, "<test_script>", "exec"), globals())
 except Exception:

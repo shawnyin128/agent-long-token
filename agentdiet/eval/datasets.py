@@ -62,26 +62,173 @@ class LiveCodeBenchDataset:
 
     @staticmethod
     def _load_from_package() -> list[dict]:
+        """Load LiveCodeBench via HuggingFace datasets directly.
+
+        The `livecodebench` PyPI package's API has churned; the most
+        portable path is the HF mirror at livecodebench/code_generation_lite.
+        Each row is converted to our internal dict schema with TestCase
+        scripts that handle both stdin/stdout and functional (Solution
+        class) test types.
+        """
         try:
-            from livecodebench import data as lcb_data  # type: ignore
-        except ImportError:
+            from datasets import load_dataset  # type: ignore
+        except ImportError as exc:
+            raise ImportError(
+                "huggingface `datasets` package required for LiveCodeBench; "
+                "install agentdiet[code_eval] (or `pip install datasets`)"
+            ) from exc
+
+        # release_v6 covers contests through 2025; release_v5 is the
+        # earlier stable. Try v6 then fall back. Modern HF datasets
+        # rejects trust_remote_code, so we don't pass it; the
+        # code_generation_lite repo is parquet-only and doesn't need it.
+        last_err: Exception | None = None
+        for version in ("release_v6", "release_v5", "release_v4"):
             try:
-                from evalscope.benchmarks import live_code_bench as lcb_data  # type: ignore
-            except ImportError as exc:
-                raise ImportError(
-                    "LiveCodeBench data unavailable; install "
-                    "agentdiet[code_eval] or pass fixture_path"
-                ) from exc
-        # Both packages expose a load() callable returning a list of
-        # dicts; if neither does, raise — we'd need the actual API to
-        # adapt further.
-        loader = getattr(lcb_data, "load", None)
-        if loader is None:
+                ds = load_dataset(
+                    "livecodebench/code_generation_lite",
+                    version_tag=version,
+                    split="test",
+                )
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                continue
+        else:
             raise RuntimeError(
-                "LiveCodeBench package present but missing expected "
-                "load() callable"
-            )
-        return loader()
+                f"could not load livecodebench/code_generation_lite from HF: {last_err}"
+            ) from last_err
+
+        rows: list[dict] = []
+        for r in ds:
+            try:
+                rows.append(_lcb_hf_row_to_dict(r))
+            except Exception:  # noqa: BLE001
+                # Skip rows we can't parse (rare malformed test_cases JSON)
+                continue
+        return rows
+
+
+def _lcb_hf_row_to_dict(r: dict) -> dict:
+    """Convert one HF LiveCodeBench row to our LCB dict schema."""
+    qid = str(r["question_id"])
+    contest_date = str(r["contest_date"])[:10]  # ISO YYYY-MM-DD slice
+    prompt = str(r["question_content"])
+    starter = str(r.get("starter_code") or "")
+    platform = str(r.get("platform") or "").lower()
+
+    # Functional (leetcode) starter_code defines `class Solution: def NAME(...)`.
+    # Parse the method name; for stdin problems, we never use it.
+    entry_point = _lcb_parse_method_name(starter) or "main"
+
+    public_raw = _lcb_decode_test_cases(r.get("public_test_cases"))
+    hidden_raw = _lcb_decode_test_cases(r.get("private_test_cases"))
+
+    public_tests = [_lcb_test_to_testcase(tc, i, entry_point, prefix="pub")
+                    for i, tc in enumerate(public_raw)]
+    hidden_tests = [_lcb_test_to_testcase(tc, i, entry_point, prefix="hid")
+                    for i, tc in enumerate(hidden_raw)]
+
+    return {
+        "qid": qid,
+        "contest_date": contest_date,
+        "prompt": prompt + ("\n\n" + starter if starter else ""),
+        "entry_point": entry_point,
+        "public_tests": public_tests,
+        "hidden_tests": hidden_tests,
+        "meta": {"platform": platform,
+                 "difficulty": str(r.get("difficulty") or "")},
+    }
+
+
+def _lcb_decode_test_cases(field) -> list[dict]:
+    """Decode the test_cases field. HF stores it as a JSON string,
+    occasionally as a base64-zlib-compressed pickle for private cases."""
+    if field is None:
+        return []
+    if isinstance(field, list):
+        return field
+    if not isinstance(field, str) or not field:
+        return []
+    s = field.strip()
+    # Plain JSON path
+    try:
+        out = json.loads(s)
+        if isinstance(out, list):
+            return out
+    except Exception:  # noqa: BLE001
+        pass
+    # zlib+base64+pickle path (private_test_cases is sometimes encoded this way)
+    try:
+        import base64, pickle, zlib
+        data = pickle.loads(zlib.decompress(base64.b64decode(s)))
+        if isinstance(data, list):
+            return data
+    except Exception:  # noqa: BLE001
+        pass
+    return []
+
+
+def _lcb_parse_method_name(starter_code: str) -> str:
+    """Extract method name from leetcode starter code 'def NAME(self, ...)'."""
+    import re
+    m = re.search(r"def\s+([A-Za-z_]\w*)\s*\(\s*self\b", starter_code)
+    return m.group(1) if m else ""
+
+
+def _lcb_test_to_testcase(tc: dict, idx: int, entry_point: str,
+                           prefix: str = "tc") -> dict:
+    """Convert one LCB test case to our {name, script} dict."""
+    testtype = str(tc.get("testtype") or "stdin").lower()
+    inp = tc.get("input") or ""
+    out = tc.get("output") or ""
+    if testtype == "functional":
+        # input is JSON-encoded args; output is JSON-encoded expected return.
+        # User code defines class Solution with method `entry_point`.
+        # The harness pre-execs user_code so Solution is in globals.
+        script = _LCB_FUNCTIONAL_SCRIPT.format(
+            entry_point=entry_point,
+            input_json=repr(str(inp)),
+            output_json=repr(str(out)),
+        )
+    else:
+        # stdin: input is stdin string, output is expected stdout.
+        # Run user code as a fresh subprocess with input piped in.
+        script = _LCB_STDIN_SCRIPT.format(
+            input_text=repr(str(inp)),
+            expected_text=repr(str(out)),
+        )
+    return {"name": f"{prefix}_{idx}", "script": script}
+
+
+_LCB_STDIN_SCRIPT = '''\
+import os, subprocess, sys, tempfile
+INPUT = {input_text}
+EXPECTED = {expected_text}
+with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as __f:
+    __f.write(__user_code__)
+    __p = __f.name
+try:
+    __r = subprocess.run(
+        [sys.executable, __p],
+        input=INPUT, capture_output=True, text=True, timeout=8,
+    )
+finally:
+    os.unlink(__p)
+__got = (__r.stdout or "").strip()
+__exp = EXPECTED.strip()
+assert __got == __exp, "got: " + repr(__got)[:200] + " expected: " + repr(__exp)[:200]
+'''
+
+_LCB_FUNCTIONAL_SCRIPT = '''\
+import json
+__inp = json.loads({input_json})
+__exp = json.loads({output_json})
+__sol = Solution()
+__method = getattr(__sol, "{entry_point}")
+__got = __method(*__inp) if isinstance(__inp, list) else __method(__inp)
+assert __got == __exp, "got: " + repr(__got)[:200] + " expected: " + repr(__exp)[:200]
+'''
 
 
 def _parse_iso_date(s: str) -> date:
