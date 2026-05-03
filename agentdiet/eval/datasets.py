@@ -159,8 +159,13 @@ def _lcb_hf_row_to_dict(r: dict) -> dict:
 
 
 def _lcb_decode_test_cases(field) -> list[dict]:
-    """Decode the test_cases field. HF stores it as a JSON string,
-    occasionally as a base64-zlib-compressed pickle for private cases."""
+    """Decode the test_cases field.
+
+    LCB stores public_test_cases as a JSON-encoded string, and
+    private_test_cases as base64(zlib(pickle(<JSON-encoded string>))).
+    Note that the inner pickle payload is itself a JSON string, NOT a
+    list — we have to json.loads it after unpickling.
+    """
     if field is None:
         return []
     if isinstance(field, list):
@@ -168,19 +173,30 @@ def _lcb_decode_test_cases(field) -> list[dict]:
     if not isinstance(field, str) or not field:
         return []
     s = field.strip()
-    # Plain JSON path
+    # Plain JSON path (public test cases)
     try:
         out = json.loads(s)
         if isinstance(out, list):
             return out
+        if isinstance(out, str):
+            inner = json.loads(out)
+            if isinstance(inner, list):
+                return inner
     except Exception:  # noqa: BLE001
         pass
-    # zlib+base64+pickle path (private_test_cases is sometimes encoded this way)
+    # zlib+base64+pickle path (private test cases). Pickle payload is a
+    # JSON string we still need to parse.
     try:
-        import base64, pickle, zlib
+        import base64
+        import pickle
+        import zlib
         data = pickle.loads(zlib.decompress(base64.b64decode(s)))
         if isinstance(data, list):
             return data
+        if isinstance(data, str):
+            inner = json.loads(data)
+            if isinstance(inner, list):
+                return inner
     except Exception:  # noqa: BLE001
         pass
     return []

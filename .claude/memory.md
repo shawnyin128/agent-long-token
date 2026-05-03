@@ -37,3 +37,13 @@ here. Memory holds only in-flight state. -->
   drop_types_produce_fresh_calls (cache-key invariant under
   message-granularity). Undecided whether to fix — RQ0 pipeline
   may be retired entirely under phase-mapping pivot.
+
+- **LCB cell yields 0/40 across all conditions (2026-05-03).**
+  gpt-oss:livecodebench:t0 just landed (commit 63784dd) with
+  SA=V=D=0.000 despite 55k/945k/741k tokens generated. Either the
+  hf_hub_download loader pulled rows whose test_cases decode/templating
+  is wrong, or _extract_code mis-parses gpt-oss's responses, or the
+  SubprocessJudge harness runs the test scripts incorrectly. Need to
+  inspect sa.json + one hidden_test script + raw model response
+  before running any more LCB cells (qwen3 LCB and gpt-oss LCB t1
+  blocked on this triage).
