@@ -12,75 +12,75 @@
       "qid": "abc365_b",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    n = int(data[0])\n    a = list(map(int, data[1:n+1]))\n\n    max_val = -1\n    max_idx = -1\n    second_val = -1\n    second_idx = -1\n\n    for i, val in enumerate(a, start=1):\n        if val > max_val:\n            second_val, second_idx = max_val, max_idx\n            max_val, max_idx = val, i\n        elif val > second_val:\n            second_val, second_idx = val, i\n\n    print(second_idx)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 5814,
       "completion_tokens": 272329,
       "total_tokens": 278143,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 13,
+        "hidden_total": 13
       }
     },
     {
       "qid": "abc365_a",
       "gold": "main",
       "final_answer": "def is_leap_year(year: int) -> bool:\n    \"\"\"Return True if the given year is a leap year in the Gregorian calendar.\"\"\"\n    return year % 400 == 0 or (year % 4 == 0 and year % 100 != 0)\n\n\ndef days_in_year(year: int) -> int:\n    \"\"\"Return the number of days in the given year.\"\"\"\n    return 366 if is_leap_year(year) else 365\n\n\ndef main() -> None:\n    import sys\n\n    data = sys.stdin.read().strip()\n    if not data:\n        return\n\n    try:\n        year = int(data)\n    except ValueError:\n        # Non‑integer input; nothing to output\n        return\n\n    # Optional: validate the year range (not strictly required by the problem)\n    if year < 1583 or year > 2023:\n        # According to constraints this should not happen; we still compute\n        pass\n\n    print(days_in_year(year))\n\n\nif __name__ == \"__main__\":\n    main()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 6765,
       "completion_tokens": 206481,
       "total_tokens": 213246,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 10,
+        "hidden_total": 10
       }
     },
     {
       "qid": "abc365_e",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.buffer.read().split()\n    if not data:\n        return\n    it = iter(data)\n    N = int(next(it))\n    A = [int(next(it)) for _ in range(N)]\n\n    # Prefix XOR array\n    prefix = [0] * (N + 1)\n    for i in range(N):\n        prefix[i + 1] = prefix[i] ^ A[i]\n\n    # Determine the maximum bit needed\n    max_val = max(prefix)\n    max_bit = max(1, max_val.bit_length())\n\n    total = 0\n    for bit in range(max_bit):\n        mask = 1 << bit\n        cnt1 = 0\n        for val in prefix:\n            if val & mask:\n                cnt1 += 1\n        cnt0 = (N + 1) - cnt1\n        total += cnt0 * cnt1 * mask\n\n    ans = total - sum(A)\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 8833,
       "completion_tokens": 366538,
       "total_tokens": 375371,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 20,
+        "hidden_total": 20
       }
     },
     {
       "qid": "abc365_d",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().split()\n    if not data:\n        return\n    N = int(data[0])\n    S = data[1].strip()\n\n    # Map moves to indices: 0->R, 1->P, 2->S\n    idx = {'R': 0, 'P': 1, 'S': 2}\n    # win[i] is the move that beats i\n    win = [1, 2, 0]  # R->P, P->S, S->R\n\n    NEG = -10**9\n    dp_prev = [NEG] * 3\n\n    # Initialize for the first round\n    s0 = idx[S[0]]\n    dp_prev[s0] = 0          # tie\n    dp_prev[win[s0]] = 1     # win\n\n    # Process subsequent rounds\n    for i in range(1, N):\n        s = idx[S[i]]\n        allowed = (s, win[s])\n        dp_cur = [NEG] * 3\n        for m in allowed:\n            add = 1 if m == win[s] else 0\n            # best previous state that is not the same move\n            best = max(dp_prev[prev] for prev in range(3) if prev != m)\n            dp_cur[m] = best + add\n        dp_prev = dp_cur\n\n    print(max(dp_prev))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 8567,
       "completion_tokens": 397076,
       "total_tokens": 405643,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 20,
+        "hidden_total": 20
       }
     },
     {
       "qid": "abc365_c",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.buffer.read().split()\n    if not data:\n        return\n    it = iter(data)\n    n = int(next(it))\n    m = int(next(it))\n    a = [int(next(it)) for _ in range(n)]\n\n    total = sum(a)\n    if total <= m:\n        print(\"infinite\")\n        return\n\n    low, high = 0, max(a)\n    ans = 0\n    while low <= high:\n        mid = (low + high) // 2\n        s = 0\n        for val in a:\n            s += val if val <= mid else mid\n            if s > m:\n                break\n        if s <= m:\n            ans = mid\n            low = mid + 1\n        else:\n            high = mid - 1\n\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 10029,
       "completion_tokens": 237096,
       "total_tokens": 247125,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 20,
+        "hidden_total": 20
       }
     },
     {
@@ -95,7 +95,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 35
       }
     },
     {
@@ -110,7 +110,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 35
       }
     },
     {
@@ -125,7 +125,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 35
       }
     },
     {
@@ -140,7 +140,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 35
       }
     },
     {
@@ -155,7 +155,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 35
       }
     },
     {
@@ -169,8 +169,8 @@
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 5,
+        "hidden_total": 35
       }
     },
     {
@@ -185,97 +185,97 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 35
       }
     },
     {
       "qid": "abc366_f",
       "gold": "main",
       "final_answer": "import sys\nimport functools\n\ndef solve() -> None:\n    data = list(map(int, sys.stdin.buffer.read().split()))\n    it = iter(data)\n    N = next(it)\n    K = next(it)\n    funcs = [(next(it), next(it)) for _ in range(N)]\n\n    # Comparator for sorting by decreasing B/(A-1)\n    def cmp_func(x, y):\n        A1, B1 = x\n        A2, B2 = y\n        left = B1 * (A2 - 1)\n        right = B2 * (A1 - 1)\n        if left > right:\n            return -1\n        elif left < right:\n            return 1\n        else:\n            return 0\n\n    funcs.sort(key=functools.cmp_to_key(cmp_func))\n\n    dp = [-1] * (K + 1)\n    dp[0] = 1\n    for A, B in funcs:\n        for k in range(K - 1, -1, -1):\n            if dp[k] != -1:\n                val = A * dp[k] + B\n                if val > dp[k + 1]:\n                    dp[k + 1] = val\n\n    print(dp[K])\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 6183,
       "completion_tokens": 544393,
       "total_tokens": 550576,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 25,
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc366_b",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().splitlines()\n    if not data:\n        return\n    N = int(data[0])\n    S = data[1:1+N]  # S[0] = S1, ..., S[N-1] = SN\n    M = max(len(s) for s in S)\n\n    out_lines = []\n    for j in range(1, M+1):  # 1-based column index\n        chars = []\n        for r in range(1, N+1):  # 1-based row index\n            i = N - r  # 0-based index of string: S[i] = S_{N-r+1}\n            if j <= len(S[i]):\n                chars.append(S[i][j-1])\n            else:\n                chars.append('*')\n        # Trim trailing '*'\n        last = len(chars) - 1\n        while last >= 0 and chars[last] == '*':\n            last -= 1\n        out_lines.append(''.join(chars[:last+1]))\n\n    sys.stdout.write('\\n'.join(out_lines))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 6784,
       "completion_tokens": 381739,
       "total_tokens": 388523,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc366_e",
       "gold": "main",
       "final_answer": "import sys\n\ndef main() -> None:\n    data = sys.stdin.buffer.read().split()\n    it = iter(data)\n    N = int(next(it))\n    D = int(next(it))\n\n    xs = [0] * N\n    ys = [0] * N\n    for i in range(N):\n        xs[i] = int(next(it))\n        ys[i] = int(next(it))\n\n    # Determine coordinate ranges that can possibly satisfy the condition\n    min_x, max_x = min(xs), max(xs)\n    min_y, max_y = min(ys), max(ys)\n    Lx, Rx = min_x - D, max_x + D\n    Ly, Ry = min_y - D, max_y + D\n\n    # Frequency array for f_x values (0..D)\n    freq_x = [0] * (D + 1)\n\n    # Preprocess x coordinates\n    xs_sorted = sorted(xs)\n    pref_x = [0] * (N + 1)\n    for i in range(N):\n        pref_x[i + 1] = pref_x[i] + xs_sorted[i]\n    total_sum_x = pref_x[N]\n\n    # Initial k and sum_left for x = Lx\n    idx = 0\n    k = 0\n    while idx < N and xs_sorted[idx] <= Lx:\n        k += 1\n        idx += 1\n    sum_left = pref_x[k]\n    sum_right = total_sum_x - sum_left\n    f_x = Lx * k - sum_left + sum_right - Lx * (N - k)\n\n    x = Lx\n    while True:\n        if f_x <= D:\n            freq_x[f_x] += 1\n        if x == Rx:\n            break\n        # Move to next x\n        f_x_next = f_x + 2 * k - N\n        x_next = x + 1\n        while idx < N and xs_sorted[idx] <= x_next:\n            k += 1\n            idx += 1\n        f_x = f_x_next\n        x = x_next\n\n    # Frequency array for f_y values (0..D)\n    freq_y = [0] * (D + 1)\n\n    # Preprocess y coordinates\n    ys_sorted = sorted(ys)\n    pref_y_arr = [0] * (N + 1)\n    for i in range(N):\n        pref_y_arr[i + 1] = pref_y_arr[i] + ys_sorted[i]\n    total_sum_y = pref_y_arr[N]\n\n    idx = 0\n    k = 0\n    while idx < N and ys_sorted[idx] <= Ly:\n        k += 1\n        idx += 1\n    sum_left = pref_y_arr[k]\n    sum_right = total_sum_y - sum_left\n    f_y = Ly * k - sum_left + sum_right - Ly * (N - k)\n\n    y = Ly\n    while True:\n        if f_y <= D:\n            freq_y[f_y] += 1\n        if y == Ry:\n            break\n        f_y_next = f_y + 2 * k - N\n        y_next = y + 1\n        while idx < N and ys_sorted[idx] <= y_next:\n            k += 1\n            idx += 1\n        f_y = f_y_next\n        y = y_next\n\n    # Prefix sums of freq_y for quick queries of \"≤ t\"\n    pref_y_sum = [0] * (D + 1)\n    s = 0\n    for i in range(D + 1):\n        s += freq_y[i]\n        pref_y_sum[i] = s\n\n    # Count pairs (x, y) with f_x + f_y ≤ D\n    ans = 0\n    for a in range(D + 1):\n        if freq_x[a]:\n            ans += freq_x[a] * pref_y_sum[D - a]\n\n    print(ans)\n\nif __name__ == \"__main__\":\n    main()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 5112,
       "completion_tokens": 564611,
       "total_tokens": 569723,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc366_d",
       "gold": "main",
       "final_answer": "import sys\n\ndef main() -> None:\n    data = list(map(int, sys.stdin.buffer.read().split()))\n    it = iter(data)\n    N = next(it)\n    Np = N + 1\n    size = Np * Np * Np\n    pref = [0] * size\n\n    # Build 3‑D prefix sums in a 1‑D array\n    for x in range(1, Np):\n        base_x = x * Np * Np\n        base_x1 = (x - 1) * Np * Np\n        for y in range(1, Np):\n            base_y = y * Np\n            base_y1 = (y - 1) * Np\n            for z in range(1, Np):\n                val = next(it)\n                idx = base_x + base_y + z\n                idx_x1 = base_x1 + base_y + z\n                idx_y1 = base_x + base_y1 + z\n                idx_z1 = base_x + base_y + (z - 1)\n                idx_xy1 = base_x1 + base_y1 + z\n                idx_xz1 = base_x1 + base_y + (z - 1)\n                idx_yz1 = base_x + base_y1 + (z - 1)\n                idx_xyz1 = base_x1 + base_y1 + (z - 1)\n                pref[idx] = (\n                    val\n                    + pref[idx_x1]\n                    + pref[idx_y1]\n                    + pref[idx_z1]\n                    - pref[idx_xy1]\n                    - pref[idx_xz1]\n                    - pref[idx_yz1]\n                    + pref[idx_xyz1]\n                )\n\n    Q = next(it)\n    out_lines = []\n    for _ in range(Q):\n        Lx = next(it); Rx = next(it)\n        Ly = next(it); Ry = next(it)\n        Lz = next(it); Rz = next(it)\n\n        base_Rx = Rx * Np * Np\n        base_Lx1 = (Lx - 1) * Np * Np\n        base_Ry = Ry * Np\n        base_Ly1 = (Ly - 1) * Np\n        base_Rz = Rz\n        base_Lz1 = Lz - 1\n\n        idx_R = base_Rx + base_Ry + base_Rz\n        idx_Lx1_R = base_Lx1 + base_Ry + base_Rz\n        idx_R_Ly1 = base_Rx + base_Ly1 + base_Rz\n        idx_R_Ry_Lz1 = base_Rx + base_Ry + base_Lz1\n        idx_Lx1_Ly1_R = base_Lx1 + base_Ly1 + base_Rz\n        idx_Lx1_R_Lz1 = base_Lx1 + base_Ry + base_Lz1\n        idx_R_Ly1_Lz1 = base_Rx + base_Ly1 + base_Lz1\n        idx_Lx1_Ly1_Lz1 = base_Lx1 + base_Ly1 + base_Lz1\n\n        res = (\n            pref[idx_R]\n            - pref[idx_Lx1_R]\n            - pref[idx_R_Ly1]\n            - pref[idx_R_Ry_Lz1]\n            + pref[idx_Lx1_Ly1_R]\n            + pref[idx_Lx1_R_Lz1]\n            + pref[idx_R_Ly1_Lz1]\n            - pref[idx_Lx1_Ly1_Lz1]\n        )\n        out_lines.append(str(res))\n\n    sys.stdout.write(\"\\n\".join(out_lines))\n\nif __name__ == \"__main__\":\n    main()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 17801,
       "completion_tokens": 183105,
       "total_tokens": 200906,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc366_a",
       "gold": "main",
       "final_answer": "import sys\n\ndef main() -> None:\n    data = sys.stdin.read().strip().split()\n    if len(data) < 3:\n        return\n    try:\n        N, T, A = map(int, data[:3])\n    except ValueError:\n        return\n\n    remaining = N - T - A\n    if remaining < 0:\n        remaining = 0\n\n    if abs(T - A) > remaining:\n        print(\"Yes\")\n    else:\n        print(\"No\")\n\nif __name__ == \"__main__\":\n    main()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 6894,
       "completion_tokens": 147201,
       "total_tokens": 154095,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc366_c",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = list(map(int, sys.stdin.buffer.read().split()))\n    q = data[0]\n    idx = 1\n\n    cnt = {}\n    distinct = 0\n    out = []\n\n    for _ in range(q):\n        t = data[idx]\n        idx += 1\n        if t == 1:          # add a ball\n            x = data[idx]\n            idx += 1\n            c = cnt.get(x, 0)\n            if c == 0:\n                distinct += 1\n            cnt[x] = c + 1\n        elif t == 2:        # remove a ball\n            x = data[idx]\n            idx += 1\n            c = cnt[x]\n            if c == 1:\n                distinct -= 1\n                del cnt[x]\n            else:\n                cnt[x] = c - 1\n        else:               # query distinct count\n            out.append(str(distinct))\n\n    sys.stdout.write(\"\\n\".join(out))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 10860,
       "completion_tokens": 152889,
       "total_tokens": 163749,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
@@ -290,52 +290,52 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc367_e",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = list(map(int, sys.stdin.buffer.read().split()))\n    it = iter(data)\n    N = next(it)\n    K = next(it)\n    X = [next(it) - 1 for _ in range(N)]  # 0‑based indices\n    A = [next(it) for _ in range(N)]\n\n    # M will hold X^K\n    M = list(range(N))\n    base = X[:]  # current power of X\n\n    while K:\n        if K & 1:\n            M = [base[M[i]] for i in range(N)]\n        base = [base[base[i]] for i in range(N)]\n        K >>= 1\n\n    result = [A[M[i]] for i in range(N)]\n    sys.stdout.write(' '.join(map(str, result)))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 8016,
       "completion_tokens": 349854,
       "total_tokens": 357870,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 25,
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc367_f",
       "gold": "main",
       "final_answer": "import sys\n\ndef splitmix64(x: int) -> int:\n    \"\"\"Deterministic 64‑bit hash based on splitmix64.\"\"\"\n    x = (x + 0x9e3779b97f4a7c15) & 0xFFFFFFFFFFFFFFFF\n    z = x\n    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9 & 0xFFFFFFFFFFFFFFFF\n    z = (z ^ (z >> 27)) * 0x94d049bb133111eb & 0xFFFFFFFFFFFFFFFF\n    return z ^ (z >> 31)\n\ndef solve() -> None:\n    data = list(map(int, sys.stdin.buffer.read().split()))\n    it = iter(data)\n    N = next(it)\n    Q = next(it)\n\n    A = [next(it) for _ in range(N)]\n    B = [next(it) for _ in range(N)]\n\n    prefA1 = [0] * (N + 1)\n    prefA2 = [0] * (N + 1)\n    prefB1 = [0] * (N + 1)\n    prefB2 = [0] * (N + 1)\n\n    OFFSET = 0x9e3779b97f4a7c15  # constant to generate a second independent hash\n\n    for i in range(1, N + 1):\n        valA = A[i - 1]\n        valB = B[i - 1]\n        r1A = splitmix64(valA)\n        r2A = splitmix64(valA + OFFSET)\n        r1B = splitmix64(valB)\n        r2B = splitmix64(valB + OFFSET)\n\n        prefA1[i] = prefA1[i - 1] + r1A\n        prefA2[i] = prefA2[i - 1] + r2A\n        prefB1[i] = prefB1[i - 1] + r1B\n        prefB2[i] = prefB2[i - 1] + r2B\n\n    out_lines = []\n    for _ in range(Q):\n        l = next(it)\n        r = next(it)\n        L = next(it)\n        R = next(it)\n\n        sumA1 = prefA1[r] - prefA1[l - 1]\n        sumA2 = prefA2[r] - prefA2[l - 1]\n        sumB1 = prefB1[R] - prefB1[L - 1]\n        sumB2 = prefB2[R] - prefB2[L - 1]\n\n        out_lines.append(\"Yes\" if sumA1 == sumB1 and sumA2 == sumB2 else \"No\")\n\n    sys.stdout.write(\"\\n\".join(out_lines))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 10136,
       "completion_tokens": 282981,
       "total_tokens": 293117,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 25,
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc367_a",
       "gold": "main",
       "final_answer": "import sys\n\ndef main() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    A, B, C = map(int, data)\n\n    # Distance from B to A and from B to C modulo 24\n    dA = (A - B) % 24\n    dC = (C - B) % 24\n\n    # If A is inside the sleeping interval, answer is No\n    print(\"No\" if dA < dC else \"Yes\")\n\nif __name__ == \"__main__\":\n    main()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 6973,
       "completion_tokens": 268601,
       "total_tokens": 275574,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 11,
+        "hidden_total": 11
       }
     },
     {
@@ -350,22 +350,22 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc367_b",
       "gold": "main",
       "final_answer": "import sys\n\ndef main() -> None:\n    s = sys.stdin.readline().strip()\n    if not s:\n        return\n    if '.' not in s:\n        print(s)\n        return\n    int_part, frac_part = s.split('.', 1)\n    frac_part = frac_part.rstrip('0')\n    if frac_part:\n        print(f\"{int_part}.{frac_part}\")\n    else:\n        print(int_part)\n\nif __name__ == \"__main__\":\n    main()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 5644,
       "completion_tokens": 284345,
       "total_tokens": 289989,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
@@ -380,22 +380,22 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc367_c",
       "gold": "main",
       "final_answer": "import sys\nimport itertools\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    N = int(next(it))\n    K = int(next(it))\n    R = [int(next(it)) for _ in range(N)]\n\n    ranges = [range(1, r + 1) for r in R]\n    out = sys.stdout\n\n    for seq in itertools.product(*ranges):\n        if sum(seq) % K == 0:\n            out.write(' '.join(map(str, seq)) + '\\n')\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 11071,
       "completion_tokens": 217951,
       "total_tokens": 229022,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
@@ -410,37 +410,37 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc368_a",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    N = int(next(it))\n    K = int(next(it))\n    A = [int(next(it)) for _ in range(N)]\n    # Rotate: move the last K elements to the front\n    B = A[N - K:] + A[:N - K]\n    sys.stdout.write(' '.join(map(str, B)))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 7165,
       "completion_tokens": 84975,
       "total_tokens": 92140,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 8,
+        "hidden_total": 8
       }
     },
     {
       "qid": "abc368_b",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    n = int(next(it))\n    a = [int(next(it)) for _ in range(n)]\n    total = sum(a)\n    mx = max(a)\n    ans = min(total // 2, total - mx)\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 6193,
       "completion_tokens": 346195,
       "total_tokens": 352388,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 13,
+        "hidden_total": 13
       }
     },
     {
@@ -455,7 +455,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 18
       }
     },
     {
@@ -470,22 +470,22 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc368_d",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = list(map(int, sys.stdin.buffer.read().split()))\n    it = iter(data)\n    N = next(it)\n    K = next(it)\n\n    adj = [[] for _ in range(N + 1)]\n    for _ in range(N - 1):\n        a = next(it)\n        b = next(it)\n        adj[a].append(b)\n        adj[b].append(a)\n\n    is_spec = [False] * (N + 1)\n    for _ in range(K):\n        v = next(it)\n        is_spec[v] = True\n\n    total_spec = K\n    parent = [0] * (N + 1)\n    order = []\n\n    # Iterative DFS to establish parent and traversal order\n    stack = [1]\n    parent[1] = -1\n    while stack:\n        v = stack.pop()\n        order.append(v)\n        for to in adj[v]:\n            if to == parent[v]:\n                continue\n            parent[to] = v\n            stack.append(to)\n\n    sub_count = [0] * (N + 1)\n    included_edges = 0\n\n    # Process nodes in reverse order (post‑order) to compute subtree sizes\n    for v in reversed(order):\n        cnt = 1 if is_spec[v] else 0\n        for to in adj[v]:\n            if to == parent[v]:\n                continue\n            cnt += sub_count[to]\n            if sub_count[to] > 0 and total_spec - sub_count[to] > 0:\n                included_edges += 1\n        sub_count[v] = cnt\n\n    print(included_edges + 1)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 7027,
       "completion_tokens": 449383,
       "total_tokens": 456410,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 25,
+        "hidden_total": 25
       }
     },
     {
@@ -500,22 +500,22 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc369_d",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.buffer.read().split()\n    if not data:\n        return\n    it = iter(data)\n    n = int(next(it))\n    dp_even, dp_odd = 0, -10**18  # dp_odd is initially impossible\n\n    for _ in range(n):\n        a = int(next(it))\n        new_even = dp_even\n        val_from_odd = dp_odd + 2 * a\n        if val_from_odd > new_even:\n            new_even = val_from_odd\n\n        new_odd = dp_odd\n        val_from_even = dp_even + a\n        if val_from_even > new_odd:\n            new_odd = val_from_even\n\n        dp_even, dp_odd = new_even, new_odd\n\n    print(dp_even if dp_even > dp_odd else dp_odd)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 10313,
       "completion_tokens": 231839,
       "total_tokens": 242152,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 25,
+        "hidden_total": 25
       }
     },
     {
@@ -530,52 +530,52 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 25
       }
     },
     {
       "qid": "abc369_c",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.buffer.read().split()\n    if not data:\n        return\n    it = iter(data)\n    n = int(next(it))\n    a = [int(next(it)) for _ in range(n)]\n\n    # Every single element subarray is arithmetic\n    ans = n\n    if n <= 1:\n        print(ans)\n        return\n\n    # Scan the difference array implicitly\n    run = 1  # length of current equal‑difference run\n    prev_diff = a[1] - a[0]\n\n    for i in range(2, n):\n        diff = a[i] - a[i - 1]\n        if diff == prev_diff:\n            run += 1\n        else:\n            ans += run * (run + 1) // 2\n            run = 1\n            prev_diff = diff\n\n    # Add the last run\n    ans += run * (run + 1) // 2\n    print(ans)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 9119,
       "completion_tokens": 271159,
       "total_tokens": 280278,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 18,
+        "hidden_total": 18
       }
     },
     {
       "qid": "abc369_a",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    A, B = map(int, data[:2])\n\n    xs = set()\n    if (A + B) % 2 == 0:\n        xs.add((A + B) // 2)\n    xs.add(2 * A - B)\n    xs.add(2 * B - A)\n\n    print(len(xs))\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 5843,
       "completion_tokens": 336474,
       "total_tokens": 342317,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 9,
+        "hidden_total": 9
       }
     },
     {
       "qid": "abc369_b",
       "gold": "main",
       "final_answer": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().split()\n    if not data:\n        return\n    it = iter(data)\n    N = int(next(it))\n    last_left = None\n    last_right = None\n    total = 0\n    for _ in range(N):\n        a = int(next(it))\n        s = next(it)\n        if s == 'L':\n            if last_left is not None:\n                total += abs(a - last_left)\n            last_left = a\n        else:  # 'R'\n            if last_right is not None:\n                total += abs(a - last_right)\n            last_right = a\n    print(total)\n\nif __name__ == \"__main__\":\n    solve()",
-      "correct": false,
+      "correct": true,
       "prompt_tokens": 8083,
       "completion_tokens": 355068,
       "total_tokens": 363151,
       "meta": {
         "n_agents": 3,
         "n_rounds": 3,
-        "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_pass": 17,
+        "hidden_total": 17
       }
     },
     {
@@ -590,7 +590,7 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 25
       }
     },
     {
@@ -605,12 +605,12 @@
         "n_agents": 3,
         "n_rounds": 3,
         "hidden_pass": 0,
-        "hidden_total": 0
+        "hidden_total": 2
       }
     }
   ],
   "n_evaluated": 40,
-  "accuracy": 0.0,
+  "accuracy": 0.575,
   "total_tokens": 15030895,
   "meta": {}
 }
