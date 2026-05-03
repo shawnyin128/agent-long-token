@@ -182,8 +182,11 @@ def main(argv: Optional[list[str]] = None) -> int:
                         type=Path,
                         help="Path to artifacts/grid/<cell>/ subtree. "
                              "May be passed multiple times.")
-    parser.add_argument("--timeout-s", type=float, default=8.0,
-                        help="Per-test timeout (default 8s)")
+    parser.add_argument("--timeout-s", type=float, default=30.0,
+                        help="Outer per-test wall-clock timeout (default 30s). "
+                             "Must exceed the inner LCB stdin-subprocess "
+                             "timeout (8s) by enough margin to avoid the "
+                             "outer racing the inner.")
     parser.add_argument("--max-workers", type=int, default=4,
                         help="Concurrent test executions (default 4)")
     args = parser.parse_args(argv)

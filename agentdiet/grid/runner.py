@@ -202,7 +202,7 @@ def _extract_code(response: str) -> str:
 
 
 def _judge_correct(
-    judge: Judge, code: str, hidden_tests: list[TestCase], timeout_s: float = 10.0,
+    judge: Judge, code: str, hidden_tests: list[TestCase], timeout_s: float = 30.0,
 ) -> tuple[bool, JudgeResult]:
     if not hidden_tests:
         # No hidden tests means we can't grade objectively.
