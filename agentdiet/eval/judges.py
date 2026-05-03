@@ -90,6 +90,15 @@ class SubprocessJudge:
                 f.write(harness)
             env = self._sandbox_env()
             try:
+                # stdin=DEVNULL: when harness pre-execs user_code, an
+                # `if __name__ == "__main__": main()` block can call
+                # input()/sys.stdin.read() during pre-exec (LCB stdin
+                # solutions all do this). With an inherited terminal
+                # stdin those reads block until the outer 8s timeout
+                # kills the harness, faking a 0/N test result. DEVNULL
+                # makes those reads return EOF immediately; the
+                # test_script that grades stdin-style tests creates its
+                # own subprocess with the real test input piped in.
                 result = subprocess.run(
                     [self._python, harness_path],
                     cwd=td,
@@ -97,6 +106,7 @@ class SubprocessJudge:
                     capture_output=True,
                     text=True,
                     timeout=timeout_s,
+                    stdin=subprocess.DEVNULL,
                 )
             except subprocess.TimeoutExpired:
                 return False, f"timeout after {timeout_s}s"
