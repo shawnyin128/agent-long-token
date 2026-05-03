@@ -79,12 +79,19 @@ class SubprocessJudge:
     def _run_one(
         self, code: str, script: str, timeout_s: float
     ) -> tuple[bool, str | None]:
+        # We can't pass `harness` through `python -c` because LCB stress
+        # tests can have multi-hundred-KB stdin payloads baked into the
+        # test script, blowing past argv limits (E2BIG). Write harness
+        # to a file inside the sandbox tmpdir and exec it instead.
         harness = SUBPROCESS_HARNESS.format(code=code, script=script)
         with tempfile.TemporaryDirectory() as td:
+            harness_path = os.path.join(td, "_harness.py")
+            with open(harness_path, "w", encoding="utf-8") as f:
+                f.write(harness)
             env = self._sandbox_env()
             try:
                 result = subprocess.run(
-                    [self._python, "-c", harness],
+                    [self._python, harness_path],
                     cwd=td,
                     env=env,
                     capture_output=True,
