@@ -1,0 +1,898 @@
+{
+  "condition": "voting",
+  "cell": {
+    "model": "Qwen/Qwen3-30B-A3B",
+    "model_family": "qwen3",
+    "dataset_name": "aime",
+    "thinking": true,
+    "prompt_variant": "cooperative"
+  },
+  "questions": [
+    {
+      "qid": "aime-2026-q00",
+      "gold": "277",
+      "final_answer": "277",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 26739,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "277",
+          "277",
+          "277",
+          "277",
+          "277",
+          "277",
+          "277",
+          "277"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q01",
+      "gold": "62",
+      "final_answer": "62",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 76942,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "62",
+          "62",
+          "62",
+          "56",
+          "62",
+          "62",
+          "62",
+          "62"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q02",
+      "gold": "79",
+      "final_answer": "79",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 52453,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "79",
+          "79",
+          "79",
+          "79",
+          "79",
+          "79",
+          "79",
+          "79"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q03",
+      "gold": "70",
+      "final_answer": "70",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 79375,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "3.5",
+          "70",
+          "70",
+          "70",
+          "70",
+          "70",
+          "70",
+          "70"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q04",
+      "gold": "65",
+      "final_answer": "65",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 37605,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "65",
+          "65",
+          "65",
+          "65",
+          "65",
+          "65",
+          "65",
+          "65"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q05",
+      "gold": "441",
+      "final_answer": "441",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 52015,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "441",
+          "441",
+          "441",
+          "441",
+          "441",
+          "441",
+          "441",
+          "441"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q06",
+      "gold": "396",
+      "final_answer": "396",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 57569,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "396",
+          "396",
+          "1",
+          "396",
+          "396",
+          "396",
+          "396",
+          "396"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q07",
+      "gold": "244",
+      "final_answer": "244",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 64228,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "244",
+          "2",
+          "244",
+          "244",
+          "244",
+          "244",
+          "244",
+          "244"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q08",
+      "gold": "29",
+      "final_answer": "29",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 150034,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "29",
+          "8",
+          "23",
+          "27",
+          "29",
+          "187",
+          "6",
+          "33"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q09",
+      "gold": "156",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 148353,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "103",
+          "103",
+          "103",
+          "156",
+          "103",
+          "156",
+          "156",
+          "156"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q10",
+      "gold": "896",
+      "final_answer": "896",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 116238,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "584",
+          "896",
+          "936",
+          "536",
+          "896",
+          "888",
+          "896",
+          "896"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q11",
+      "gold": "161",
+      "final_answer": "161",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 92284,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "161",
+          "161",
+          "161",
+          "161",
+          "161",
+          "161",
+          "161",
+          "161"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q12",
+      "gold": "39",
+      "final_answer": "39",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 119384,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "39",
+          "39",
+          null,
+          "39",
+          null,
+          "39",
+          null,
+          "39"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q13",
+      "gold": "681",
+      "final_answer": "308",
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 366053,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          null,
+          "681",
+          "281",
+          "1",
+          "308",
+          "1540",
+          "308",
+          "308"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q14",
+      "gold": "83",
+      "final_answer": "1",
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 119679,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "30",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q15",
+      "gold": "178",
+      "final_answer": "178",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 36950,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "178",
+          "178",
+          "178",
+          "178",
+          "178",
+          "178",
+          "178",
+          "178"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q16",
+      "gold": "243",
+      "final_answer": "243",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 167830,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "12",
+          "243",
+          "243",
+          "243",
+          "32",
+          "243",
+          "243",
+          "243"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q17",
+      "gold": "503",
+      "final_answer": "503",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 151748,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "503",
+          null,
+          "2",
+          "503",
+          "997",
+          "503",
+          "540",
+          "503"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q18",
+      "gold": "279",
+      "final_answer": "279",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 88818,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "279",
+          "279",
+          "279",
+          "279",
+          "279",
+          "279",
+          "279",
+          "279"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q19",
+      "gold": "190",
+      "final_answer": "190",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 55441,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "190",
+          "190",
+          "190",
+          "190",
+          "190",
+          "190",
+          "190",
+          "190"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q20",
+      "gold": "50",
+      "final_answer": "50",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 73556,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "50",
+          "50",
+          "50",
+          "50",
+          "50",
+          "50",
+          "50",
+          "50"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q21",
+      "gold": "754",
+      "final_answer": "754",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 107600,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "754",
+          "754",
+          "754",
+          "754",
+          "754",
+          "754",
+          "754",
+          "754"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q22",
+      "gold": "245",
+      "final_answer": "245",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 134781,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "245",
+          "245",
+          "245",
+          "245",
+          "245",
+          "245",
+          "245",
+          "245"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q23",
+      "gold": "669",
+      "final_answer": "669",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 93335,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "669",
+          "669",
+          "669",
+          "669",
+          "669",
+          "669",
+          "669",
+          "669"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q24",
+      "gold": "850",
+      "final_answer": "850",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 103726,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "850",
+          "850",
+          "850",
+          "850",
+          "850",
+          "850",
+          "850",
+          "850"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q25",
+      "gold": "132",
+      "final_answer": "132",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 162185,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "132",
+          "132",
+          "132",
+          "132",
+          "132",
+          "132",
+          "396",
+          "132"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q26",
+      "gold": "223",
+      "final_answer": "5",
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 274583,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "5",
+          "223",
+          "5",
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q27",
+      "gold": "107",
+      "final_answer": "107",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 155754,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "107",
+          "107",
+          "107",
+          "107",
+          "12",
+          "107",
+          "12",
+          "12"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q28",
+      "gold": "157",
+      "final_answer": "3",
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 233288,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "292",
+          "3",
+          "12",
+          "157",
+          "15",
+          "6",
+          "3",
+          "16"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2026-q29",
+      "gold": "393",
+      "final_answer": "243",
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 117987,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "243",
+          "243",
+          "243",
+          "243",
+          "243",
+          "243",
+          "81",
+          "243"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q00",
+      "gold": "70",
+      "final_answer": "70",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 35068,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "70",
+          "70",
+          "70",
+          "70",
+          "70",
+          "70",
+          "70",
+          "70"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q01",
+      "gold": "588",
+      "final_answer": "588",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 120551,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "588",
+          "588",
+          null,
+          null,
+          "588",
+          "588",
+          "588",
+          "540"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q02",
+      "gold": "16",
+      "final_answer": null,
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 97252,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "3",
+          "16",
+          "16",
+          "16",
+          "16",
+          "3",
+          "3",
+          "3"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q03",
+      "gold": "117",
+      "final_answer": "117",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 68113,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "117",
+          "117",
+          "117",
+          "117",
+          "117",
+          "117",
+          "117",
+          "117"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q04",
+      "gold": "279",
+      "final_answer": "279",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 102829,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "279",
+          "279",
+          "279",
+          "279",
+          "279",
+          "279",
+          "279",
+          "2.2"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q05",
+      "gold": "504",
+      "final_answer": "504",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 31474,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "504",
+          "504",
+          "504",
+          "504",
+          "504",
+          "504",
+          "504",
+          "504"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q06",
+      "gold": "821",
+      "final_answer": "821",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 128738,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "271",
+          "821",
+          "821",
+          "2",
+          "5",
+          "821",
+          "271",
+          "821"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q07",
+      "gold": "77",
+      "final_answer": "77",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 69547,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "2",
+          "77",
+          "77",
+          "77",
+          "77",
+          "25",
+          "77",
+          "77"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q08",
+      "gold": "62",
+      "final_answer": "62",
+      "correct": true,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 193889,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          null,
+          "50",
+          "62",
+          "62",
+          "62",
+          "62",
+          "50",
+          "62"
+        ]
+      }
+    },
+    {
+      "qid": "aime-2025-q09",
+      "gold": "81",
+      "final_answer": "66",
+      "correct": false,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 168531,
+      "meta": {
+        "n_samples": 8,
+        "parsed_answers": [
+          "81",
+          "81",
+          "9",
+          "3",
+          "66",
+          "95",
+          "66",
+          "66"
+        ]
+      }
+    }
+  ],
+  "n_evaluated": 40,
+  "accuracy": 0.8,
+  "total_tokens": 4532525,
+  "meta": {
+    "n_samples": 8
+  }
+}
